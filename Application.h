@@ -13,10 +13,10 @@ public:
 
 private:
 	bool CreateMainWindow(HINSTANCE hInstance, int nCmdShow);
+	bool ProcessMessages();
 
 private:
 	HWND hwnd_ = nullptr;
-	bool running_ = true;
 
 	static constexpr int kWInodwWidth = 1280;
 	static constexpr int kWindowHeight = 720;
