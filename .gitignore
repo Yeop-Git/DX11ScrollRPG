@@ -1,0 +1,58 @@
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+Debug/
+Release/
+x64/
+x86/
+bin/
+obj/
+
+# Per-project build directories
+[Bb]uild/
+[Bb]uilds/
+
+# Visual C++ intermediate files
+*.obj
+*.pch
+*.pdb
+*.idb
+*.ilk
+*.ipch
+*.tlog
+*.lastbuildstate
+*.log
+*.tmp
+
+# Executables / libraries
+*.exe
+*.dll
+*.lib
+*.exp
+
+# VS database/cache
+*.VC.db
+*.VC.opendb
+*.opendb
+*.db
+
+# CMake (혹시 나중에 사용할 경우)
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+out/
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# OS / editor misc
+.DS_Store
+*.swp
+*.bak
