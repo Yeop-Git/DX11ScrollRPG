@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="DX11ScrollRPG.vcxproj" Id="d7034cd3-6b2f-460a-9738-c532d1a6af7f" />
+</Solution>
