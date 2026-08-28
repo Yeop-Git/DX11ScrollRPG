@@ -1,7 +1,11 @@
 #include "Application.h"
 
+// HLSL 컴파일러
+#include <d3dcompiler.h>
+
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "d3dcompiler.lib")
 
 // 정점 structure
 struct Vertex
@@ -30,20 +34,13 @@ namespace
 
 bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 {
-	if (!CreateMainWindow(hInstance, nCmdShow))
-	{
-		return false;
-	}
+	if (!CreateMainWindow(hInstance, nCmdShow)) return false;
 
-	if (!InitializeDirectX())
-	{
-		return false;
-	}
+	if (!InitializeDirectX()) return false;
 
-	if (!CreateGeometry())
-	{
-		return false;
-	}
+	if (!CreateGeometry()) return false;
+
+	if (!CreateShaders()) return false;
 
 	return true;
 }
@@ -174,7 +171,22 @@ bool Application::InitializeDirectX()
 	hr = device_->CreateRenderTargetView(backBuffer.Get(), nullptr, renderTargetView_.GetAddressOf());
 	if (FAILED(hr)) return false;
 
+	// RenderTarget 연결
 	context_->OMSetRenderTargets(1, renderTargetView_.GetAddressOf(), nullptr);
+
+	// Viewport 생성
+	D3D11_VIEWPORT viewport{};
+
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+
+	viewport.Width = static_cast<float>(kWindowWidth);
+	viewport.Height = static_cast<float>(kWindowHeight);
+
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+
+	context_->RSSetViewports(1, &viewport);
 
 	return true;
 }
@@ -205,7 +217,7 @@ bool Application::CreateGeometry()
 	if (FAILED(hr)) return false;
 
 	// 사각형 index 데이터, 삼각형 2개로 구성
-	unsigned int indices[] = { 0, 1, 2, 2, 1, 3 }; // index를 사용하여 중복되는 vertex를 재사용.
+	unsigned int indices[] = { 0, 2, 1, 0, 3, 2 }; // index를 사용하여 중복되는 vertex를 재사용.
 
 	bufferDesc.ByteWidth = sizeof(indices);
 	bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
@@ -213,6 +225,79 @@ bool Application::CreateGeometry()
 	initData.pSysMem = indices;
 
 	hr = device_->CreateBuffer(&bufferDesc, &initData, indexBuffer_.GetAddressOf());
+
+	return SUCCEEDED(hr);
+}
+
+bool Application::CreateShaders()
+{
+	ComPtr<ID3DBlob> vertexShaderBlob; // 컴파일 결과는 ID3DBlob라는 바이너리 덩어리로 나옴
+	ComPtr<ID3DBlob> pixelShaderBlob; // hlsl -> compile -> Shader Bytecode -> ID3DBlob
+
+	// Vertex Shader 컴파일
+	HRESULT hr = D3DCompileFromFile(
+		L"Shaders/BasicVs.hlsl",
+		nullptr,
+		nullptr,
+		"main", // entry point
+		"vs_5_0", // model version
+		0,
+		0,
+		vertexShaderBlob.GetAddressOf(),
+		nullptr
+	);
+
+	if (FAILED(hr)) return false;
+
+	// Pixel Shader 컴파일
+	hr = D3DCompileFromFile(
+		L"Shaders/BasicPS.hlsl",
+		nullptr,
+		nullptr,
+		"main", // entry point
+		"ps_5_0", // model version
+		0,
+		0,
+		pixelShaderBlob.GetAddressOf(),
+		nullptr
+	);
+
+	if (FAILED(hr)) return false;
+
+	// Device에 VertexShader 생성 요청 (Context)
+	hr = device_->CreateVertexShader(
+		vertexShaderBlob->GetBufferPointer(),
+		vertexShaderBlob->GetBufferSize(),
+		nullptr,
+		vertexShader_.GetAddressOf()
+	);
+
+	if (FAILED(hr)) return false;
+
+	// Device에 Pixel Shader 생성 요청 (Context)
+	hr = device_->CreatePixelShader(
+		pixelShaderBlob->GetBufferPointer(),
+		pixelShaderBlob->GetBufferSize(),
+		nullptr,
+		pixelShader_.GetAddressOf()
+	);
+
+	if (FAILED(hr)) return false;
+
+	// Input Layout
+	D3D11_INPUT_ELEMENT_DESC inputElements[] =
+	{
+		{"POSITION",0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+	};
+
+	hr = device_->CreateInputLayout(
+		inputElements,
+		2,
+		vertexShaderBlob->GetBufferPointer(),
+		vertexShaderBlob->GetBufferSize(),
+		inputLayout_.GetAddressOf()
+	);
 
 	return SUCCEEDED(hr);
 }
@@ -240,7 +325,35 @@ void Application::Update()
 
 void Application::Render()
 {
+	// BackBuffer를 남청색으로 초기화
+	context_->OMSetRenderTargets(1, renderTargetView_.GetAddressOf(), nullptr);
 	const float clearColor[4] = { 0.1f, 0.15f, 0.25f, 1.0f };
 	context_->ClearRenderTargetView(renderTargetView_.Get(), clearColor);
+
+	// Input Assembler 설정
+
+	UINT stride = sizeof(Vertex); // 다음 vertex 값을 읽기 위해서 이동하는 byte 수, 즉 sizeof(Vertex)
+	UINT offset = 0;
+
+	// Vertex Buffer 연결
+	context_->IASetVertexBuffers(0, 1, vertexBuffer_.GetAddressOf(), &stride, &offset);
+
+	// Index Buffer 연결
+	context_->IASetIndexBuffer(indexBuffer_.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+	// Vertex 구조
+	context_->IASetInputLayout(inputLayout_.Get());
+
+	// Index 3개마다 하나의 Triangle로
+	context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	
+	// Shader 설정
+	context_->VSSetShader(vertexShader_.Get(), nullptr, 0);
+	context_->PSSetShader(pixelShader_.Get(), nullptr, 0);
+
+	// Draw
+	context_->DrawIndexed(6, 0, 0);
+
+	// BackBuffer 출력
 	swapChain_->Present(1, 0);
 }

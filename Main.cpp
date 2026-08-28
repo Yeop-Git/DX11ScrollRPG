@@ -1,7 +1,7 @@
 #include <Windows.h>
 #include "Engine/Core/Application.h"
 
-//진입점
+//entry point
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
 {
 	// 프로그램 전체 담당 Application 객체

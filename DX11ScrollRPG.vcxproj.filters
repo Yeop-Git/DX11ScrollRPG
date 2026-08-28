@@ -25,6 +25,9 @@
     <Filter Include="헤더 파일\Engine\Core">
       <UniqueIdentifier>{55def0bb-803f-416e-9500-92c389018ceb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="소스 파일\Shaders">
+      <UniqueIdentifier>{225ffcf4-93f1-42c4-9675-579cc4be421d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -38,5 +41,13 @@
     <ClInclude Include="Engine\Core\Application.h">
       <Filter>헤더 파일\Engine\Core</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\BasicVS.hlsl">
+      <Filter>소스 파일\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BasicPS.hlsl">
+      <Filter>소스 파일\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

@@ -4,6 +4,8 @@
 #include <d3d11.h>
 #include <wrl/client.h>
 
+using namespace Microsoft::WRL;
+
 class Application
 {
 public:
@@ -16,9 +18,12 @@ public:
 private:
 	bool CreateMainWindow(HINSTANCE hInstance, int nCmdShow);
 	bool InitializeDirectX();
+
 	bool CreateGeometry();
+	bool CreateShaders();
 
 	bool ProcessMessages();
+
 	void Update();
 	void Render();
 
@@ -32,12 +37,17 @@ private:
 
 	// DirectX 핵심 객체
 	// ComPtr : 스마트 포인터, 참조 카운트 기반 COM 객체 관리(RAII)
-	Microsoft::WRL::ComPtr<ID3D11Device> device_;
-	Microsoft::WRL::ComPtr<ID3D11DeviceContext> context_;
-	Microsoft::WRL::ComPtr<IDXGISwapChain> swapChain_;
-	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView_;
+	ComPtr<ID3D11Device> device_;
+	ComPtr<ID3D11DeviceContext> context_;
+	ComPtr<IDXGISwapChain> swapChain_;
+	ComPtr<ID3D11RenderTargetView> renderTargetView_;
 
 	// GPU에 저장되는 geometry 데이터
-	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer_;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer_;
+	ComPtr<ID3D11Buffer> vertexBuffer_;
+	ComPtr<ID3D11Buffer> indexBuffer_;
+
+	//Shaders
+	ComPtr<ID3D11VertexShader> vertexShader_;
+	ComPtr<ID3D11PixelShader> pixelShader_;
+	ComPtr<ID3D11InputLayout> inputLayout_;
 };
