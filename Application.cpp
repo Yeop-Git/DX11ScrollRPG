@@ -3,6 +3,14 @@
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
 
+// 정점 structure
+struct Vertex
+{
+	float x, y, z;
+	float r, g, b, a;
+};
+
+// Windows -> Message Queue -> WindowProc
 namespace
 {
 	LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -10,6 +18,7 @@ namespace
 		switch (message)
 		{
 		case WM_DESTROY:
+			//창 닫기
 			PostQuitMessage(0);
 			return 0;
 		}
@@ -25,8 +34,13 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 	{
 		return false;
 	}
-		
+
 	if (!InitializeDirectX())
+	{
+		return false;
+	}
+
+	if (!CreateGeometry())
 	{
 		return false;
 	}
@@ -34,13 +48,17 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 	return true;
 }
 
+// Game Loop
 int Application::Run()
 {
 	MSG message{};
 
-	while (ProcessMessages())
+	//반복
+	while (ProcessMessages()) // 메시지 처리
 	{
+		//게임 상태 갱신
 		Update();
+		//화면 그리기
 		Render();
 	}
 
@@ -50,23 +68,38 @@ int Application::Run()
 
 bool Application::CreateMainWindow(HINSTANCE hInstance, int nCmdShow)
 {
+	// Windows에 등록할 클래스 이름
 	const wchar_t* className = L"DX11ScrollRPGWindowClass";
 
+	// 초기화
 	WNDCLASS windowClass{};
+
+	// Windows가 메세지 전달할 함수 지정
 	windowClass.lpfnWndProc = WindowProc;
+
+	// 현재 실행 프로그램 인스턴스 핸들
 	windowClass.hInstance = hInstance;
+
+	// Window 클래스 이름
 	windowClass.lpszClassName = className;
+
+	// 기본 마우스 커서
 	windowClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
 
+	// Windows에 해당 windowClass를 등록
 	if (!RegisterClass(&windowClass))
 	{
 		return false;
 	}
 
-	RECT windowRect{ 0, 0, kWInodwWidth, kWindowHeight };
+	// kWindowWidth * kWindowHight 창
+	RECT windowRect{ 0, 0, kWindowWidth, kWindowHeight };
 
+	// 실제 원하는 게임 화면 크기와 동일하게 windowRect를 조정 
+	// (title bar, border 등을 고려)
 	AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
 
+	// 실제 창 생성
 	hwnd_ = CreateWindowEx(
 		0,
 		className,
@@ -94,22 +127,26 @@ bool Application::CreateMainWindow(HINSTANCE hInstance, int nCmdShow)
 
 bool Application::InitializeDirectX()
 {
+	// SwapChain 설정값
 	DXGI_SWAP_CHAIN_DESC desc{};
 
-	desc.BufferDesc.Width = kWInodwWidth;
+	desc.BufferDesc.Width = kWindowWidth;
 	desc.BufferDesc.Height = kWindowHeight;
+	// Format : 색상 표현 방식
 	desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	desc.SampleDesc.Count = 1;
 
 	desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	// 화면 버퍼 두개 사용 : 그리기 & 화면 출력
 	desc.BufferCount = 2;
 
 	desc.OutputWindow = hwnd_;
 	desc.Windowed = TRUE;
 	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
-	HRESULT hr = D3D11CreateDeviceAndSwapChain(
+	// Direct X 핵심 개체 생성
+	HRESULT hr = D3D11CreateDeviceAndSwapChain( // Device, DeviceContext, SwapChain 한번에 생성하는 함수
 		nullptr,
 		D3D_DRIVER_TYPE_HARDWARE,
 		nullptr,
@@ -122,18 +159,19 @@ bool Application::InitializeDirectX()
 		device_.GetAddressOf(),
 		nullptr,
 		context_.GetAddressOf()
-	);
+	); // Device : 리소스 생성, DeviceContext : GPU에 명령, SwapChain : 화면 버퍼 관리 (출력)
 
+	// HRESULT : Windows API 성공/실패 여부 반환
 	if (FAILED(hr)) return false;
 
-	Microsoft::WRL::ComPtr<ID3D11Texture2D> backBuffer;
+	// BackBuffer 가져오기
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> backBuffer; // 화면 자체도 하나의 2D Texture인 것.
 
 	hr = swapChain_->GetBuffer(0, IID_PPV_ARGS(backBuffer.GetAddressOf()));
-
 	if (FAILED(hr)) return false;
 
+	// RenderTargetView 생성, 같은 리소스도 다른 용도로 사용 가능.
 	hr = device_->CreateRenderTargetView(backBuffer.Get(), nullptr, renderTargetView_.GetAddressOf());
-
 	if (FAILED(hr)) return false;
 
 	context_->OMSetRenderTargets(1, renderTargetView_.GetAddressOf(), nullptr);
@@ -141,9 +179,48 @@ bool Application::InitializeDirectX()
 	return true;
 }
 
+bool Application::CreateGeometry()
+{
+	// 사각형 vertex 데이터
+	Vertex vertices[] =
+	{
+		{ -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f },
+		{ 0.5f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f },
+		{ -0.5f,  0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f }
+	};
+
+	// vertex 버퍼 생성
+	D3D11_BUFFER_DESC bufferDesc{};
+	bufferDesc.ByteWidth = sizeof(vertices);
+	bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+	D3D11_SUBRESOURCE_DATA initData{};
+	initData.pSysMem = vertices;
+
+	// Device에 vertex buffer 리소스 생성 요청
+	HRESULT hr = device_->CreateBuffer(&bufferDesc, &initData, vertexBuffer_.GetAddressOf());
+
+	if (FAILED(hr)) return false;
+
+	// 사각형 index 데이터, 삼각형 2개로 구성
+	unsigned int indices[] = { 0, 1, 2, 2, 1, 3 }; // index를 사용하여 중복되는 vertex를 재사용.
+
+	bufferDesc.ByteWidth = sizeof(indices);
+	bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+
+	initData.pSysMem = indices;
+
+	hr = device_->CreateBuffer(&bufferDesc, &initData, indexBuffer_.GetAddressOf());
+
+	return SUCCEEDED(hr);
+}
+
 bool Application::ProcessMessages()
 {
 	MSG message{};
+	// 메세지 확인하고 바로 돌아오는 PeekMessage 사용 (GetMessage는 메세지가 올 때까지 대기)
 	while (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE))
 	{
 		if (message.message == WM_QUIT)
