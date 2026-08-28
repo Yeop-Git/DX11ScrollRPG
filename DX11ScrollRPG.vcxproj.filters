@@ -30,12 +30,12 @@
     <ClCompile Include="Main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="Application.cpp">
+    <ClCompile Include="Engine\Core\Application.cpp">
       <Filter>소스 파일\Engine\Core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Application.h">
+    <ClInclude Include="Engine\Core\Application.h">
       <Filter>헤더 파일\Engine\Core</Filter>
     </ClInclude>
   </ItemGroup>
