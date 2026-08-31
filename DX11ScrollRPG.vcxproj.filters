@@ -28,6 +28,18 @@
     <Filter Include="소스 파일\Shaders">
       <UniqueIdentifier>{225ffcf4-93f1-42c4-9675-579cc4be421d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="헤더 파일\Engine\ThirdParty">
+      <UniqueIdentifier>{4d25e544-08ec-4590-8e8c-094fbb363300}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\Engine\ThirdParty\stb">
+      <UniqueIdentifier>{0a795e40-9529-4abd-9589-c5d1a5cf88a1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Engine\ThirdParty">
+      <UniqueIdentifier>{fbd39ceb-8f48-479e-81ea-18cf7a2edad8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Engine\ThirdParty\stb">
+      <UniqueIdentifier>{8a4de309-5898-4b15-8459-7eea7d9934cf}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -36,10 +48,16 @@
     <ClCompile Include="Engine\Core\Application.cpp">
       <Filter>소스 파일\Engine\Core</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\ThirdParty\stb\StbImage.cpp">
+      <Filter>소스 파일\Engine\ThirdParty\stb</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\Core\Application.h">
       <Filter>헤더 파일\Engine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\ThirdParty\stb\stb_image.h">
+      <Filter>헤더 파일\Engine\ThirdParty\stb</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

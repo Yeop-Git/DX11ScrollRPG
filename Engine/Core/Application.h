@@ -21,6 +21,7 @@ private:
 
 	bool CreateGeometry();
 	bool CreateShaders();
+	bool CreateTexture();
 
 	bool ProcessMessages();
 
@@ -50,4 +51,8 @@ private:
 	ComPtr<ID3D11VertexShader> vertexShader_;
 	ComPtr<ID3D11PixelShader> pixelShader_;
 	ComPtr<ID3D11InputLayout> inputLayout_;
+
+	//Texture
+	ComPtr<ID3D11ShaderResourceView> textureView_;
+	ComPtr<ID3D11SamplerState> samplerState_;
 };

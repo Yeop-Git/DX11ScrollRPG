@@ -3,6 +3,9 @@
 // HLSL 컴파일러
 #include <d3dcompiler.h>
 
+// Image 디코더
+#include "../ThirdParty/stb/stb_image.h"
+
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
@@ -11,7 +14,8 @@
 struct Vertex
 {
 	float x, y, z;
-	float r, g, b, a;
+	float u, v;
+	//float r, g, b, a;
 };
 
 // Windows -> Message Queue -> WindowProc
@@ -41,6 +45,8 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 	if (!CreateGeometry()) return false;
 
 	if (!CreateShaders()) return false;
+
+	if (!CreateTexture()) return false;
 
 	return true;
 }
@@ -196,10 +202,10 @@ bool Application::CreateGeometry()
 	// 사각형 vertex 데이터
 	Vertex vertices[] =
 	{
-		{ -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f },
-		{ 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f },
-		{ 0.5f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f },
-		{ -0.5f,  0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f }
+		{ -0.5f, -0.5f, 0.0f, 0.0f, 1.0f },
+		{ 0.5f, -0.5f, 0.0f, 1.0f, 1.0f },
+		{ 0.5f,  0.5f, 0.0f, 1.0f, 0.0f },
+		{ -0.5f,  0.5f, 0.0f, 0.0f, 0.0f }
 	};
 
 	// vertex 버퍼 생성
@@ -288,7 +294,7 @@ bool Application::CreateShaders()
 	D3D11_INPUT_ELEMENT_DESC inputElements[] =
 	{
 		{"POSITION",0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
 	};
 
 	hr = device_->CreateInputLayout(
@@ -298,6 +304,77 @@ bool Application::CreateShaders()
 		vertexShaderBlob->GetBufferSize(),
 		inputLayout_.GetAddressOf()
 	);
+
+	return SUCCEEDED(hr);
+}
+
+bool Application::CreateTexture()
+{
+	int width = 0;
+	int height = 0;
+	int channels = 0;
+
+	// PNG를 메모리의 RGBA pixel 배열로 디코딩
+	unsigned char* pixels = stbi_load(
+		"Assets/Textures/Player.png",
+		&width,
+		&height,
+		&channels,
+		STBI_rgb_alpha
+	);
+
+	if (!pixels) return false;
+
+	// Texture 설정
+	D3D11_TEXTURE2D_DESC textureDesc{};
+
+	textureDesc.Width = static_cast<UINT>(width);
+	textureDesc.Height = static_cast<UINT>(height);
+
+	textureDesc.MipLevels = 1;
+	textureDesc.ArraySize = 1;
+
+	// stb_image에서 RGBA 8bit로
+	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	// MSAA 사용 X
+	textureDesc.SampleDesc.Count = 1;
+
+	// DFAULT Resource
+	textureDesc.Usage = D3D11_USAGE_DEFAULT;
+
+	// Pixel Shader가 읽을 Texture, Shader Resource로 활용
+	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+	// 초기 Texture 데이터
+	D3D11_SUBRESOURCE_DATA initialData{};
+
+	initialData.pSysMem = pixels;
+
+	// 한 줄의 byte 크기
+	// RGBA = pixel 하나당 4 bytes
+	initialData.SysMemPitch = static_cast<UINT>(width * 4);
+
+	// Texture Resource 생성
+	ComPtr<ID3D11Texture2D> texture;
+	HRESULT hr = device_->CreateTexture2D(&textureDesc, &initialData, texture.GetAddressOf());
+	stbi_image_free(pixels);
+	if (FAILED(hr)) return false;
+
+	// Texture를 Shader에서 읽을 수 있도록 View 생성
+	hr = device_->CreateShaderResourceView(texture.Get(), nullptr, textureView_.GetAddressOf());
+	if (FAILED(hr))return false;
+
+	// Sampling 방식 설정
+	D3D11_SAMPLER_DESC samplerDesc{};
+
+	// Point Sampling
+	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+
+	hr = device_->CreateSamplerState(&samplerDesc, samplerState_.GetAddressOf());
 
 	return SUCCEEDED(hr);
 }
@@ -350,6 +427,11 @@ void Application::Render()
 	// Shader 설정
 	context_->VSSetShader(vertexShader_.Get(), nullptr, 0);
 	context_->PSSetShader(pixelShader_.Get(), nullptr, 0);
+
+	// Pixel Shader Texture slot 0에 Shader Resource 연결
+	context_->PSSetShaderResources(0, 1, textureView_.GetAddressOf());
+	// Pixel Shader Texture slot 0에 Sampler 연결
+	context_->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
 
 	// Draw
 	context_->DrawIndexed(6, 0, 0);

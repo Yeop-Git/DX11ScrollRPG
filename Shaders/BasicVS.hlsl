@@ -1,13 +1,13 @@
 struct VSInput
 {
     float3 position : POSITION;
-    float4 color : COLOR;
+    float2 uv : TEXCOORD; //uv로 변경
 };
 
 struct VSOutput
 {
     float4 position : SV_POSITION; // 최종 출력 위치
-    float4 color : COLOR;
+    float2 uv : TEXCOORD;
 };
 
 VSOutput main(VSInput input)
@@ -16,7 +16,7 @@ VSOutput main(VSInput input)
     
     // input vertex를 받아서 그대로 output vertex로 전달
     output.position = float4(input.position, 1.0f); // w=1의 의미는 다음에 학습
-    output.color = input.color;
+    output.uv = input.uv;
     
     return output;
 }
