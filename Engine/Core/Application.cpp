@@ -48,6 +48,8 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 
 	if (!CreateTexture()) return false;
 
+	if (!CreateBlendState()) return false;
+
 	return true;
 }
 
@@ -199,20 +201,29 @@ bool Application::InitializeDirectX()
 
 bool Application::CreateGeometry()
 {
+	float u0 = 0.0f;
+	float u1 = 0.25f;
+
 	// 사각형 vertex 데이터
 	Vertex vertices[] =
 	{
-		{ -0.5f, -0.5f, 0.0f, 0.0f, 1.0f },
-		{ 0.5f, -0.5f, 0.0f, 1.0f, 1.0f },
-		{ 0.5f,  0.5f, 0.0f, 1.0f, 0.0f },
-		{ -0.5f,  0.5f, 0.0f, 0.0f, 0.0f }
+		{ -0.5f, -0.5f, 0.0f, u0, 1.0f },
+		{ 0.5f, -0.5f, 0.0f, u1, 1.0f },
+		{ 0.5f,  0.5f, 0.0f, u1, 0.0f },
+		{ -0.5f,  0.5f, 0.0f, u0, 0.0f }
 	};
 
 	// vertex 버퍼 생성
 	D3D11_BUFFER_DESC bufferDesc{};
 	bufferDesc.ByteWidth = sizeof(vertices);
-	bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+
+	// vertex 퍼버 Default -> Dynamic으로 변경
+	// Default : 일반적인 정적 Geometry에 적합
+	// Dynamic : CPU가 자주 내용을 갱신하는 Resource
+	bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	// 매 애니메이션 프레임마다 UV 변경 -> vertex buffer 수정
 
 	D3D11_SUBRESOURCE_DATA initData{};
 	initData.pSysMem = vertices;
@@ -294,7 +305,7 @@ bool Application::CreateShaders()
 	D3D11_INPUT_ELEMENT_DESC inputElements[] =
 	{
 		{"POSITION",0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"TEXCOORD", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
 	};
 
 	hr = device_->CreateInputLayout(
@@ -379,6 +390,32 @@ bool Application::CreateTexture()
 	return SUCCEEDED(hr);
 }
 
+bool Application::CreateBlendState()
+{
+	D3D11_BLEND_DESC blendDesc{};
+
+	blendDesc.RenderTarget[0].BlendEnable = TRUE;
+
+	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+
+	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+
+	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+
+	blendDesc.RenderTarget[0].RenderTargetWriteMask =
+		D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	HRESULT hr = device_->CreateBlendState(&blendDesc, blendState_.GetAddressOf());
+
+	return SUCCEEDED(hr);
+}
+
 bool Application::ProcessMessages()
 {
 	MSG message{};
@@ -398,6 +435,8 @@ bool Application::ProcessMessages()
 void Application::Update()
 {
 	// Update logic here 
+	currentFrame_ = 1;
+	UpdateSpriteUV();
 }
 
 void Application::Render()
@@ -433,9 +472,49 @@ void Application::Render()
 	// Pixel Shader Texture slot 0에 Sampler 연결
 	context_->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
 
+	// Blend State 적용
+	context_->OMSetBlendState(blendState_.Get(), nullptr, 0xFFFFFFFF);
+
 	// Draw
 	context_->DrawIndexed(6, 0, 0);
 
 	// BackBuffer 출력
 	swapChain_->Present(1, 0);
+}
+
+void Application::UpdateSpriteUV()
+{
+	// frame 수에 따라 frame width를 계산
+	const float frameWidth = 1.0f / static_cast<float>(kIdleFrameCount);
+
+	// frame width에 따라서 u0, u1 계산
+	const float u0 = currentFrame_ * frameWidth;
+	const float u1 = u0 + frameWidth;
+
+	Vertex vertices[] =
+	{
+		{ -0.5f, -0.5f, 0.0f, u0, 1.0f },
+		{ 0.5f, -0.5f, 0.0f, u1, 1.0f },
+		{ 0.5f,  0.5f, 0.0f, u1, 0.0f },
+		{ -0.5f,  0.5f, 0.0f, u0, 0.0f }
+	};
+
+	D3D11_MAPPED_SUBRESOURCE mappedResource{};
+
+	// CPU가 GPU Resource에 데이터를 쓸 수 있도록 접근 가능한 메모리 영역 요구
+	HRESULT hr = context_->Map(
+		vertexBuffer_.Get(),
+		0,
+		D3D11_MAP_WRITE_DISCARD,
+		0,
+		&mappedResource
+	);
+
+	if (FAILED(hr)) return;
+
+	// 새 vertex 데이터 넣기
+	memcpy(mappedResource.pData, vertices, sizeof(vertices));
+
+	// CPU 작업 끝, GPU가 Resource 사용
+	context_->Unmap(vertexBuffer_.Get(), 0);
 }

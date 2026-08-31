@@ -22,19 +22,26 @@ private:
 	bool CreateGeometry();
 	bool CreateShaders();
 	bool CreateTexture();
+	bool CreateBlendState();
 
 	bool ProcessMessages();
 
 	void Update();
 	void Render();
+	void UpdateSpriteUV();
 
 private:
 	// Windows 창 Handle
 	HWND hwnd_ = nullptr;
 
+	int currentFrame_ = 0;
+	float animationTimer_ = 0.0f;
+
 	// constexpr : 컴파일 시점에 값이 결정되는 상수
 	static constexpr int kWindowWidth = 1280;
 	static constexpr int kWindowHeight = 720;
+
+	static constexpr int kIdleFrameCount = 4;
 
 	// DirectX 핵심 객체
 	// ComPtr : 스마트 포인터, 참조 카운트 기반 COM 객체 관리(RAII)
@@ -52,7 +59,10 @@ private:
 	ComPtr<ID3D11PixelShader> pixelShader_;
 	ComPtr<ID3D11InputLayout> inputLayout_;
 
-	//Texture
+	// Texture
 	ComPtr<ID3D11ShaderResourceView> textureView_;
 	ComPtr<ID3D11SamplerState> samplerState_;
+	
+	// Alpha Blending
+	ComPtr<ID3D11BlendState> blendState_;
 };
