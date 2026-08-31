@@ -10,6 +10,8 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
+using namespace std::chrono;
+
 // 정점 structure
 struct Vertex
 {
@@ -50,6 +52,8 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 
 	if (!CreateBlendState()) return false;
 
+	previousTime_ = steady_clock::now();
+
 	return true;
 }
 
@@ -62,7 +66,7 @@ int Application::Run()
 	while (ProcessMessages()) // 메시지 처리
 	{
 		//게임 상태 갱신
-		Update();
+		Update(GetDeltaTime());
 		//화면 그리기
 		Render();
 	}
@@ -432,11 +436,25 @@ bool Application::ProcessMessages()
 	return true;
 }
 
-void Application::Update()
+void Application::Update(float deltaTime)
 {
-	// Update logic here 
-	currentFrame_ = 1;
-	UpdateSpriteUV();
+	// deltaTime 만큼 animationTimer 증가
+	animationTimer_ += deltaTime;
+
+	// 0.15초 마다 frame 갱신
+	constexpr float frameDuration = 0.15f;
+
+	if (animationTimer_ >= frameDuration)
+	{
+		animationTimer_ -= frameDuration;
+
+		// frame 증가
+		currentFrame_++;
+		if (currentFrame_ >= kIdleFrameCount) currentFrame_ = 0;
+
+		// sprite 업데이트
+		UpdateSpriteUV();
+	}
 }
 
 void Application::Render()
@@ -517,4 +535,17 @@ void Application::UpdateSpriteUV()
 
 	// CPU 작업 끝, GPU가 Resource 사용
 	context_->Unmap(vertexBuffer_.Get(), 0);
+}
+
+float Application::GetDeltaTime()
+{
+	auto currentTime = steady_clock::now();
+
+	// deltaTime 계산
+	float deltaTime = duration<float>(currentTime - previousTime_).count();
+
+	// previousTime 갱신
+	previousTime_ = currentTime;
+
+	return deltaTime;
 }

@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <d3d11.h>
 #include <wrl/client.h>
+#include <chrono>
 
 using namespace Microsoft::WRL;
 
@@ -26,9 +27,10 @@ private:
 
 	bool ProcessMessages();
 
-	void Update();
+	void Update(float deltaTime);
 	void Render();
 	void UpdateSpriteUV();
+	float GetDeltaTime();
 
 private:
 	// Windows 창 Handle
@@ -36,6 +38,7 @@ private:
 
 	int currentFrame_ = 0;
 	float animationTimer_ = 0.0f;
+	std::chrono::steady_clock::time_point previousTime_;
 
 	// constexpr : 컴파일 시점에 값이 결정되는 상수
 	static constexpr int kWindowWidth = 1280;
