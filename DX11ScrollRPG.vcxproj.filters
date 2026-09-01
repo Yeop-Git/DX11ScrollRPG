@@ -40,6 +40,12 @@
     <Filter Include="소스 파일\Engine\ThirdParty\stb">
       <UniqueIdentifier>{8a4de309-5898-4b15-8459-7eea7d9934cf}</UniqueIdentifier>
     </Filter>
+    <Filter Include="소스 파일\Game">
+      <UniqueIdentifier>{9a44b47c-7cbf-4013-b900-954a25eaa085}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\Game">
+      <UniqueIdentifier>{a2977be4-a1f0-4564-934f-bcca10e54b6c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -51,6 +57,9 @@
     <ClCompile Include="Engine\ThirdParty\stb\StbImage.cpp">
       <Filter>소스 파일\Engine\ThirdParty\stb</Filter>
     </ClCompile>
+    <ClCompile Include="Game\Player.cpp">
+      <Filter>소스 파일\Game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\Core\Application.h">
@@ -58,6 +67,9 @@
     </ClInclude>
     <ClInclude Include="Engine\ThirdParty\stb\stb_image.h">
       <Filter>헤더 파일\Engine\ThirdParty\stb</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\Player.h">
+      <Filter>헤더 파일\Game</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

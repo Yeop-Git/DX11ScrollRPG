@@ -141,11 +141,13 @@
   <ItemGroup>
     <ClCompile Include="Engine\Core\Application.cpp" />
     <ClCompile Include="Engine\ThirdParty\stb\StbImage.cpp" />
+    <ClCompile Include="Game\Player.cpp" />
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\Core\Application.h" />
     <ClInclude Include="Engine\ThirdParty\stb\stb_image.h" />
+    <ClInclude Include="Game\Player.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\BasicPS.hlsl">

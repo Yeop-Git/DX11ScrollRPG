@@ -5,14 +5,9 @@
 #include <wrl/client.h>
 #include <chrono>
 
-using namespace Microsoft::WRL;
+#include "../../Game/Player.h"
 
-enum class PlayerState
-{
-	Idle,
-	Run,
-	Jump
-};
+using namespace Microsoft::WRL;
 
 class Application
 {
@@ -29,53 +24,39 @@ private:
 
 	bool CreateGeometry();
 	bool CreateShaders();
-	bool CreateTexture();
+	bool CreatePlayerTextures();
 	bool CreateBlendState();
+	//bool CreateTexture();
+	bool LoadTexture(const char* filePath, ComPtr<ID3D11ShaderResourceView>& outTextureView); // CreateTexture()를 대체
 
 	bool ProcessMessages();
 
 	void Update(float deltaTime);
 	void Render();
+	void UpdatePlayerAnimation(float deltaTime);
 	void UpdateSpriteUV();
 	float GetDeltaTime();
+
 	int GetCurrentFrameCount() const;
+	ID3D11ShaderResourceView* GetCurrentPlayerTexture() const;
 
 private:
 	// Windows 창 Handle
 	HWND hwnd_ = nullptr;
+
+	//Player
+	Player player_;
+	PlayerState previousPlayerState_ = PlayerState::Idle;
 
 	// Animation
 	int currentFrame_ = 0;
 	float animationTimer_ = 0.0f;
 	std::chrono::steady_clock::time_point previousTime_;
 
-	// Player Stat
-	float playerX_ = 0.0f;
-	float playerY_ = -0.2f;
-
-	float velocityX_ = 0.0f;
-	float velocityY_ = 0.0f;
-
-	bool isGrounded_ = true;
-	bool facingRight_ = true;
-
-	PlayerState playerState_ = PlayerState::Idle;
-	PlayerState previousPlayerState_ = PlayerState::Idle;
-
 	// constexpr : 컴파일 시점에 값이 결정되는 상수
 	// Window
 	static constexpr int kWindowWidth = 1280;
 	static constexpr int kWindowHeight = 720;
-
-	// Animation
-	static constexpr int kIdleFrameCount = 4;
-	static constexpr int kRunFrameCount = 8;
-	static constexpr int kJumpFrameCount = 15;
-
-	// Player Stat
-	static constexpr float kMoveSpeed = 0.8f;
-	static constexpr float kJumpSpeed = 1.5f;
-	static constexpr float kGravity = -3.0f;
 
 	// DirectX 핵심 객체
 	// ComPtr : 스마트 포인터, 참조 카운트 기반 COM 객체 관리(RAII)
@@ -99,4 +80,9 @@ private:
 	
 	// Alpha Blending
 	ComPtr<ID3D11BlendState> blendState_;
+
+	// Player Animation Texture
+	ComPtr<ID3D11ShaderResourceView> idleTextureView_;
+	ComPtr<ID3D11ShaderResourceView> runTextureView_;
+	ComPtr<ID3D11ShaderResourceView> jumpTextureView_;
 };

@@ -50,7 +50,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 
 	if (!CreateShaders()) return false;
 
-	if (!CreateTexture()) return false;
+	if (!CreatePlayerTextures()) return false;
 
 	if (!CreateBlendState()) return false;
 
@@ -325,15 +325,94 @@ bool Application::CreateShaders()
 	return SUCCEEDED(hr);
 }
 
-bool Application::CreateTexture()
+bool Application::CreatePlayerTextures()
+{
+	if (!LoadTexture("Assets/Textures/PlayerIdle.png", idleTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/PlayerRun.png", runTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/PlayerJump.png", jumpTextureView_)) return false;
+	return true;
+}
+//bool Application::CreateTexture()
+//{
+//	int width = 0;
+//	int height = 0;
+//	int channels = 0;
+//
+//	// PNG를 메모리의 RGBA pixel 배열로 디코딩
+//	unsigned char* pixels = stbi_load(
+//		"Assets/Textures/Player.png",
+//		&width,
+//		&height,
+//		&channels,
+//		STBI_rgb_alpha
+//	);
+//
+//	if (!pixels) return false;
+//
+//	// Texture 설정
+//	D3D11_TEXTURE2D_DESC textureDesc{};
+//
+//	textureDesc.Width = static_cast<UINT>(width);
+//	textureDesc.Height = static_cast<UINT>(height);
+//
+//	textureDesc.MipLevels = 1;
+//	textureDesc.ArraySize = 1;
+//
+//	// stb_image에서 RGBA 8bit로
+//	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+//
+//	// MSAA 사용 X
+//	textureDesc.SampleDesc.Count = 1;
+//
+//	// DFAULT Resource
+//	textureDesc.Usage = D3D11_USAGE_DEFAULT;
+//
+//	// Pixel Shader가 읽을 Texture, Shader Resource로 활용
+//	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+//
+//	// 초기 Texture 데이터
+//	D3D11_SUBRESOURCE_DATA initialData{};
+//
+//	initialData.pSysMem = pixels;
+//
+//	// 한 줄의 byte 크기
+//	// RGBA = pixel 하나당 4 bytes
+//	initialData.SysMemPitch = static_cast<UINT>(width * 4);
+//
+//	// Texture Resource 생성
+//	ComPtr<ID3D11Texture2D> texture;
+//	HRESULT hr = device_->CreateTexture2D(&textureDesc, &initialData, texture.GetAddressOf());
+//	stbi_image_free(pixels);
+//	if (FAILED(hr)) return false;
+//
+//	// Texture를 Shader에서 읽을 수 있도록 View 생성
+//	hr = device_->CreateShaderResourceView(texture.Get(), nullptr, textureView_.GetAddressOf());
+//	if (FAILED(hr))return false;
+//
+//	// Sampling 방식 설정
+//	D3D11_SAMPLER_DESC samplerDesc{};
+//
+//	// Point Sampling
+//	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+//	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+//	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+//	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+//
+//	hr = device_->CreateSamplerState(&samplerDesc, samplerState_.GetAddressOf());
+//
+//	return SUCCEEDED(hr);
+//}
+
+// file 경로를 받아 Shader Resource View를 만드는 범용 Texture Loader
+// 상단의 CreateTexture()를 대체
+bool Application::LoadTexture(const char* filePath, ComPtr<ID3D11ShaderResourceView>& outTextureView)
 {
 	int width = 0;
 	int height = 0;
 	int channels = 0;
 
-	// PNG를 메모리의 RGBA pixel 배열로 디코딩
 	unsigned char* pixels = stbi_load(
-		"Assets/Textures/Player.png",
+		filePath,
 		&width,
 		&height,
 		&channels,
@@ -342,7 +421,6 @@ bool Application::CreateTexture()
 
 	if (!pixels) return false;
 
-	// Texture 설정
 	D3D11_TEXTURE2D_DESC textureDesc{};
 
 	textureDesc.Width = static_cast<UINT>(width);
@@ -351,47 +429,34 @@ bool Application::CreateTexture()
 	textureDesc.MipLevels = 1;
 	textureDesc.ArraySize = 1;
 
-	// stb_image에서 RGBA 8bit로
 	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-	// MSAA 사용 X
 	textureDesc.SampleDesc.Count = 1;
 
-	// DFAULT Resource
 	textureDesc.Usage = D3D11_USAGE_DEFAULT;
-
-	// Pixel Shader가 읽을 Texture, Shader Resource로 활용
 	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
-	// 초기 Texture 데이터
 	D3D11_SUBRESOURCE_DATA initialData{};
-
 	initialData.pSysMem = pixels;
-
-	// 한 줄의 byte 크기
-	// RGBA = pixel 하나당 4 bytes
 	initialData.SysMemPitch = static_cast<UINT>(width * 4);
 
-	// Texture Resource 생성
 	ComPtr<ID3D11Texture2D> texture;
-	HRESULT hr = device_->CreateTexture2D(&textureDesc, &initialData, texture.GetAddressOf());
+
+	HRESULT hr = device_->CreateTexture2D(
+		&textureDesc,
+		&initialData,
+		texture.GetAddressOf()
+	);
+
 	stbi_image_free(pixels);
+
 	if (FAILED(hr)) return false;
 
-	// Texture를 Shader에서 읽을 수 있도록 View 생성
-	hr = device_->CreateShaderResourceView(texture.Get(), nullptr, textureView_.GetAddressOf());
-	if (FAILED(hr))return false;
-
-	// Sampling 방식 설정
-	D3D11_SAMPLER_DESC samplerDesc{};
-
-	// Point Sampling
-	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-
-	hr = device_->CreateSamplerState(&samplerDesc, samplerState_.GetAddressOf());
+	hr = device_->CreateShaderResourceView(
+		texture.Get(),
+		nullptr,
+		outTextureView.GetAddressOf()
+	);
 
 	return SUCCEEDED(hr);
 }
@@ -440,97 +505,9 @@ bool Application::ProcessMessages()
 
 void Application::Update(float deltaTime)
 {
-	constexpr float halfHeight = 0.18f;
-	constexpr float groundY = -0.3f;
-
-	// Player Move
-	velocityX_ = 0.0f;
-
-	// 간단한 Win32 API를 활용한 Input 처리
-	if (GetAsyncKeyState('A') & 0x8000)
-	{
-		velocityX_ = -kMoveSpeed;
-		facingRight_ = false;
-	}
-	if (GetAsyncKeyState('D') & 0x8000) 
-	{
-		velocityX_ = kMoveSpeed;
-		facingRight_ = true;
-	}
-
-	if (isGrounded_)
-	{
-		// 점프
-		if (GetAsyncKeyState(VK_SPACE) & 0x8000)
-		{
-			velocityY_ = kJumpSpeed;
-			isGrounded_ = false;
-		}
-	}
-	else
-	{
-		// 중력 적용
-		velocityY_ += kGravity * deltaTime;
-	}
-
-	// Position Update
-	playerX_ += velocityX_ * deltaTime;
-	playerY_ += velocityY_ * deltaTime;
-
-	// Screen Clamp
-	constexpr float halfWidth = 0.1f;
-	playerX_ = std::clamp(playerX_, -1.0f + halfWidth, 1.0f - halfWidth);
-
-	// Ground Collision
-	if (playerY_ <= groundY + halfHeight)
-	{
-		playerY_ = groundY + halfHeight;
-		velocityY_ = 0.0f;
-		isGrounded_ = true;
-	}
-
-	// Player State Update
-	if (!isGrounded_)
-	{
-		playerState_ = PlayerState::Jump;
-	
-	}
-	else if (velocityX_ != 0.0f)
-	{
-		playerState_ = PlayerState::Run;
-	}
-	else
-	{
-		playerState_ = PlayerState::Idle;
-	}
-
-	// 이전 PlayerState와 현재가 다른 경우, Animation 초기화
-	if (playerState_ != previousPlayerState_)
-	{
-		currentFrame_ = 0;
-		animationTimer_ = 0.0f;
-
-		previousPlayerState_ = playerState_;
-	}
-
-	// Animation
-	// deltaTime 만큼 animationTimer 증가
-	animationTimer_ += deltaTime;
-
-	// 0.15초 마다 frame 갱신
-	constexpr float frameDuration = 0.15f;
-
-	if (animationTimer_ >= frameDuration)
-	{
-		animationTimer_ -= frameDuration;
-
-		// frame 증가
-		const int frameCount = GetCurrentFrameCount();
-		currentFrame_ = (currentFrame_ + 1) % frameCount;
-
-		// sprite 업데이트
-		UpdateSpriteUV();
-	}
+	player_.Update(deltaTime);
+	UpdatePlayerAnimation(deltaTime);
+	UpdateSpriteUV();
 }
 
 void Application::Render()
@@ -556,13 +533,16 @@ void Application::Render()
 
 	// Index 3개마다 하나의 Triangle로
 	context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	
+
 	// Shader 설정
 	context_->VSSetShader(vertexShader_.Get(), nullptr, 0);
 	context_->PSSetShader(pixelShader_.Get(), nullptr, 0);
 
+	// 현재 State에 맞는 Player Texture 가져오기
+	ID3D11ShaderResourceView* currentTexture = GetCurrentPlayerTexture();
+
 	// Pixel Shader Texture slot 0에 Shader Resource 연결
-	context_->PSSetShaderResources(0, 1, textureView_.GetAddressOf());
+	context_->PSSetShaderResources(0, 1, &currentTexture);
 	// Pixel Shader Texture slot 0에 Sampler 연결
 	context_->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
 
@@ -576,10 +556,36 @@ void Application::Render()
 	swapChain_->Present(1, 0);
 }
 
+void Application::UpdatePlayerAnimation(float deltaTime)
+{
+	const PlayerState currentState = player_.GetState();
+
+	// PlayerState가 바뀌면 animationTimer와 currentFrame 초기화
+	if (currentState != previousPlayerState_)
+	{
+		currentFrame_ = 0;
+		animationTimer_ = 0.0f;
+		previousPlayerState_ = currentState;
+	}
+
+	// Animation
+	// deltaTime 만큼 animationTimer 증가
+	animationTimer_ += deltaTime;
+	// 0.15초 마다 frame 갱신
+	constexpr float frameDuration = 0.15f;
+	if (animationTimer_ >= frameDuration)
+	{
+		animationTimer_ -= frameDuration;
+		// frame 증가
+		const int frameCount = GetCurrentFrameCount();
+		currentFrame_ = (currentFrame_ + 1) % frameCount;
+	}
+}
+
 void Application::UpdateSpriteUV()
 {
 	// frame 수에 따라 frame width를 계산
-	const float frameWidth = 1.0f / static_cast<float>(kIdleFrameCount);
+	const float frameWidth = 1.0f / static_cast<float>(GetCurrentFrameCount());
 
 	// frame width에 따라서 u0, u1 계산
 	const float u0 = currentFrame_ * frameWidth;
@@ -589,16 +595,18 @@ void Application::UpdateSpriteUV()
 	const float halfHeight = 0.18f;
 
 	// facingRight_에 따라 u0, u1을 좌우 반전
-	float leftU = facingRight_ ? u0 : u1;
-	float rightU = facingRight_ ? u1 : u0;
+	float leftU = player_.IsFacingRight() ? u0 : u1;
+	float rightU = player_.IsFacingRight() ? u1 : u0;
 
-	// playerX_, playerY_를 중심으로 tra
+	const  float playerX = player_.GetX();
+	const float playerY = player_.GetY();
+	// playerX_, playerY_를 중심으로 transformation 적용된 vertex 좌표 계산
 	Vertex vertices[] =
 	{
-		{ playerX_-halfWidth, playerY_-halfHeight, 0.0f, leftU, 1.0f },
-		{ playerX_+halfWidth, playerY_-halfHeight, 0.0f, rightU, 1.0f },
-		{ playerX_+halfWidth, playerY_+halfHeight, 0.0f, rightU, 0.0f },
-		{ playerX_-halfWidth, playerY_+halfHeight, 0.0f, leftU, 0.0f }
+		{ playerX - halfWidth, playerY - halfHeight, 0.0f, leftU, 1.0f },
+		{ playerX + halfWidth, playerY - halfHeight, 0.0f, rightU, 1.0f },
+		{ playerX + halfWidth, playerY + halfHeight, 0.0f, rightU, 0.0f },
+		{ playerX - halfWidth, playerY + halfHeight, 0.0f, leftU, 0.0f }
 	};
 
 	D3D11_MAPPED_SUBRESOURCE mappedResource{};
@@ -636,17 +644,29 @@ float Application::GetDeltaTime()
 
 int Application::GetCurrentFrameCount() const
 {
-	// 현재 PlayerState에 따라 frame 수 반환
-	//switch (playerState_)
-	//{
-	//case PlayerState::Idle:
-	//	return kIdleFrameCount;
-	//case PlayerState::Run:
-	//	return kRunFrameCount;
-	//case PlayerState::Jump:
-	//	return kJumpFrameCount;
-	//}
+	switch (player_.GetState())
+	{
+	case PlayerState::Idle:
+		return 4;
+	case PlayerState::Run:
+		return 8;
+	case PlayerState::Jump:
+		return 15;
+	}
 
-	// 현재는 Idle Texture만 사용하므로 kIdleFrameCount 반환
-	return kIdleFrameCount;
+	return 1;
+}
+
+ID3D11ShaderResourceView* Application::GetCurrentPlayerTexture() const
+{
+	switch (player_.GetState())
+	{
+	case PlayerState::Idle:
+		return idleTextureView_.Get();
+	case PlayerState::Run:
+		return runTextureView_.Get();
+	case PlayerState::Jump:
+		return jumpTextureView_.Get();
+	}
+	return nullptr;
 }
