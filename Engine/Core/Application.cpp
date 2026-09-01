@@ -438,6 +438,44 @@ bool Application::ProcessMessages()
 
 void Application::Update(float deltaTime)
 {
+	constexpr float halfHeight = 0.18f;
+	constexpr float groundY = -0.3f;
+
+	// Player Move
+	velocityX_ = 0.0f;
+
+	// 간단한 Win32 API를 활용한 Input 처리
+	if (GetAsyncKeyState('A') & 0x8000) velocityX_ = -kMoveSpeed;
+	if (GetAsyncKeyState('D') & 0x8000) velocityX_ = kMoveSpeed;
+
+	if (isGrounded_)
+	{
+		// 점프
+		if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+		{
+			velocityY_ = kJumpSpeed;
+			isGrounded_ = false;
+		}
+	}
+	else
+	{
+		// 중력 적용
+		velocityY_ += kGravity * deltaTime;
+	}
+
+	// Position Update
+	playerX_ += velocityX_ * deltaTime;
+	playerY_ += velocityY_ * deltaTime;
+
+	// Ground Collision
+	if (playerY_ <= groundY + halfHeight)
+	{
+		playerY_ = groundY + halfHeight;
+		velocityY_ = 0.0f;
+		isGrounded_ = true;
+	}
+
+	// Animation
 	// deltaTime 만큼 animationTimer 증가
 	animationTimer_ += deltaTime;
 
@@ -509,12 +547,16 @@ void Application::UpdateSpriteUV()
 	const float u0 = currentFrame_ * frameWidth;
 	const float u1 = u0 + frameWidth;
 
+	const float halfWidth = 0.1f;
+	const float halfHeight = 0.18f;
+
+	// playerX_, playerY_를 중심으로 tra
 	Vertex vertices[] =
 	{
-		{ -0.5f, -0.5f, 0.0f, u0, 1.0f },
-		{ 0.5f, -0.5f, 0.0f, u1, 1.0f },
-		{ 0.5f,  0.5f, 0.0f, u1, 0.0f },
-		{ -0.5f,  0.5f, 0.0f, u0, 0.0f }
+		{ playerX_-halfWidth, playerY_-halfHeight, 0.0f, u0, 1.0f },
+		{ playerX_+halfWidth, playerY_-halfHeight, 0.0f, u1, 1.0f },
+		{ playerX_+halfWidth, playerY_+halfHeight, 0.0f, u1, 0.0f },
+		{ playerX_-halfWidth, playerY_+halfHeight, 0.0f, u0, 0.0f }
 	};
 
 	D3D11_MAPPED_SUBRESOURCE mappedResource{};

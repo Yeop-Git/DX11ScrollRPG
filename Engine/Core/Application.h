@@ -36,15 +36,32 @@ private:
 	// Windows 창 Handle
 	HWND hwnd_ = nullptr;
 
+	// Animation
 	int currentFrame_ = 0;
 	float animationTimer_ = 0.0f;
 	std::chrono::steady_clock::time_point previousTime_;
 
+	// Player Stat
+	float playerX_ = 0.0f;
+	float playerY_ = -0.2f;
+
+	float velocityX_ = 0.0f;
+	float velocityY_ = 0.0f;
+
+	bool isGrounded_ = true;
+
 	// constexpr : 컴파일 시점에 값이 결정되는 상수
+	// Window
 	static constexpr int kWindowWidth = 1280;
 	static constexpr int kWindowHeight = 720;
 
+	// Animation
 	static constexpr int kIdleFrameCount = 4;
+
+	// Player Stat
+	static constexpr float kMoveSpeed = 0.8f;
+	static constexpr float kJumpSpeed = 1.5f;
+	static constexpr float kGravity = -3.0f;
 
 	// DirectX 핵심 객체
 	// ComPtr : 스마트 포인터, 참조 카운트 기반 COM 객체 관리(RAII)
