@@ -7,6 +7,13 @@
 
 using namespace Microsoft::WRL;
 
+enum class PlayerState
+{
+	Idle,
+	Run,
+	Jump
+};
+
 class Application
 {
 public:
@@ -31,6 +38,7 @@ private:
 	void Render();
 	void UpdateSpriteUV();
 	float GetDeltaTime();
+	int GetCurrentFrameCount() const;
 
 private:
 	// Windows 창 Handle
@@ -49,6 +57,10 @@ private:
 	float velocityY_ = 0.0f;
 
 	bool isGrounded_ = true;
+	bool facingRight_ = true;
+
+	PlayerState playerState_ = PlayerState::Idle;
+	PlayerState previousPlayerState_ = PlayerState::Idle;
 
 	// constexpr : 컴파일 시점에 값이 결정되는 상수
 	// Window
@@ -57,6 +69,8 @@ private:
 
 	// Animation
 	static constexpr int kIdleFrameCount = 4;
+	static constexpr int kRunFrameCount = 8;
+	static constexpr int kJumpFrameCount = 15;
 
 	// Player Stat
 	static constexpr float kMoveSpeed = 0.8f;

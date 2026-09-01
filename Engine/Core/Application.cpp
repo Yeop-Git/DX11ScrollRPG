@@ -1,10 +1,12 @@
 #include "Application.h"
+#include <algorithm>
 
 // HLSL 컴파일러
 #include <d3dcompiler.h>
 
 // Image 디코더
 #include "../ThirdParty/stb/stb_image.h"
+
 
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -445,8 +447,16 @@ void Application::Update(float deltaTime)
 	velocityX_ = 0.0f;
 
 	// 간단한 Win32 API를 활용한 Input 처리
-	if (GetAsyncKeyState('A') & 0x8000) velocityX_ = -kMoveSpeed;
-	if (GetAsyncKeyState('D') & 0x8000) velocityX_ = kMoveSpeed;
+	if (GetAsyncKeyState('A') & 0x8000)
+	{
+		velocityX_ = -kMoveSpeed;
+		facingRight_ = false;
+	}
+	if (GetAsyncKeyState('D') & 0x8000) 
+	{
+		velocityX_ = kMoveSpeed;
+		facingRight_ = true;
+	}
 
 	if (isGrounded_)
 	{
@@ -467,12 +477,40 @@ void Application::Update(float deltaTime)
 	playerX_ += velocityX_ * deltaTime;
 	playerY_ += velocityY_ * deltaTime;
 
+	// Screen Clamp
+	constexpr float halfWidth = 0.1f;
+	playerX_ = std::clamp(playerX_, -1.0f + halfWidth, 1.0f - halfWidth);
+
 	// Ground Collision
 	if (playerY_ <= groundY + halfHeight)
 	{
 		playerY_ = groundY + halfHeight;
 		velocityY_ = 0.0f;
 		isGrounded_ = true;
+	}
+
+	// Player State Update
+	if (!isGrounded_)
+	{
+		playerState_ = PlayerState::Jump;
+	
+	}
+	else if (velocityX_ != 0.0f)
+	{
+		playerState_ = PlayerState::Run;
+	}
+	else
+	{
+		playerState_ = PlayerState::Idle;
+	}
+
+	// 이전 PlayerState와 현재가 다른 경우, Animation 초기화
+	if (playerState_ != previousPlayerState_)
+	{
+		currentFrame_ = 0;
+		animationTimer_ = 0.0f;
+
+		previousPlayerState_ = playerState_;
 	}
 
 	// Animation
@@ -487,8 +525,8 @@ void Application::Update(float deltaTime)
 		animationTimer_ -= frameDuration;
 
 		// frame 증가
-		currentFrame_++;
-		if (currentFrame_ >= kIdleFrameCount) currentFrame_ = 0;
+		const int frameCount = GetCurrentFrameCount();
+		currentFrame_ = (currentFrame_ + 1) % frameCount;
 
 		// sprite 업데이트
 		UpdateSpriteUV();
@@ -550,13 +588,17 @@ void Application::UpdateSpriteUV()
 	const float halfWidth = 0.1f;
 	const float halfHeight = 0.18f;
 
+	// facingRight_에 따라 u0, u1을 좌우 반전
+	float leftU = facingRight_ ? u0 : u1;
+	float rightU = facingRight_ ? u1 : u0;
+
 	// playerX_, playerY_를 중심으로 tra
 	Vertex vertices[] =
 	{
-		{ playerX_-halfWidth, playerY_-halfHeight, 0.0f, u0, 1.0f },
-		{ playerX_+halfWidth, playerY_-halfHeight, 0.0f, u1, 1.0f },
-		{ playerX_+halfWidth, playerY_+halfHeight, 0.0f, u1, 0.0f },
-		{ playerX_-halfWidth, playerY_+halfHeight, 0.0f, u0, 0.0f }
+		{ playerX_-halfWidth, playerY_-halfHeight, 0.0f, leftU, 1.0f },
+		{ playerX_+halfWidth, playerY_-halfHeight, 0.0f, rightU, 1.0f },
+		{ playerX_+halfWidth, playerY_+halfHeight, 0.0f, rightU, 0.0f },
+		{ playerX_-halfWidth, playerY_+halfHeight, 0.0f, leftU, 0.0f }
 	};
 
 	D3D11_MAPPED_SUBRESOURCE mappedResource{};
@@ -590,4 +632,21 @@ float Application::GetDeltaTime()
 	previousTime_ = currentTime;
 
 	return deltaTime;
+}
+
+int Application::GetCurrentFrameCount() const
+{
+	// 현재 PlayerState에 따라 frame 수 반환
+	//switch (playerState_)
+	//{
+	//case PlayerState::Idle:
+	//	return kIdleFrameCount;
+	//case PlayerState::Run:
+	//	return kRunFrameCount;
+	//case PlayerState::Jump:
+	//	return kJumpFrameCount;
+	//}
+
+	// 현재는 Idle Texture만 사용하므로 kIdleFrameCount 반환
+	return kIdleFrameCount;
 }
