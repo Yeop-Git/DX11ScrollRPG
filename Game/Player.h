@@ -4,7 +4,8 @@ enum class PlayerState
 {
 	Idle,
 	Run,
-	Jump
+	JumpStart,
+	JumpEnd
 };
 
 class Player

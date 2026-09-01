@@ -58,6 +58,12 @@ private:
 	static constexpr int kWindowWidth = 1280;
 	static constexpr int kWindowHeight = 720;
 
+	// Animation Frame Count
+	static constexpr int kIdleFrameCount = 4;
+	static constexpr int kRunFrameCount = 8;
+	static constexpr int kJumpStartFrameCount = 4;
+	static constexpr int kJumpEndFrameCount = 3;
+
 	// DirectX 핵심 객체
 	// ComPtr : 스마트 포인터, 참조 카운트 기반 COM 객체 관리(RAII)
 	ComPtr<ID3D11Device> device_;
@@ -84,5 +90,6 @@ private:
 	// Player Animation Texture
 	ComPtr<ID3D11ShaderResourceView> idleTextureView_;
 	ComPtr<ID3D11ShaderResourceView> runTextureView_;
-	ComPtr<ID3D11ShaderResourceView> jumpTextureView_;
+	ComPtr<ID3D11ShaderResourceView> jumpStartTextureView_;
+	ComPtr<ID3D11ShaderResourceView> jumpEndTextureView_;
 };

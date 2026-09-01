@@ -78,7 +78,7 @@ void Player::UpdateState()
 	// 상태 전환
 	if (!isGrounded_)
 	{
-		state_ = PlayerState::Jump;
+		state_ = velocityY_ > 0.0f ? PlayerState::JumpStart : PlayerState::JumpEnd;
 	}
 	else if (velocityX_ != 0.0f)
 	{

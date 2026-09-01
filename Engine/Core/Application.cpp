@@ -329,7 +329,8 @@ bool Application::CreatePlayerTextures()
 {
 	if (!LoadTexture("Assets/Textures/PlayerIdle.png", idleTextureView_)) return false;
 	if (!LoadTexture("Assets/Textures/PlayerRun.png", runTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/PlayerJump.png", jumpTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/PlayerJumpStart.png", jumpStartTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/PlayerJumpEnd.png", jumpEndTextureView_)) return false;
 	return true;
 }
 //bool Application::CreateTexture()
@@ -647,11 +648,13 @@ int Application::GetCurrentFrameCount() const
 	switch (player_.GetState())
 	{
 	case PlayerState::Idle:
-		return 4;
+		return kIdleFrameCount;
 	case PlayerState::Run:
-		return 8;
-	case PlayerState::Jump:
-		return 15;
+		return kRunFrameCount;
+	case PlayerState::JumpStart:
+		return kJumpStartFrameCount;
+	case PlayerState::JumpEnd:
+		return kJumpEndFrameCount;
 	}
 
 	return 1;
@@ -665,8 +668,10 @@ ID3D11ShaderResourceView* Application::GetCurrentPlayerTexture() const
 		return idleTextureView_.Get();
 	case PlayerState::Run:
 		return runTextureView_.Get();
-	case PlayerState::Jump:
-		return jumpTextureView_.Get();
+	case PlayerState::JumpStart:
+		return jumpStartTextureView_.Get();
+	case PlayerState::JumpEnd:
+		return jumpEndTextureView_.Get();
 	}
 	return nullptr;
 }
