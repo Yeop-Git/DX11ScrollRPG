@@ -38,9 +38,12 @@ private:
 	void Render();
 	void UpdatePlayerAnimation(float deltaTime);
 	void UpdateMonsterAnimation(float deltaTime);
+	void UpdateCombat();
+	bool IsAttackFrameActive() const;
 	bool IsMonsterAnimationFinished() const;
 	//void UpdateSpriteUV();
 	float GetDeltaTime();
+	void ResetGame();
 
 	// Draw Functions
 	void DrawBackground();
@@ -78,6 +81,7 @@ private:
 	MonsterState previousMonsterState_ = MonsterState::Idle;
 	int monsterCurrentFrame_ = 0;
 	float monsterAnimationTimer_ = 0.0f;
+	bool attackHitRegistered_ = false;
 
 	// Animation
 	int currentFrame_ = 0;
@@ -94,6 +98,8 @@ private:
 	static constexpr int kRunFrameCount = 8;
 	static constexpr int kJumpStartFrameCount = 4;
 	static constexpr int kJumpEndFrameCount = 3;
+	static constexpr int kAttackFrameCount = 8;
+	static constexpr int kDeadFrameCount = 8;
 
 	// Enemy Animation Frame Count
 	static constexpr int kMonsterIdleFrameCount = 4;
@@ -129,6 +135,8 @@ private:
 	ComPtr<ID3D11ShaderResourceView> runTextureView_;
 	ComPtr<ID3D11ShaderResourceView> jumpStartTextureView_;
 	ComPtr<ID3D11ShaderResourceView> jumpEndTextureView_;
+	ComPtr<ID3D11ShaderResourceView> attackTextureView_;
+	ComPtr<ID3D11ShaderResourceView> deadTextureView_;
 
 	// Monster Animation Texture
 	ComPtr<ID3D11ShaderResourceView> monsterIdleTextureView_;

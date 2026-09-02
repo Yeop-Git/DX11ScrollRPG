@@ -29,6 +29,13 @@ namespace
 	{
 		switch (message)
 		{
+		case WM_SYSKEYDOWN:
+		case WM_SYSKEYUP:
+			if (wParam == VK_MENU) return 0;
+			break;
+		case WM_SYSCOMMAND:
+			if ((wParam & 0xFF0) == SC_KEYMENU) return 0;
+			break;
 		case WM_DESTROY:
 			//창 닫기
 			PostQuitMessage(0);
@@ -331,19 +338,22 @@ bool Application::CreateShaders()
 
 bool Application::CreatePlayerTextures()
 {
-	if (!LoadTexture("Assets/Textures/Player/PlayerIdle.png", idleTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Player/PlayerRun.png", runTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Player/PlayerJumpStart.png", jumpStartTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Player/PlayerJumpEnd.png", jumpEndTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Player/Idle.png", idleTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Player/Run.png", runTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Player/JumpStart.png", jumpStartTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Player/JumpEnd.png", jumpEndTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Player/Attack.png", attackTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Player/Dead.png", deadTextureView_)) return false;
 	return true;
 }
 
 bool Application::CreateMonsterTextures()
 {
-	if (!LoadTexture("Assets/Textures/Monster/MonsterIdle.png", monsterIdleTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Monster/MonsterChase.png", monsterChaseTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Monster/MonsterHit.png", monsterHitTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Monster/MonsterDead.png", monsterDeadTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Monster/Idle.png", monsterIdleTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Monster/Chase.png", monsterChaseTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Monster/Hit.png", monsterHitTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Monster/Dead.png", monsterDeadTextureView_)) return false;
+	return true;
 }
 
 bool Application::CreateWorldTextures()
@@ -526,10 +536,21 @@ bool Application::ProcessMessages()
 
 void Application::Update(float deltaTime)
 {
+	// Player 죽으면 Retry 처리
+	if (player_.IsDead())
+	{
+		UpdatePlayerAnimation(deltaTime);
+		UpdateMonsterAnimation(deltaTime);
+
+		if (GetAsyncKeyState('R') & 0x8000) ResetGame();
+		return;
+	}
+
 	player_.Update(deltaTime);
 	monster_.Update(deltaTime, player_.GetX());
 	UpdatePlayerAnimation(deltaTime);
 	UpdateMonsterAnimation(deltaTime);
+	UpdateCombat();
 	// Render()에서 범용 DrawSprite()를 사용하여 UV를 갱신 및 Draw
 	// UpdateSpriteUV()는 더 이상 필요 없음
 	// UpdateSpriteUV();
@@ -595,6 +616,8 @@ void Application::UpdatePlayerAnimation(float deltaTime)
 		currentFrame_ = 0;
 		animationTimer_ = 0.0f;
 		previousPlayerState_ = currentState;
+
+		if (currentState == PlayerState::Attack) attackHitRegistered_ = false;
 	}
 
 	// Animation
@@ -602,12 +625,37 @@ void Application::UpdatePlayerAnimation(float deltaTime)
 	animationTimer_ += deltaTime;
 	// 0.15초 마다 frame 갱신
 	constexpr float frameDuration = 0.15f;
-	if (animationTimer_ >= frameDuration)
+	if (animationTimer_ < frameDuration) return;
+
+	animationTimer_ -= frameDuration;
+	// frame 증가
+	const int frameCount = GetCurrentFrameCount();
+
+	switch (currentState)
 	{
-		animationTimer_ -= frameDuration;
-		// frame 증가
-		const int frameCount = GetCurrentFrameCount();
-		currentFrame_ = (currentFrame_ + 1) % frameCount;
+	case PlayerState::Idle:
+	case PlayerState::Run:
+	case PlayerState::JumpStart:
+	case PlayerState::JumpEnd:
+		currentFrame_ =
+			(currentFrame_ + 1) % frameCount;
+		break;
+
+	case PlayerState::Attack:
+
+		if (currentFrame_ < frameCount - 1)
+		{
+			currentFrame_++;
+		}
+		else
+		{
+			player_.FinishAttack();
+		}
+		break;
+
+	case PlayerState::Dead:
+		if (currentFrame_ < frameCount - 1) currentFrame_++;
+		break;
 	}
 }
 
@@ -654,6 +702,41 @@ void Application::UpdateMonsterAnimation(float deltaTime)
 bool Application::IsMonsterAnimationFinished() const
 {
 	return monsterCurrentFrame_ >= GetCurrentMonsterFrameCount() - 1;
+}
+
+bool Application::IsAttackFrameActive() const
+{
+	return currentFrame_ >= 2 && currentFrame_ <= 3;
+}
+
+void Application::UpdateCombat()
+{
+	// 1. Player → Monster
+	if (player_.IsAttacking() &&
+		IsAttackFrameActive() &&
+		!attackHitRegistered_ &&
+		!monster_.IsDead())
+	{
+		if (Intersects(
+			player_.GetAttackHitBox(),
+			monster_.GetBodyBox()))
+		{
+			monster_.TakeDamage(1, player_.GetX());
+			attackHitRegistered_ = true;
+		}
+	}
+
+	// 2. Monster → Player
+	if (!player_.IsDead() &&
+		!monster_.IsDead())
+	{
+		if (Intersects(
+			player_.GetBodyBox(),
+			monster_.GetBodyBox()))
+		{
+			player_.TakeDamage(1, monster_.GetX());
+		}
+	}
 }
 
 
@@ -725,6 +808,7 @@ void Application::DrawGround()
 
 void Application::DrawPlayer()
 {
+	if (!player_.ShouldRender()) return;
 	const float frameCount = static_cast<float>(GetCurrentFrameCount());
 	const float frameWidth = 1.0f / frameCount;
 
@@ -893,6 +977,10 @@ int Application::GetCurrentFrameCount() const
 		return kJumpStartFrameCount;
 	case PlayerState::JumpEnd:
 		return kJumpEndFrameCount;
+	case PlayerState::Attack:
+		return kAttackFrameCount;
+	case PlayerState::Dead:
+		return kDeadFrameCount;
 	}
 
 	return 1;
@@ -925,6 +1013,10 @@ ID3D11ShaderResourceView* Application::GetCurrentPlayerTexture() const
 		return jumpStartTextureView_.Get();
 	case PlayerState::JumpEnd:
 		return jumpEndTextureView_.Get();
+	case PlayerState::Attack:
+		return attackTextureView_.Get();
+	case PlayerState ::Dead :
+		return deadTextureView_.Get();
 	}
 	return nullptr;
 }
@@ -943,4 +1035,21 @@ ID3D11ShaderResourceView* Application::GetCurrentMonsterTexture() const
 		return monsterDeadTextureView_.Get();
 	}
 	return nullptr;
+}
+
+void Application::ResetGame()
+{
+	player_.Reset();
+	monster_.Reset();
+
+	currentFrame_ = 0;
+	animationTimer_ = 0.0f;
+
+	monsterCurrentFrame_ = 0;
+	monsterAnimationTimer_ = 0.0f;
+
+	previousPlayerState_ = PlayerState::Idle;
+	previousMonsterState_ = MonsterState::Idle;
+
+	attackHitRegistered_ = false;
 }

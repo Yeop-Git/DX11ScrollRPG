@@ -3,7 +3,14 @@
 
 void Monster::Update(float deltaTime, float playerX)
 {
-	if (state_ == MonsterState::Dead || state_ == MonsterState::Hit) return;
+	if (state_ == MonsterState::Dead) return;
+
+	if (state_ == MonsterState::Hit)
+	{
+		x_ += velocityX_ * deltaTime;
+		velocityX_ *= 0.9f;
+		return;
+	}
 
 	UpdateState(playerX);
 
@@ -34,13 +41,14 @@ void Monster::UpdateState(float playerX)
 	else state_ = MonsterState::Idle;
 }
 
-void Monster::TakeDamage(int damage)
+void Monster::TakeDamage(int damage, float attackerX)
 {
 	if (state_ == MonsterState::Dead) return;
+	if (state_ == MonsterState::Hit) return;
 
 	hp_ -= damage;
 
-	velocityX_ = 0.0f;
+	velocityX_ = x_ > attackerX ? kKnockbackSpeed : -kKnockbackSpeed;
 
 	if (hp_ <= 0)
 	{
@@ -54,10 +62,47 @@ void Monster::TakeDamage(int damage)
 
 void Monster::FinishHit()
 {
-	if (state_ == MonsterState::Hit)
+	if (state_ != MonsterState::Hit) return;
+
+	velocityX_ = 0.0f;
+	state_ = MonsterState::Idle;
+}
+
+void Monster::Reset()
+{
+	x_ = 0.6f;
+	velocityX_ = 0.0f;
+	hp_ = 3;
+	facingRight_ = false;
+	state_ = MonsterState::Idle;
+}
+
+AABB Monster::GetBodyBox() const
+{
+	constexpr float halfWidth = 0.07f;
+	constexpr float halfHeight = 0.08f;
+
+	return
 	{
-		state_ == MonsterState::Idle;
-	}
+		x_ - halfWidth,
+		x_ + halfWidth,
+		y_ - halfHeight,
+		y_ + halfHeight
+	};
+}
+
+AABB Monster::GetHurtBox() const
+{
+	constexpr float halfWidth = 0.07f;
+	constexpr float halfHeight = 0.08f;
+
+	return
+	{
+		x_ - halfWidth,
+		x_ + halfWidth,
+		y_ - halfHeight,
+		y_ + halfHeight
+	};
 }
 
 float Monster::GetX() const

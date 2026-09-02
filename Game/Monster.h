@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Collision.h"
+
 enum class MonsterState
 {
 	Idle,
@@ -13,8 +15,9 @@ class Monster
 public :
 	void Update(float deltaTime, float playerX);
 
-	void TakeDamage(int damage);
+	void TakeDamage(int damage, float attackerX);
 	void FinishHit();
+	void Reset();
 
 	float GetX() const;
 	float GetY() const;
@@ -26,6 +29,9 @@ public :
 
 	MonsterState GetState() const;
 
+	AABB GetHurtBox() const;
+	AABB GetBodyBox() const;
+
 private:
 	void UpdateState(float playerX);
 
@@ -36,6 +42,7 @@ private :
 	float velocityX_ = 0.0f;
 
 	int hp_ = 3;
+	int maxHp_ = 3;
 
 	bool facingRight_ = false;
 
@@ -43,4 +50,6 @@ private :
 
 	static constexpr float kMoveSpeed = 0.25f;
 	static constexpr float kChaseRange = 0.6f;
+
+	static constexpr float kKnockbackSpeed = 0.45f;
 };

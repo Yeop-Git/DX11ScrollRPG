@@ -148,6 +148,7 @@
   <ItemGroup>
     <ClInclude Include="Engine\Core\Application.h" />
     <ClInclude Include="Engine\ThirdParty\stb\stb_image.h" />
+    <ClInclude Include="Game\Collision.h" />
     <ClInclude Include="Game\Monster.h" />
     <ClInclude Include="Game\Player.h" />
   </ItemGroup>
