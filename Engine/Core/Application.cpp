@@ -52,6 +52,8 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 
 	if (!CreatePlayerTextures()) return false;
 
+	if (!CreateWorldTextures()) return false;
+
 	if (!CreateBlendState()) return false;
 
 	previousTime_ = steady_clock::now();
@@ -327,10 +329,18 @@ bool Application::CreateShaders()
 
 bool Application::CreatePlayerTextures()
 {
-	if (!LoadTexture("Assets/Textures/PlayerIdle.png", idleTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/PlayerRun.png", runTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/PlayerJumpStart.png", jumpStartTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/PlayerJumpEnd.png", jumpEndTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Player/PlayerIdle.png", idleTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Player/PlayerRun.png", runTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Player/PlayerJumpStart.png", jumpStartTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Player/PlayerJumpEnd.png", jumpEndTextureView_)) return false;
+	return true;
+}
+
+bool Application::CreateWorldTextures()
+{
+	if (!LoadTexture("Assets/Textures/World/Ground.png", groundTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/World/Tree.png", treeTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/World/Background.png", backgroundTextureView_)) return false;
 	return true;
 }
 //bool Application::CreateTexture()
@@ -508,7 +518,9 @@ void Application::Update(float deltaTime)
 {
 	player_.Update(deltaTime);
 	UpdatePlayerAnimation(deltaTime);
-	UpdateSpriteUV();
+	// Render()에서 범용 DrawSprite()를 사용하여 UV를 갱신 및 Draw
+	// UpdateSpriteUV()는 더 이상 필요 없음
+	// UpdateSpriteUV();
 }
 
 void Application::Render()
@@ -551,7 +563,10 @@ void Application::Render()
 	context_->OMSetBlendState(blendState_.Get(), nullptr, 0xFFFFFFFF);
 
 	// Draw
-	context_->DrawIndexed(6, 0, 0);
+	DrawBackground();
+	DrawTrees();
+	DrawGround();
+	DrawPlayer();
 
 	// BackBuffer 출력
 	swapChain_->Present(1, 0);
@@ -583,36 +598,171 @@ void Application::UpdatePlayerAnimation(float deltaTime)
 	}
 }
 
-void Application::UpdateSpriteUV()
+void Application::DrawBackground()
 {
-	// frame 수에 따라 frame width를 계산
-	const float frameWidth = 1.0f / static_cast<float>(GetCurrentFrameCount());
+	DrawSprite(
+		backgroundTextureView_.Get(),
+		0.0f,
+		0.0f,
+		1.0f,
+		1.0f
+	);
+}
 
-	// frame width에 따라서 u0, u1 계산
+void Application::DrawTrees()
+{
+	constexpr float groundY = -0.3f;
+
+	constexpr float treeHalfWidth = 0.1f;
+	constexpr float treeHalfHeight = 0.34f;
+
+	constexpr float treeCenterY = groundY + treeHalfHeight;
+
+
+	// 왼쪽, 오른쪽에 나무 그리기
+	DrawSprite(
+		treeTextureView_.Get(),
+		-0.65f,
+		treeCenterY,
+		treeHalfWidth,
+		treeHalfHeight
+	);
+
+	DrawSprite(
+		treeTextureView_.Get(),
+		0.6f,
+		treeCenterY,
+		treeHalfWidth,
+		treeHalfHeight
+	);
+}
+
+void Application::DrawGround()
+{
+	constexpr float groundY = -0.3f;
+
+	constexpr float halfWidth = 0.1f;
+	constexpr float halfHeight = 0.1f;
+
+	constexpr float centerY = groundY - halfHeight;
+
+	constexpr int groundCount = 15;
+
+	// groundCount만큼 groundTextureView_를 반복해서 그리기
+	for (int i = 0; i < groundCount; ++i)
+	{
+		const float x = -1.0f + static_cast<float>(i) * halfWidth * 1.5f;
+
+		DrawSprite(
+			groundTextureView_.Get(),
+			x,
+			centerY,
+			halfWidth,
+			halfHeight
+		);
+	}
+}
+
+void Application::DrawPlayer()
+{
+	const float frameCount = static_cast<float>(GetCurrentFrameCount());
+	const float frameWidth = 1.0f / frameCount;
+
 	const float u0 = currentFrame_ * frameWidth;
 	const float u1 = u0 + frameWidth;
 
-	const float halfWidth = 0.1f;
-	const float halfHeight = 0.18f;
+	constexpr float renderOffsetY = -0.07f; // player sprite를 ground에 맞추기 위해 y offset 적용
 
-	// facingRight_에 따라 u0, u1을 좌우 반전
-	float leftU = player_.IsFacingRight() ? u0 : u1;
-	float rightU = player_.IsFacingRight() ? u1 : u0;
+	DrawSprite(
+		GetCurrentPlayerTexture(),
+		player_.GetX(),
+		player_.GetY() + renderOffsetY,
+		0.1f,
+		0.18f,
+		u0,
+		0.0f,
+		u1,
+		1.0f,
+		!player_.IsFacingRight()
+	);
+}
 
-	const  float playerX = player_.GetX();
-	const float playerY = player_.GetY();
-	// playerX_, playerY_를 중심으로 transformation 적용된 vertex 좌표 계산
-	Vertex vertices[] =
+
+//void Application::UpdateSpriteUV()
+//{
+//	// frame 수에 따라 frame width를 계산
+//	const float frameWidth = 1.0f / static_cast<float>(GetCurrentFrameCount());
+//
+//	// frame width에 따라서 u0, u1 계산
+//	const float u0 = currentFrame_ * frameWidth;
+//	const float u1 = u0 + frameWidth;
+//
+//	const float halfWidth = 0.1f;
+//	const float halfHeight = 0.18f;
+//
+//	// facingRight_에 따라 u0, u1을 좌우 반전
+//	float leftU = player_.IsFacingRight() ? u0 : u1;
+//	float rightU = player_.IsFacingRight() ? u1 : u0;
+//
+//	const  float playerX = player_.GetX();
+//	const float playerY = player_.GetY();
+//	// playerX_, playerY_를 중심으로 transformation 적용된 vertex 좌표 계산
+//	Vertex vertices[] =
+//	{
+//		{ playerX - halfWidth, playerY - halfHeight, 0.0f, leftU, 1.0f },
+//		{ playerX + halfWidth, playerY - halfHeight, 0.0f, rightU, 1.0f },
+//		{ playerX + halfWidth, playerY + halfHeight, 0.0f, rightU, 0.0f },
+//		{ playerX - halfWidth, playerY + halfHeight, 0.0f, leftU, 0.0f }
+//	};
+//
+//	D3D11_MAPPED_SUBRESOURCE mappedResource{};
+//
+//	// CPU가 GPU Resource에 데이터를 쓸 수 있도록 접근 가능한 메모리 영역 요구
+//	HRESULT hr = context_->Map(
+//		vertexBuffer_.Get(),
+//		0,
+//		D3D11_MAP_WRITE_DISCARD,
+//		0,
+//		&mappedResource
+//	);
+//
+//	if (FAILED(hr)) return;
+//
+//	// 새 vertex 데이터 넣기
+//	memcpy(mappedResource.pData, vertices, sizeof(vertices));
+//
+//	// CPU 작업 끝, GPU가 Resource 사용
+//	context_->Unmap(vertexBuffer_.Get(), 0);
+//}
+
+// UpdateSpriteUV()를 범용 DrawSprite()로 계승
+// Sprite 하나 그릴 때마다 Vertex Buffer를 갱신하고 즉시 Draw
+void Application::DrawSprite(
+	ID3D11ShaderResourceView* textureView,
+	float x,
+	float y,
+	float halfWidth,
+	float halfHeight,
+	float u0,
+	float v0,
+	float u1,
+	float v1,
+	bool flipX)
+{
+	float leftU = flipX ? u1 : u0;
+	float rightU = flipX ? u0 : u1;
+
+	const float vertices[] =
 	{
-		{ playerX - halfWidth, playerY - halfHeight, 0.0f, leftU, 1.0f },
-		{ playerX + halfWidth, playerY - halfHeight, 0.0f, rightU, 1.0f },
-		{ playerX + halfWidth, playerY + halfHeight, 0.0f, rightU, 0.0f },
-		{ playerX - halfWidth, playerY + halfHeight, 0.0f, leftU, 0.0f }
+		x - halfWidth, y - halfHeight, 0.0f, leftU, v1,
+		x + halfWidth, y - halfHeight, 0.0f, rightU, v1,
+		x + halfWidth, y + halfHeight, 0.0f, rightU, v0,
+		x - halfWidth, y + halfHeight, 0.0f, leftU, v0
 	};
 
+	// vertex buffer를 CPU가 접근 가능한 메모리 영역으로 매핑
 	D3D11_MAPPED_SUBRESOURCE mappedResource{};
 
-	// CPU가 GPU Resource에 데이터를 쓸 수 있도록 접근 가능한 메모리 영역 요구
 	HRESULT hr = context_->Map(
 		vertexBuffer_.Get(),
 		0,
@@ -628,6 +778,10 @@ void Application::UpdateSpriteUV()
 
 	// CPU 작업 끝, GPU가 Resource 사용
 	context_->Unmap(vertexBuffer_.Get(), 0);
+
+	// 이번 Draw에서 사용할 Texture
+	context_->PSSetShaderResources(0, 1, &textureView);
+	context_->DrawIndexed(6, 0, 0);
 }
 
 float Application::GetDeltaTime()

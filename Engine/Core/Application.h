@@ -25,6 +25,7 @@ private:
 	bool CreateGeometry();
 	bool CreateShaders();
 	bool CreatePlayerTextures();
+	bool CreateWorldTextures();
 	bool CreateBlendState();
 	//bool CreateTexture();
 	bool LoadTexture(const char* filePath, ComPtr<ID3D11ShaderResourceView>& outTextureView); // CreateTexture()를 대체
@@ -34,8 +35,26 @@ private:
 	void Update(float deltaTime);
 	void Render();
 	void UpdatePlayerAnimation(float deltaTime);
-	void UpdateSpriteUV();
+	//void UpdateSpriteUV();
 	float GetDeltaTime();
+
+	// Draw Functions
+	void DrawBackground();
+	void DrawTrees();
+	void DrawGround();
+	void DrawPlayer();
+	void DrawSprite(
+		ID3D11ShaderResourceView* textureView,
+		float x,
+		float y,
+		float halfWidth,
+		float halfHeight,
+		float u0 = 0.0f,
+		float v0 = 0.0f,
+		float u1 = 1.0f,
+		float v1 = 1.0f,
+		bool flipX = false
+	);
 
 	int GetCurrentFrameCount() const;
 	ID3D11ShaderResourceView* GetCurrentPlayerTexture() const;
@@ -92,4 +111,9 @@ private:
 	ComPtr<ID3D11ShaderResourceView> runTextureView_;
 	ComPtr<ID3D11ShaderResourceView> jumpStartTextureView_;
 	ComPtr<ID3D11ShaderResourceView> jumpEndTextureView_;
+
+	// World Coordinate Texture
+	ComPtr<ID3D11ShaderResourceView> groundTextureView_;
+	ComPtr<ID3D11ShaderResourceView> treeTextureView_;
+	ComPtr<ID3D11ShaderResourceView> backgroundTextureView_;
 };
