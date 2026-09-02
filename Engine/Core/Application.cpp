@@ -529,6 +529,7 @@ void Application::Update(float deltaTime)
 	player_.Update(deltaTime);
 	monster_.Update(deltaTime, player_.GetX());
 	UpdatePlayerAnimation(deltaTime);
+	UpdateMonsterAnimation(deltaTime);
 	// Render()에서 범용 DrawSprite()를 사용하여 UV를 갱신 및 Draw
 	// UpdateSpriteUV()는 더 이상 필요 없음
 	// UpdateSpriteUV();
@@ -610,6 +611,7 @@ void Application::UpdatePlayerAnimation(float deltaTime)
 	}
 }
 
+// UpdatePlayerAnimation과 동일하게 구성
 void Application::UpdateMonsterAnimation(float deltaTime)
 {
 	const MonsterState state = monster_.GetState();
@@ -624,10 +626,11 @@ void Application::UpdateMonsterAnimation(float deltaTime)
 
 	monsterAnimationTimer_ += deltaTime;
 
-	constexpr float frameDuration = 0.12f;
+	constexpr float frameDuration = 0.15f;
 
 	if (monsterAnimationTimer_ < frameDuration) return;
 
+	monsterAnimationTimer_ -= frameDuration;
 	const int frameCount = GetCurrentMonsterFrameCount();
 
 	switch (state)
