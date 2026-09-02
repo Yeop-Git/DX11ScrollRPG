@@ -6,6 +6,7 @@
 #include <chrono>
 
 #include "../../Game/Player.h"
+#include "../../Game/Monster.h"
 
 using namespace Microsoft::WRL;
 
@@ -26,6 +27,7 @@ private:
 	bool CreateShaders();
 	bool CreatePlayerTextures();
 	bool CreateWorldTextures();
+	bool CreateMonsterTextures();
 	bool CreateBlendState();
 	//bool CreateTexture();
 	bool LoadTexture(const char* filePath, ComPtr<ID3D11ShaderResourceView>& outTextureView); // CreateTexture()를 대체
@@ -35,6 +37,8 @@ private:
 	void Update(float deltaTime);
 	void Render();
 	void UpdatePlayerAnimation(float deltaTime);
+	void UpdateMonsterAnimation(float deltaTime);
+	bool IsMonsterAnimationFinished() const;
 	//void UpdateSpriteUV();
 	float GetDeltaTime();
 
@@ -43,6 +47,7 @@ private:
 	void DrawTrees();
 	void DrawGround();
 	void DrawPlayer();
+	void DrawMonster();
 	void DrawSprite(
 		ID3D11ShaderResourceView* textureView,
 		float x,
@@ -57,7 +62,9 @@ private:
 	);
 
 	int GetCurrentFrameCount() const;
+	int GetCurrentMonsterFrameCount() const;
 	ID3D11ShaderResourceView* GetCurrentPlayerTexture() const;
+	ID3D11ShaderResourceView* GetCurrentMonsterTexture() const;
 
 private:
 	// Windows 창 Handle
@@ -66,6 +73,11 @@ private:
 	//Player
 	Player player_;
 	PlayerState previousPlayerState_ = PlayerState::Idle;
+
+	Monster monster_;
+	MonsterState previousMonsterState_ = MonsterState::Idle;
+	int monsterCurrentFrame_ = 0;
+	float monsterAnimationTimer_ = 0.0f;
 
 	// Animation
 	int currentFrame_ = 0;
@@ -77,11 +89,17 @@ private:
 	static constexpr int kWindowWidth = 1280;
 	static constexpr int kWindowHeight = 720;
 
-	// Animation Frame Count
+	// Player Animation Frame Count
 	static constexpr int kIdleFrameCount = 4;
 	static constexpr int kRunFrameCount = 8;
 	static constexpr int kJumpStartFrameCount = 4;
 	static constexpr int kJumpEndFrameCount = 3;
+
+	// Enemy Animation Frame Count
+	static constexpr int kMonsterIdleFrameCount = 4;
+	static constexpr int kMonsterChaseFrameCount = 8;
+	static constexpr int kMonsterHitFrameCount = 8;
+	static constexpr int kMonsterDeadFrameCount = 8;
 
 	// DirectX 핵심 객체
 	// ComPtr : 스마트 포인터, 참조 카운트 기반 COM 객체 관리(RAII)
@@ -111,6 +129,12 @@ private:
 	ComPtr<ID3D11ShaderResourceView> runTextureView_;
 	ComPtr<ID3D11ShaderResourceView> jumpStartTextureView_;
 	ComPtr<ID3D11ShaderResourceView> jumpEndTextureView_;
+
+	// Monster Animation Texture
+	ComPtr<ID3D11ShaderResourceView> monsterIdleTextureView_;
+	ComPtr<ID3D11ShaderResourceView> monsterChaseTextureView_;
+	ComPtr<ID3D11ShaderResourceView> monsterHitTextureView_;
+	ComPtr<ID3D11ShaderResourceView> monsterDeadTextureView_;
 
 	// World Coordinate Texture
 	ComPtr<ID3D11ShaderResourceView> groundTextureView_;

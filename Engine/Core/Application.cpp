@@ -52,6 +52,8 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 
 	if (!CreatePlayerTextures()) return false;
 
+	if (!CreateMonsterTextures()) return false;
+
 	if (!CreateWorldTextures()) return false;
 
 	if (!CreateBlendState()) return false;
@@ -336,6 +338,14 @@ bool Application::CreatePlayerTextures()
 	return true;
 }
 
+bool Application::CreateMonsterTextures()
+{
+	if (!LoadTexture("Assets/Textures/Monster/MonsterIdle.png", monsterIdleTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Monster/MonsterChase.png", monsterChaseTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Monster/MonsterHit.png", monsterHitTextureView_)) return false;
+	if (!LoadTexture("Assets/Textures/Monster/MonsterDead.png", monsterDeadTextureView_)) return false;
+}
+
 bool Application::CreateWorldTextures()
 {
 	if (!LoadTexture("Assets/Textures/World/Ground.png", groundTextureView_)) return false;
@@ -517,6 +527,7 @@ bool Application::ProcessMessages()
 void Application::Update(float deltaTime)
 {
 	player_.Update(deltaTime);
+	monster_.Update(deltaTime, player_.GetX());
 	UpdatePlayerAnimation(deltaTime);
 	// Render()에서 범용 DrawSprite()를 사용하여 UV를 갱신 및 Draw
 	// UpdateSpriteUV()는 더 이상 필요 없음
@@ -566,6 +577,7 @@ void Application::Render()
 	DrawBackground();
 	DrawTrees();
 	DrawGround();
+	DrawMonster();
 	DrawPlayer();
 
 	// BackBuffer 출력
@@ -598,6 +610,51 @@ void Application::UpdatePlayerAnimation(float deltaTime)
 	}
 }
 
+void Application::UpdateMonsterAnimation(float deltaTime)
+{
+	const MonsterState state = monster_.GetState();
+
+	if (state != previousMonsterState_)
+	{
+		monsterCurrentFrame_ = 0;
+		monsterAnimationTimer_ = 0.0f;
+
+		previousMonsterState_ = state;
+	}
+
+	monsterAnimationTimer_ += deltaTime;
+
+	constexpr float frameDuration = 0.12f;
+
+	if (monsterAnimationTimer_ < frameDuration) return;
+
+	const int frameCount = GetCurrentMonsterFrameCount();
+
+	switch (state)
+	{
+	case MonsterState::Idle:
+	case MonsterState::Chase:
+		monsterCurrentFrame_ = (monsterCurrentFrame_ + 1) % frameCount;
+		break;
+
+	case MonsterState::Hit:
+		if (monsterCurrentFrame_ < frameCount - 1) monsterCurrentFrame_++;
+		else monster_.FinishHit();
+		break;
+
+	case MonsterState::Dead:
+		if (monsterCurrentFrame_ < frameCount - 1) monsterCurrentFrame_++;
+		break;
+	}
+}
+
+bool Application::IsMonsterAnimationFinished() const
+{
+	return monsterCurrentFrame_ >= GetCurrentMonsterFrameCount() - 1;
+}
+
+
+// 화면 전체에 배경 draw
 void Application::DrawBackground()
 {
 	DrawSprite(
@@ -684,6 +741,30 @@ void Application::DrawPlayer()
 		u1,
 		1.0f,
 		!player_.IsFacingRight()
+	);
+}
+
+void Application::DrawMonster()
+{
+	const float frameCount = static_cast<float>(GetCurrentMonsterFrameCount());
+	const float frameWidth = 1.0f / frameCount;
+
+	const float u0 = monsterCurrentFrame_ * frameWidth;
+	const float u1 = u0 + frameWidth;
+
+	constexpr float renderOffsetY = -0.04f;
+
+	DrawSprite(
+		GetCurrentMonsterTexture(),
+		monster_.GetX(),
+		monster_.GetY() + renderOffsetY,
+		0.08f,
+		0.08f,
+		u0,
+		0.0f,
+		u1,
+		1.0f,
+		monster_.IsFacingRight()
 	);
 }
 
@@ -814,6 +895,21 @@ int Application::GetCurrentFrameCount() const
 	return 1;
 }
 
+int Application::GetCurrentMonsterFrameCount() const
+{
+	switch (monster_.GetState())
+	{
+	case MonsterState::Idle:
+		return kMonsterIdleFrameCount;
+	case MonsterState::Chase:
+		return kMonsterChaseFrameCount;
+	case MonsterState::Hit:
+		return kMonsterHitFrameCount;
+	case MonsterState::Dead:
+		return kMonsterDeadFrameCount;
+	}
+}
+
 ID3D11ShaderResourceView* Application::GetCurrentPlayerTexture() const
 {
 	switch (player_.GetState())
@@ -826,6 +922,22 @@ ID3D11ShaderResourceView* Application::GetCurrentPlayerTexture() const
 		return jumpStartTextureView_.Get();
 	case PlayerState::JumpEnd:
 		return jumpEndTextureView_.Get();
+	}
+	return nullptr;
+}
+
+ID3D11ShaderResourceView* Application::GetCurrentMonsterTexture() const
+{
+	switch (monster_.GetState())
+	{
+	case MonsterState::Idle:
+		return monsterIdleTextureView_.Get();
+	case MonsterState::Chase:
+		return monsterChaseTextureView_.Get();
+	case MonsterState::Hit:
+		return monsterHitTextureView_.Get();
+	case MonsterState::Dead:
+		return monsterDeadTextureView_.Get();
 	}
 	return nullptr;
 }
