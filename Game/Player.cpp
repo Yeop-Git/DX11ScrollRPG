@@ -3,6 +3,18 @@
 #include <Windows.h>
 #include <algorithm>
 
+Player::Player()
+{
+	maxHp_ = 3;
+	hp_ = maxHp_;
+
+	colliderHalfWidth_ = 0.1f;
+	colliderHalfHeight_ = 0.18f;
+
+	x_ = 0.0f;
+	y_ = kGroundY + colliderHalfHeight_;
+}
+
 void Player::Update(float deltaTime)
 {
 	// Input > Physics > Position > Collision > State
@@ -74,15 +86,15 @@ void Player::UpdatePosition(float deltaTime)
 	y_ += velocityY_ * deltaTime;
 
 	// 화면 밖으로 나가지 않도록 clamp
-	x_ = std::clamp(x_, -1.0f + kHalfWidth, 1.0f - kHalfWidth);
+	x_ = std::clamp(x_, -1.0f + colliderHalfWidth_, 1.0f - colliderHalfWidth_);
 }
 
 void Player::ResolveGroundCollisions()
 {
 	// 땅과 충돌 처리
-	if (y_ <= kGroundY + kHalfHeight)
+	if (y_ <= kGroundY + colliderHalfHeight_)
 	{
-		y_ = kGroundY + kHalfHeight;
+		y_ = kGroundY + colliderHalfHeight_;
 		velocityY_ = 0.0f;
 		isGrounded_ = true;
 	}
@@ -141,8 +153,8 @@ void Player::TakeDamage(int damage, float attackerX)
 	{
 		hp_ = 0;
 
-	velocityX_ = 0.0f;
-	velocityY_ = 0.0f;
+		velocityX_ = 0.0f;
+		velocityY_ = 0.0f;
 
 		state_ = PlayerState::Dead;
 		return;
@@ -185,15 +197,10 @@ void Player::FinishAttack()
 	if (state_ == PlayerState::Attack) state_ = PlayerState::Idle;
 }
 
-void Player::FinishHit()
-{
-
-}
-
 void Player::Reset()
 {
 	x_ = 0.0f;
-	y_ = kGroundY + kHalfHeight;
+	y_ = kGroundY + colliderHalfHeight_;
 
 	velocityX_ = 0.0f;
 	velocityY_ = 0.0f;
@@ -210,26 +217,6 @@ bool Player::IsAttacking() const
 {
 	return state_ == PlayerState::Attack;
 }
-
-bool Player::IsDead() const
-{
-	return state_ == PlayerState::Dead;
-}
-
-AABB Player::GetBodyBox() const
-{
-	constexpr float halfWidth = 0.07f;
-	constexpr float halfHeight = 0.15f;
-
-	return
-	{
-		x_ - halfWidth,
-		x_ + halfWidth,
-		y_ - halfHeight,
-		y_ + halfHeight
-	};
-}
-
 
 AABB Player::GetAttackHitBox() const
 {
@@ -254,22 +241,6 @@ AABB Player::GetAttackHitBox() const
 		y_ - attackHalfHeight,
 		y_ + attackHalfHeight
 	};
-}
-
-// Getter
-float Player::GetX() const
-{
-	return x_;
-}
-
-float Player::GetY() const
-{
-	return y_;
-}
-
-bool Player::IsFacingRight() const
-{
-	return facingRight_;
 }
 
 PlayerState Player::GetState() const

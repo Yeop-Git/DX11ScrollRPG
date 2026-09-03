@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Collision.h"
+#include "Entity/Character.h"
 
 enum class PlayerState
 {
@@ -12,32 +12,28 @@ enum class PlayerState
 	Dead
 };
 
-class Player
+class Player : public Character
 {
 public:
-	void Update(float deltaTime);
+	// 생성자
+	Player();
 
-	float GetX() const;
-	float GetY() const;
+	void Update(float deltaTime) override;
 
-	bool IsFacingRight() const;
 	PlayerState GetState() const;
 
-	void TakeDamage(int damage, float attackerX);
+	void TakeDamage(int damage, float attackerX) override;
 
 	void StartAttack();
 	void FinishAttack();
-	void FinishHit();
 
 	void Reset();
 
 	bool IsAttacking() const;
-	bool IsDead() const;
 
 	bool IsInvincible() const;
 	bool ShouldRender() const;
 
-	AABB GetBodyBox() const;
 	AABB GetAttackHitBox() const;
 
 private:
@@ -49,23 +45,11 @@ private:
 	void UpdateDamageState(float deltaTime);
 
 private:
-	// Transform
-	float x_ = 0.0f;
-	float y_ = -0.2f;
-
-	// Velocity
-	float velocityX_ = 0.0f;
-	float velocityY_ = 0.0f;
-
 	bool isGrounded_ = true;
-	bool facingRight_ = true;
 
 	PlayerState state_ = PlayerState::Idle;
 
-	// HP
-	int hp_ = 3;
-	int maxHp_ = 3;
-
+	bool attackHitRegistered_ = false;
 	bool isInvincible_ = false;
 
 	float invincibleTimer_ = 0.0f;
@@ -78,9 +62,6 @@ private:
 	static constexpr float kMoveSpeed = 0.8f;
 	static constexpr float kJumpSpeed = 1.5f;
 	static constexpr float kGravity = -3.0f;
-
-	static constexpr float kHalfWidth = 0.1f;
-	static constexpr float kHalfHeight = 0.18f;
 
 	static constexpr float kGroundY = -0.3f;
 };

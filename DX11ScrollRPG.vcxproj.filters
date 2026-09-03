@@ -46,6 +46,15 @@
     <Filter Include="헤더 파일\Game">
       <UniqueIdentifier>{a2977be4-a1f0-4564-934f-bcca10e54b6c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="헤더 파일\Game\Entity">
+      <UniqueIdentifier>{b0bbc610-0e61-4a7b-b94f-b67b5ee577b6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\Game\Collision">
+      <UniqueIdentifier>{b936b42f-0337-4c01-b8e4-f4c8a6b9365f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Game\Entity">
+      <UniqueIdentifier>{ac1049a5-f9d2-464f-bea1-303d2a50bc2c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -63,6 +72,9 @@
     <ClCompile Include="Game\Monster.cpp">
       <Filter>소스 파일\Game</Filter>
     </ClCompile>
+    <ClCompile Include="Game\Entity\Character.cpp">
+      <Filter>소스 파일\Game\Entity</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\Core\Application.h">
@@ -77,8 +89,14 @@
     <ClInclude Include="Game\Monster.h">
       <Filter>헤더 파일\Game</Filter>
     </ClInclude>
-    <ClInclude Include="Game\Collision.h">
-      <Filter>헤더 파일\Game</Filter>
+    <ClInclude Include="Game\Entity\Entity.h">
+      <Filter>헤더 파일\Game\Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\Collision\AABB.h">
+      <Filter>헤더 파일\Game\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\Entity\Character.h">
+      <Filter>헤더 파일\Game\Entity</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

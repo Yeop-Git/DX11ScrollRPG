@@ -1,8 +1,24 @@
 #include "Monster.h"
 #include <cmath>
 
-void Monster::Update(float deltaTime, float playerX)
+Monster::Monster()
 {
+	maxHp_ = 3;
+	hp_ = maxHp_;
+
+	colliderHalfHeight_ = 0.07f;
+	colliderHalfWidth_ = 0.08f;
+
+	x_ = 0.6f;
+	y_ = -0.18f;
+}
+
+void Monster::Update(float deltaTime)
+{
+	// 타겟 없으면 
+	if (target_ == nullptr) return;
+	const float targetX = target_->GetX();
+
 	if (state_ == MonsterState::Dead) return;
 
 	if (state_ == MonsterState::Hit)
@@ -12,11 +28,11 @@ void Monster::Update(float deltaTime, float playerX)
 		return;
 	}
 
-	UpdateState(playerX);
+	UpdateState(targetX);
 
 	if (state_ == MonsterState::Chase)
 	{
-		if (playerX < x_)
+		if (targetX < x_)
 		{
 			velocityX_ = -kMoveSpeed;
 			facingRight_ = false;
@@ -60,6 +76,11 @@ void Monster::TakeDamage(int damage, float attackerX)
 	state_ = MonsterState::Hit;
 }
 
+void Monster::SetTarget(Character* target)
+{
+	target_ = target;
+}
+
 void Monster::FinishHit()
 {
 	if (state_ != MonsterState::Hit) return;
@@ -77,58 +98,15 @@ void Monster::Reset()
 	state_ = MonsterState::Idle;
 }
 
-AABB Monster::GetBodyBox() const
-{
-	constexpr float halfWidth = 0.07f;
-	constexpr float halfHeight = 0.08f;
-
-	return
-	{
-		x_ - halfWidth,
-		x_ + halfWidth,
-		y_ - halfHeight,
-		y_ + halfHeight
-	};
-}
-
 AABB Monster::GetHurtBox() const
 {
-	constexpr float halfWidth = 0.07f;
-	constexpr float halfHeight = 0.08f;
-
 	return
 	{
-		x_ - halfWidth,
-		x_ + halfWidth,
-		y_ - halfHeight,
-		y_ + halfHeight
+		x_ - colliderHalfWidth_,
+		x_ + colliderHalfWidth_,
+		y_ - colliderHalfHeight_,
+		y_ + colliderHalfHeight_
 	};
-}
-
-float Monster::GetX() const
-{
-	return x_;
-}
-
-
-float Monster::GetY() const
-{
-	return y_;
-}
-
-int Monster::GetHP() const
-{
-	return hp_;
-}
-
-bool Monster::IsFacingRight() const
-{
-	return facingRight_;
-}
-
-bool Monster::IsDead() const
-{
-	return state_ == MonsterState::Dead;
 }
 
 MonsterState Monster::GetState() const

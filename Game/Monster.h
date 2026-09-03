@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Collision.h"
+#include "Entity/Character.h"
 
 enum class MonsterState
 {
@@ -10,42 +10,31 @@ enum class MonsterState
 	Dead
 };
 
-class Monster
+class Monster : public Character
 {
 public :
-	void Update(float deltaTime, float playerX);
+	Monster();
+
+	// Update에서 playerX 제거
+	void Update(float deltaTime) override;
 
 	void TakeDamage(int damage, float attackerX);
+
+	// Player를 Target, Character 포인터로 받음
+	void SetTarget(Character* target);
+
 	void FinishHit();
 	void Reset();
-
-	float GetX() const;
-	float GetY() const;
-
-	int GetHP() const;
-
-	bool IsFacingRight() const;
-	bool IsDead() const;
 
 	MonsterState GetState() const;
 
 	AABB GetHurtBox() const;
-	AABB GetBodyBox() const;
 
 private:
 	void UpdateState(float playerX);
 
 private :
-	float x_ = 0.6f;
-	float y_ = -0.18f;
-
-	float velocityX_ = 0.0f;
-
-	int hp_ = 3;
-	int maxHp_ = 3;
-
-	bool facingRight_ = false;
-
+	Character* target_ = nullptr;
 	MonsterState state_ = MonsterState::Idle;
 
 	static constexpr float kMoveSpeed = 0.25f;

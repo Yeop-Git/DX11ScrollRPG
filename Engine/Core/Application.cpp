@@ -65,6 +65,8 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 
 	if (!CreateBlendState()) return false;
 
+	monster_.SetTarget(&player_);
+
 	previousTime_ = steady_clock::now();
 
 	return true;
@@ -547,7 +549,7 @@ void Application::Update(float deltaTime)
 	}
 
 	player_.Update(deltaTime);
-	monster_.Update(deltaTime, player_.GetX());
+	monster_.Update(deltaTime);
 	UpdatePlayerAnimation(deltaTime);
 	UpdateMonsterAnimation(deltaTime);
 	UpdateCombat();
