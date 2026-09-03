@@ -11,56 +11,123 @@ Monster::Monster()
 
 	x_ = 0.6f;
 	y_ = -0.18f;
+
+	idleClip_ = {
+		kIdleClipCount,      // frameCount
+		0.12f,  // frameDuration
+		true,   // loop
+		32, 32,
+		0.10f
+	};
+
+	chaseClip_ = {
+		kChaseClipCount,
+		0.10f,
+		true,
+		32, 32,
+		0.10f
+	};
+
+	hurtClip_ = {
+		kHurtClipCount,
+		0.10f,
+		false,
+		32, 32,
+		0.10f
+	};
+
+	deadClip_ = {
+		kDeadClipCount,
+		0.12f,
+		false,
+		32, 32,
+		0.10f
+	};
+
+	animator_.Play(idleClip_);
 }
 
 void Monster::Update(float deltaTime)
 {
+	// animator 갱신
+	animator_.Update(deltaTime);
+
 	// 타겟 없으면 
 	if (target_ == nullptr) return;
-	const float targetX = target_->GetX();
-
 	if (state_ == MonsterState::Dead) return;
 
-	if (state_ == MonsterState::Hit)
-	{
-		x_ += velocityX_ * deltaTime;
-		velocityX_ *= 0.9f;
-		return;
-	}
+	const float targetX = target_->GetX();
 
 	UpdateState(targetX);
 
-	if (state_ == MonsterState::Chase)
+	// 넉백 감속
+	if (state_ == MonsterState::Hurt)
+	{
+		velocityX_ *= std::pow(0.9f, deltaTime * 60.0f);
+
+		if (animator_.IsFinished())
+		{
+			velocityX_ = 0.0f;
+			ChangeState(MonsterState::Idle);
+		}
+	}
+	// Chase 이동
+	else if (state_ == MonsterState::Chase)
 	{
 		if (targetX < x_)
 		{
-			velocityX_ = -kMoveSpeed;
+			velocityX_ = -kChaseSpeed;
 			facingRight_ = false;
 		}
 		else
 		{
-			velocityX_ = kMoveSpeed;
+			velocityX_ = kChaseSpeed;
 			facingRight_ = true;
 		}
-
-		x_ += velocityX_ * deltaTime;
 	}
-
 	else velocityX_ = 0.0f;
+
+	UpdatePosition(deltaTime);
 }
 
 void Monster::UpdateState(float playerX)
 {
+	if (state_ == MonsterState::Hurt) return;
+	if (state_ == MonsterState::Dead) return;
+
 	const float distance = std::abs(playerX - x_);
 
-	if (distance <= kChaseRange) state_ = MonsterState::Chase;
-	else state_ = MonsterState::Idle;
+	if (distance <= kChaseRange) ChangeState(MonsterState::Chase);
+	else ChangeState(MonsterState::Idle);
+}
+
+void Monster::ChangeState(MonsterState newState)
+{
+	if (state_ == newState) return;
+
+	state_ = newState;
+
+	switch (state_)
+	{
+	case MonsterState::Idle:
+		animator_.Play(idleClip_);
+		break;
+	case MonsterState::Chase:
+		animator_.Play(chaseClip_);
+		break;
+	case MonsterState::Hurt:
+		animator_.Play(hurtClip_);
+		break;
+	case MonsterState::Dead:
+		animator_.Play(deadClip_);
+		break;
+	}
 }
 
 void Monster::TakeDamage(int damage, float attackerX)
 {
 	if (state_ == MonsterState::Dead) return;
-	if (state_ == MonsterState::Hit) return;
+	if (state_ == MonsterState::Hurt) return;
 
 	hp_ -= damage;
 
@@ -69,11 +136,11 @@ void Monster::TakeDamage(int damage, float attackerX)
 	if (hp_ <= 0)
 	{
 		hp_ = 0;
-		state_ = MonsterState::Dead;
+		ChangeState(MonsterState::Dead);
 		return;
 	}
 
-	state_ = MonsterState::Hit;
+	ChangeState(MonsterState::Hurt);
 }
 
 void Monster::SetTarget(Character* target)
@@ -83,19 +150,19 @@ void Monster::SetTarget(Character* target)
 
 void Monster::FinishHit()
 {
-	if (state_ != MonsterState::Hit) return;
+	if (state_ != MonsterState::Hurt) return;
 
 	velocityX_ = 0.0f;
-	state_ = MonsterState::Idle;
+	ChangeState(MonsterState::Idle);
 }
 
 void Monster::Reset()
 {
 	x_ = 0.6f;
 	velocityX_ = 0.0f;
-	hp_ = 3;
+	hp_ = maxHp_;
 	facingRight_ = false;
-	state_ = MonsterState::Idle;
+	ChangeState(MonsterState::Idle);
 }
 
 AABB Monster::GetHurtBox() const
@@ -112,4 +179,9 @@ AABB Monster::GetHurtBox() const
 MonsterState Monster::GetState() const
 {
 	return state_;
+}
+
+const Animator& Monster::GetAnimator() const
+{
+	return animator_;
 }

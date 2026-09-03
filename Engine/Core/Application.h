@@ -29,19 +29,13 @@ private:
 	bool CreateWorldTextures();
 	bool CreateMonsterTextures();
 	bool CreateBlendState();
-	//bool CreateTexture();
 	bool LoadTexture(const char* filePath, ComPtr<ID3D11ShaderResourceView>& outTextureView); // CreateTexture()를 대체
 
 	bool ProcessMessages();
 
 	void Update(float deltaTime);
 	void Render();
-	void UpdatePlayerAnimation(float deltaTime);
-	void UpdateMonsterAnimation(float deltaTime);
 	void UpdateCombat();
-	bool IsAttackFrameActive() const;
-	bool IsMonsterAnimationFinished() const;
-	//void UpdateSpriteUV();
 	float GetDeltaTime();
 	void ResetGame();
 
@@ -64,8 +58,6 @@ private:
 		bool flipX = false
 	);
 
-	int GetCurrentFrameCount() const;
-	int GetCurrentMonsterFrameCount() const;
 	ID3D11ShaderResourceView* GetCurrentPlayerTexture() const;
 	ID3D11ShaderResourceView* GetCurrentMonsterTexture() const;
 
@@ -73,39 +65,16 @@ private:
 	// Windows 창 Handle
 	HWND hwnd_ = nullptr;
 
-	//Player
+	//Entities
 	Player player_;
-	PlayerState previousPlayerState_ = PlayerState::Idle;
-
 	Monster monster_;
-	MonsterState previousMonsterState_ = MonsterState::Idle;
-	int monsterCurrentFrame_ = 0;
-	float monsterAnimationTimer_ = 0.0f;
-	bool attackHitRegistered_ = false;
 
-	// Animation
-	int currentFrame_ = 0;
-	float animationTimer_ = 0.0f;
 	std::chrono::steady_clock::time_point previousTime_;
 
 	// constexpr : 컴파일 시점에 값이 결정되는 상수
 	// Window
 	static constexpr int kWindowWidth = 1280;
 	static constexpr int kWindowHeight = 720;
-
-	// Player Animation Frame Count
-	static constexpr int kIdleFrameCount = 4;
-	static constexpr int kRunFrameCount = 8;
-	static constexpr int kJumpStartFrameCount = 4;
-	static constexpr int kJumpEndFrameCount = 3;
-	static constexpr int kAttackFrameCount = 8;
-	static constexpr int kDeadFrameCount = 8;
-
-	// Enemy Animation Frame Count
-	static constexpr int kMonsterIdleFrameCount = 4;
-	static constexpr int kMonsterChaseFrameCount = 8;
-	static constexpr int kMonsterHitFrameCount = 8;
-	static constexpr int kMonsterDeadFrameCount = 8;
 
 	// DirectX 핵심 객체
 	// ComPtr : 스마트 포인터, 참조 카운트 기반 COM 객체 관리(RAII)

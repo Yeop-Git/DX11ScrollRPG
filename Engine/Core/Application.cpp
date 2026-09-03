@@ -365,76 +365,6 @@ bool Application::CreateWorldTextures()
 	if (!LoadTexture("Assets/Textures/World/Background.png", backgroundTextureView_)) return false;
 	return true;
 }
-//bool Application::CreateTexture()
-//{
-//	int width = 0;
-//	int height = 0;
-//	int channels = 0;
-//
-//	// PNG를 메모리의 RGBA pixel 배열로 디코딩
-//	unsigned char* pixels = stbi_load(
-//		"Assets/Textures/Player.png",
-//		&width,
-//		&height,
-//		&channels,
-//		STBI_rgb_alpha
-//	);
-//
-//	if (!pixels) return false;
-//
-//	// Texture 설정
-//	D3D11_TEXTURE2D_DESC textureDesc{};
-//
-//	textureDesc.Width = static_cast<UINT>(width);
-//	textureDesc.Height = static_cast<UINT>(height);
-//
-//	textureDesc.MipLevels = 1;
-//	textureDesc.ArraySize = 1;
-//
-//	// stb_image에서 RGBA 8bit로
-//	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-//
-//	// MSAA 사용 X
-//	textureDesc.SampleDesc.Count = 1;
-//
-//	// DFAULT Resource
-//	textureDesc.Usage = D3D11_USAGE_DEFAULT;
-//
-//	// Pixel Shader가 읽을 Texture, Shader Resource로 활용
-//	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-//
-//	// 초기 Texture 데이터
-//	D3D11_SUBRESOURCE_DATA initialData{};
-//
-//	initialData.pSysMem = pixels;
-//
-//	// 한 줄의 byte 크기
-//	// RGBA = pixel 하나당 4 bytes
-//	initialData.SysMemPitch = static_cast<UINT>(width * 4);
-//
-//	// Texture Resource 생성
-//	ComPtr<ID3D11Texture2D> texture;
-//	HRESULT hr = device_->CreateTexture2D(&textureDesc, &initialData, texture.GetAddressOf());
-//	stbi_image_free(pixels);
-//	if (FAILED(hr)) return false;
-//
-//	// Texture를 Shader에서 읽을 수 있도록 View 생성
-//	hr = device_->CreateShaderResourceView(texture.Get(), nullptr, textureView_.GetAddressOf());
-//	if (FAILED(hr))return false;
-//
-//	// Sampling 방식 설정
-//	D3D11_SAMPLER_DESC samplerDesc{};
-//
-//	// Point Sampling
-//	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-//	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-//	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-//	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-//
-//	hr = device_->CreateSamplerState(&samplerDesc, samplerState_.GetAddressOf());
-//
-//	return SUCCEEDED(hr);
-//}
 
 // file 경로를 받아 Shader Resource View를 만드는 범용 Texture Loader
 // 상단의 CreateTexture()를 대체
@@ -541,21 +471,13 @@ void Application::Update(float deltaTime)
 	// Player 죽으면 Retry 처리
 	if (player_.IsDead())
 	{
-		UpdatePlayerAnimation(deltaTime);
-		UpdateMonsterAnimation(deltaTime);
-
 		if (GetAsyncKeyState('R') & 0x8000) ResetGame();
-		return;
 	}
 
 	player_.Update(deltaTime);
 	monster_.Update(deltaTime);
-	UpdatePlayerAnimation(deltaTime);
-	UpdateMonsterAnimation(deltaTime);
+
 	UpdateCombat();
-	// Render()에서 범용 DrawSprite()를 사용하여 UV를 갱신 및 Draw
-	// UpdateSpriteUV()는 더 이상 필요 없음
-	// UpdateSpriteUV();
 }
 
 void Application::Render()
@@ -608,123 +530,20 @@ void Application::Render()
 	swapChain_->Present(1, 0);
 }
 
-void Application::UpdatePlayerAnimation(float deltaTime)
-{
-	const PlayerState currentState = player_.GetState();
-
-	// PlayerState가 바뀌면 animationTimer와 currentFrame 초기화
-	if (currentState != previousPlayerState_)
-	{
-		currentFrame_ = 0;
-		animationTimer_ = 0.0f;
-		previousPlayerState_ = currentState;
-
-		if (currentState == PlayerState::Attack) attackHitRegistered_ = false;
-	}
-
-	// Animation
-	// deltaTime 만큼 animationTimer 증가
-	animationTimer_ += deltaTime;
-	// 0.15초 마다 frame 갱신
-	constexpr float frameDuration = 0.15f;
-	if (animationTimer_ < frameDuration) return;
-
-	animationTimer_ -= frameDuration;
-	// frame 증가
-	const int frameCount = GetCurrentFrameCount();
-
-	switch (currentState)
-	{
-	case PlayerState::Idle:
-	case PlayerState::Run:
-	case PlayerState::JumpStart:
-	case PlayerState::JumpEnd:
-		currentFrame_ =
-			(currentFrame_ + 1) % frameCount;
-		break;
-
-	case PlayerState::Attack:
-
-		if (currentFrame_ < frameCount - 1)
-		{
-			currentFrame_++;
-		}
-		else
-		{
-			player_.FinishAttack();
-		}
-		break;
-
-	case PlayerState::Dead:
-		if (currentFrame_ < frameCount - 1) currentFrame_++;
-		break;
-	}
-}
-
-// UpdatePlayerAnimation과 동일하게 구성
-void Application::UpdateMonsterAnimation(float deltaTime)
-{
-	const MonsterState state = monster_.GetState();
-
-	if (state != previousMonsterState_)
-	{
-		monsterCurrentFrame_ = 0;
-		monsterAnimationTimer_ = 0.0f;
-
-		previousMonsterState_ = state;
-	}
-
-	monsterAnimationTimer_ += deltaTime;
-
-	constexpr float frameDuration = 0.15f;
-
-	if (monsterAnimationTimer_ < frameDuration) return;
-
-	monsterAnimationTimer_ -= frameDuration;
-	const int frameCount = GetCurrentMonsterFrameCount();
-
-	switch (state)
-	{
-	case MonsterState::Idle:
-	case MonsterState::Chase:
-		monsterCurrentFrame_ = (monsterCurrentFrame_ + 1) % frameCount;
-		break;
-
-	case MonsterState::Hit:
-		if (monsterCurrentFrame_ < frameCount - 1) monsterCurrentFrame_++;
-		else monster_.FinishHit();
-		break;
-
-	case MonsterState::Dead:
-		if (monsterCurrentFrame_ < frameCount - 1) monsterCurrentFrame_++;
-		break;
-	}
-}
-
-bool Application::IsMonsterAnimationFinished() const
-{
-	return monsterCurrentFrame_ >= GetCurrentMonsterFrameCount() - 1;
-}
-
-bool Application::IsAttackFrameActive() const
-{
-	return currentFrame_ >= 2 && currentFrame_ <= 3;
-}
-
 void Application::UpdateCombat()
 {
+	if (player_.IsDead()) return;
+	if (monster_.IsDead()) return;
 	// 1. Player → Monster
-	if (player_.IsAttacking() &&
-		IsAttackFrameActive() &&
-		!attackHitRegistered_ &&
-		!monster_.IsDead())
+	if (player_.IsAttackFrameActive() &&
+		player_.CanRegisterAttackHit())
 	{
 		if (Intersects(
 			player_.GetAttackHitBox(),
 			monster_.GetBodyBox()))
 		{
 			monster_.TakeDamage(1, player_.GetX());
-			attackHitRegistered_ = true;
+			player_.RegisterAttackHit();
 		}
 	}
 
@@ -811,10 +630,10 @@ void Application::DrawGround()
 void Application::DrawPlayer()
 {
 	if (!player_.ShouldRender()) return;
-	const float frameCount = static_cast<float>(GetCurrentFrameCount());
+	const float frameCount = static_cast<float>(player_.GetAnimator().GetFrameCount());
 	const float frameWidth = 1.0f / frameCount;
 
-	const float u0 = currentFrame_ * frameWidth;
+	const float u0 = player_.GetAnimator().GetCurrentFrame() * frameWidth;
 	const float u1 = u0 + frameWidth;
 
 	constexpr float renderOffsetY = -0.07f; // player sprite를 ground에 맞추기 위해 y offset 적용
@@ -835,10 +654,10 @@ void Application::DrawPlayer()
 
 void Application::DrawMonster()
 {
-	const float frameCount = static_cast<float>(GetCurrentMonsterFrameCount());
+	const float frameCount = static_cast<float>(monster_.GetAnimator().GetFrameCount());
 	const float frameWidth = 1.0f / frameCount;
 
-	const float u0 = monsterCurrentFrame_ * frameWidth;
+	const float u0 = monster_.GetAnimator().GetCurrentFrame() * frameWidth;
 	const float u1 = u0 + frameWidth;
 
 	constexpr float renderOffsetY = -0.04f;
@@ -857,56 +676,6 @@ void Application::DrawMonster()
 	);
 }
 
-
-//void Application::UpdateSpriteUV()
-//{
-//	// frame 수에 따라 frame width를 계산
-//	const float frameWidth = 1.0f / static_cast<float>(GetCurrentFrameCount());
-//
-//	// frame width에 따라서 u0, u1 계산
-//	const float u0 = currentFrame_ * frameWidth;
-//	const float u1 = u0 + frameWidth;
-//
-//	const float halfWidth = 0.1f;
-//	const float halfHeight = 0.18f;
-//
-//	// facingRight_에 따라 u0, u1을 좌우 반전
-//	float leftU = player_.IsFacingRight() ? u0 : u1;
-//	float rightU = player_.IsFacingRight() ? u1 : u0;
-//
-//	const  float playerX = player_.GetX();
-//	const float playerY = player_.GetY();
-//	// playerX_, playerY_를 중심으로 transformation 적용된 vertex 좌표 계산
-//	Vertex vertices[] =
-//	{
-//		{ playerX - halfWidth, playerY - halfHeight, 0.0f, leftU, 1.0f },
-//		{ playerX + halfWidth, playerY - halfHeight, 0.0f, rightU, 1.0f },
-//		{ playerX + halfWidth, playerY + halfHeight, 0.0f, rightU, 0.0f },
-//		{ playerX - halfWidth, playerY + halfHeight, 0.0f, leftU, 0.0f }
-//	};
-//
-//	D3D11_MAPPED_SUBRESOURCE mappedResource{};
-//
-//	// CPU가 GPU Resource에 데이터를 쓸 수 있도록 접근 가능한 메모리 영역 요구
-//	HRESULT hr = context_->Map(
-//		vertexBuffer_.Get(),
-//		0,
-//		D3D11_MAP_WRITE_DISCARD,
-//		0,
-//		&mappedResource
-//	);
-//
-//	if (FAILED(hr)) return;
-//
-//	// 새 vertex 데이터 넣기
-//	memcpy(mappedResource.pData, vertices, sizeof(vertices));
-//
-//	// CPU 작업 끝, GPU가 Resource 사용
-//	context_->Unmap(vertexBuffer_.Get(), 0);
-//}
-
-// UpdateSpriteUV()를 범용 DrawSprite()로 계승
-// Sprite 하나 그릴 때마다 Vertex Buffer를 갱신하고 즉시 Draw
 void Application::DrawSprite(
 	ID3D11ShaderResourceView* textureView,
 	float x,
@@ -967,42 +736,6 @@ float Application::GetDeltaTime()
 	return deltaTime;
 }
 
-int Application::GetCurrentFrameCount() const
-{
-	switch (player_.GetState())
-	{
-	case PlayerState::Idle:
-		return kIdleFrameCount;
-	case PlayerState::Run:
-		return kRunFrameCount;
-	case PlayerState::JumpStart:
-		return kJumpStartFrameCount;
-	case PlayerState::JumpEnd:
-		return kJumpEndFrameCount;
-	case PlayerState::Attack:
-		return kAttackFrameCount;
-	case PlayerState::Dead:
-		return kDeadFrameCount;
-	}
-
-	return 1;
-}
-
-int Application::GetCurrentMonsterFrameCount() const
-{
-	switch (monster_.GetState())
-	{
-	case MonsterState::Idle:
-		return kMonsterIdleFrameCount;
-	case MonsterState::Chase:
-		return kMonsterChaseFrameCount;
-	case MonsterState::Hit:
-		return kMonsterHitFrameCount;
-	case MonsterState::Dead:
-		return kMonsterDeadFrameCount;
-	}
-}
-
 ID3D11ShaderResourceView* Application::GetCurrentPlayerTexture() const
 {
 	switch (player_.GetState())
@@ -1031,7 +764,7 @@ ID3D11ShaderResourceView* Application::GetCurrentMonsterTexture() const
 		return monsterIdleTextureView_.Get();
 	case MonsterState::Chase:
 		return monsterChaseTextureView_.Get();
-	case MonsterState::Hit:
+	case MonsterState::Hurt:
 		return monsterHitTextureView_.Get();
 	case MonsterState::Dead:
 		return monsterDeadTextureView_.Get();
@@ -1043,15 +776,4 @@ void Application::ResetGame()
 {
 	player_.Reset();
 	monster_.Reset();
-
-	currentFrame_ = 0;
-	animationTimer_ = 0.0f;
-
-	monsterCurrentFrame_ = 0;
-	monsterAnimationTimer_ = 0.0f;
-
-	previousPlayerState_ = PlayerState::Idle;
-	previousMonsterState_ = MonsterState::Idle;
-
-	attackHitRegistered_ = false;
 }

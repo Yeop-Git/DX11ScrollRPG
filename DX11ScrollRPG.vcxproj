@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClCompile Include="Engine\Core\Application.cpp" />
     <ClCompile Include="Engine\ThirdParty\stb\StbImage.cpp" />
+    <ClCompile Include="Game\Animation\Animator.cpp" />
     <ClCompile Include="Game\Entity\Character.cpp" />
     <ClCompile Include="Game\Monster.cpp" />
     <ClCompile Include="Game\Player.cpp" />
@@ -149,6 +150,8 @@
   <ItemGroup>
     <ClInclude Include="Engine\Core\Application.h" />
     <ClInclude Include="Engine\ThirdParty\stb\stb_image.h" />
+    <ClInclude Include="Game\Animation\AnimationClip.h" />
+    <ClInclude Include="Game\Animation\Animator.h" />
     <ClInclude Include="Game\Collision\AABB.h" />
     <ClInclude Include="Game\Entity\Character.h" />
     <ClInclude Include="Game\Entity\Entity.h" />

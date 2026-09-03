@@ -2,11 +2,62 @@
 
 #include <Windows.h>
 #include <algorithm>
+#include <cmath>
 
 Player::Player()
 {
 	maxHp_ = 3;
 	hp_ = maxHp_;
+
+	idleClip_ = {
+		kIdleClipCount,      // frameCount
+		0.12f,  // frameDuration
+		true,   // loop
+		32, 32,
+		0.18f
+	};
+
+	runClip_ = {
+		kRunClipCount,
+		0.10f,
+		true,
+		32, 32,
+		0.18f
+	};
+
+	jumpStartClip_ = {
+		kJumpStartClipCount,
+		0.10f,
+		false,
+		48, 40,
+		0.18f
+	};
+
+	jumpEndClip_ = {
+		kJumpEndClipCount,
+		0.10f,
+		false,
+		32, 32,
+		0.18f
+	};
+
+	attackClip_ = {
+		kAttackClipCount,
+		0.08f,
+		false,
+		64, 32,
+		0.18f
+	};
+
+	deadClip_ = {
+		kDeadClipCount,
+		0.12f,
+		false,
+		48, 32,
+		0.18f
+	};
+
+	animator_.Play(idleClip_);
 
 	colliderHalfWidth_ = 0.1f;
 	colliderHalfHeight_ = 0.18f;
@@ -17,28 +68,33 @@ Player::Player()
 
 void Player::Update(float deltaTime)
 {
-	// Input > Physics > Position > Collision > State
+	animator_.Update(deltaTime);
+
 	UpdateDamageState(deltaTime);
 
 	HandleInput();
 
-	if (state_ == PlayerState::Attack) return;
-
 	ApplyGravity(deltaTime);
 
+	// Update Position 후 ResolveGroundCollisions 순서를 지켜야 점프가 가능
 	UpdatePosition(deltaTime);
 
 	ResolveGroundCollisions();
+
+	if (state_ == PlayerState::Attack)
+	{
+		if (animator_.IsFinished()) FinishAttack();
+	}
 
 	UpdateState();
 }
 
 void Player::HandleInput()
 {
-	velocityX_ = 0.0f;
-
 	if (state_ == PlayerState::Dead) return;
 	if (knockbackTimer_ > 0.0f) return;
+
+	velocityX_ = 0.0f;
 
 	// Attack
 	if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
@@ -79,16 +135,6 @@ void Player::ApplyGravity(float deltaTime)
 	}
 }
 
-void Player::UpdatePosition(float deltaTime)
-{
-	// Velocity에 따른 위치 업데이트
-	x_ += velocityX_ * deltaTime;
-	y_ += velocityY_ * deltaTime;
-
-	// 화면 밖으로 나가지 않도록 clamp
-	x_ = std::clamp(x_, -1.0f + colliderHalfWidth_, 1.0f - colliderHalfWidth_);
-}
-
 void Player::ResolveGroundCollisions()
 {
 	// 땅과 충돌 처리
@@ -108,15 +154,22 @@ void Player::UpdateState()
 	// 상태 전환
 	if (!isGrounded_)
 	{
-		state_ = velocityY_ > 0.0f ? PlayerState::JumpStart : PlayerState::JumpEnd;
+		if (velocityY_ > 0.0f)
+		{
+			ChangeState(PlayerState::JumpStart);
+		}
+		else
+		{
+			ChangeState(PlayerState::JumpEnd);
+		}
 	}
 	else if (velocityX_ != 0.0f)
 	{
-		state_ = PlayerState::Run;
+		ChangeState(PlayerState::Run);
 	}
 	else
 	{
-		state_ = PlayerState::Idle;
+		ChangeState(PlayerState::Idle);
 	}
 }
 
@@ -129,6 +182,7 @@ void Player::UpdateDamageState(float deltaTime)
 	if (knockbackTimer_ > 0.0f)
 	{
 		knockbackTimer_ -= deltaTime;
+		velocityX_ *= std::pow(0.9f, deltaTime * 60.0f);
 	}
 
 	if (invincibleTimer_ <= 0.0f)
@@ -139,6 +193,39 @@ void Player::UpdateDamageState(float deltaTime)
 
 	if (knockbackTimer_ < 0.0f)
 		knockbackTimer_ = 0.0f;
+}
+
+void Player::ChangeState(PlayerState newState)
+{
+	if (state_ == newState) return;
+	state_ = newState;
+
+	switch (state_)
+	{
+	case PlayerState::Idle:
+		animator_.Play(idleClip_);
+		break;
+
+	case PlayerState::Run:
+		animator_.Play(runClip_);
+		break;
+
+	case PlayerState::JumpStart:
+		animator_.Play(jumpStartClip_);
+		break;
+
+	case PlayerState::JumpEnd:
+		animator_.Play(jumpEndClip_);
+		break;
+
+	case PlayerState::Attack:
+		animator_.Play(attackClip_);
+		break;
+
+	case PlayerState::Dead:
+		animator_.Play(deadClip_);
+		break;
+	}
 }
 
 void Player::TakeDamage(int damage, float attackerX)
@@ -156,7 +243,7 @@ void Player::TakeDamage(int damage, float attackerX)
 		velocityX_ = 0.0f;
 		velocityY_ = 0.0f;
 
-		state_ = PlayerState::Dead;
+		ChangeState(PlayerState::Dead);
 		return;
 	}
 
@@ -167,9 +254,9 @@ void Player::TakeDamage(int damage, float attackerX)
 	// 넉백 시작
 	knockbackTimer_ = kKnockbackDuration;
 
-	velocityX_ = x_ < attackerX ? -kKnockbackSpeed : kKnockbackSpeed;
+	velocityX_ = x_ < attackerX ? -kKnockbackSpeedX : kKnockbackSpeedX;
 
-	velocityY_ = 0.5f;
+	velocityY_ = kKnockbackSpeedY;
 	isGrounded_ = false;
 }
 
@@ -188,13 +275,14 @@ void Player::StartAttack()
 	if (state_ == PlayerState::Attack) return;
 	if (state_ == PlayerState::Dead) return;
 	if (!isGrounded_) return;
-	state_ = PlayerState::Attack;
+	ChangeState(PlayerState::Attack);
+	attackHitRegistered_ = false;
 	velocityX_ = 0.0f;
 }
 
 void Player::FinishAttack()
 {
-	if (state_ == PlayerState::Attack) state_ = PlayerState::Idle;
+	if (state_ == PlayerState::Attack) ChangeState(PlayerState::Idle);
 }
 
 void Player::Reset()
@@ -210,12 +298,30 @@ void Player::Reset()
 	isGrounded_ = true;
 	facingRight_ = true;
 
-	state_ = PlayerState::Idle;
+	isInvincible_ = false;
+	invincibleTimer_ = 0.0f;
+	knockbackTimer_ = 0.0f;
+	attackHitRegistered_ = false;
+
+	ChangeState(PlayerState::Idle);
 }
 
-bool Player::IsAttacking() const
+bool Player::IsAttackFrameActive() const
 {
-	return state_ == PlayerState::Attack;
+	if (state_ != PlayerState::Attack) return false;
+
+	const int frame = animator_.GetCurrentFrame();
+	return frame >= 2 && frame <= 3;
+}
+
+bool Player::CanRegisterAttackHit() const
+{
+	return IsAttackFrameActive() && !attackHitRegistered_;
+}
+
+void Player::RegisterAttackHit()
+{
+	attackHitRegistered_ = true;
 }
 
 AABB Player::GetAttackHitBox() const
@@ -246,4 +352,9 @@ AABB Player::GetAttackHitBox() const
 PlayerState Player::GetState() const
 {
 	return state_;
+}
+
+const Animator& Player::GetAnimator() const
+{
+	return animator_;
 }

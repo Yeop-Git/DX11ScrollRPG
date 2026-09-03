@@ -55,6 +55,12 @@
     <Filter Include="소스 파일\Game\Entity">
       <UniqueIdentifier>{ac1049a5-f9d2-464f-bea1-303d2a50bc2c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="소스 파일\Game\Animation">
+      <UniqueIdentifier>{206cdba9-7897-477e-9067-46d728c25cb7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\Game\Animation">
+      <UniqueIdentifier>{e2a3b2e2-cce9-442a-b50a-505b562b57cc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -74,6 +80,9 @@
     </ClCompile>
     <ClCompile Include="Game\Entity\Character.cpp">
       <Filter>소스 파일\Game\Entity</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\Animation\Animator.cpp">
+      <Filter>소스 파일\Game\Animation</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -97,6 +106,12 @@
     </ClInclude>
     <ClInclude Include="Game\Entity\Character.h">
       <Filter>헤더 파일\Game\Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\Animation\AnimationClip.h">
+      <Filter>헤더 파일\Game\Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\Animation\Animator.h">
+      <Filter>헤더 파일\Game\Animation</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
