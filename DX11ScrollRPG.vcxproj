@@ -165,7 +165,9 @@
     <ClInclude Include="Game\Animation\Animator.h" />
     <ClInclude Include="Game\Collision\AABB.h" />
     <ClInclude Include="Game\Entity\Character.h" />
+    <ClInclude Include="Game\Entity\Collider.h" />
     <ClInclude Include="Game\Entity\Entity.h" />
+    <ClInclude Include="Game\Entity\Transform.h" />
     <ClInclude Include="Game\Monster.h" />
     <ClInclude Include="Game\Player.h" />
     <ClInclude Include="Game\World\GameWorld.h" />

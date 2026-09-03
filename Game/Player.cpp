@@ -61,11 +61,11 @@ Player::Player()
 
 	animator_.Play(idleClip_);
 
-	colliderHalfWidth_ = 0.1f;
-	colliderHalfHeight_ = 0.18f;
+	collider.halfWidth = 0.1f;
+	collider.halfHeight = 0.18f;
 
-	x_ = 0.0f;
-	y_ = kGroundY + colliderHalfHeight_;
+	transform.x = 0.0f;
+	transform.y = kGroundY + collider.halfHeight;
 }
 
 void Player::Update(float deltaTime)
@@ -181,9 +181,9 @@ void Player::ApplyGravity(float deltaTime)
 void Player::ResolveGroundCollisions()
 {
 	// 땅과 충돌 처리
-	if (y_ <= kGroundY + colliderHalfHeight_)
+	if (transform.y <= kGroundY + collider.halfHeight)
 	{
-		y_ = kGroundY + colliderHalfHeight_;
+		transform.y = kGroundY + collider.halfHeight;
 		velocityY_ = 0.0f;
 		isGrounded_ = true;
 	}
@@ -297,7 +297,7 @@ void Player::TakeDamage(int damage, float attackerX)
 	// 넉백 시작
 	knockbackTimer_ = kKnockbackDuration;
 
-	velocityX_ = x_ < attackerX ? -kKnockbackSpeedX : kKnockbackSpeedX;
+	velocityX_ = transform.x < attackerX ? -kKnockbackSpeedX : kKnockbackSpeedX;
 
 	velocityY_ = kKnockbackSpeedY;
 	isGrounded_ = false;
@@ -330,8 +330,8 @@ void Player::FinishAttack()
 
 void Player::Reset()
 {
-	x_ = 0.0f;
-	y_ = kGroundY + colliderHalfHeight_;
+	transform.x = 0.0f;
+	transform.y = kGroundY + collider.halfHeight;
 
 	velocityX_ = 0.0f;
 	velocityY_ = 0.0f;
@@ -376,19 +376,19 @@ AABB Player::GetAttackHitBox() const
 	{
 		return
 		{
-			x_,
-			x_ + attackWidth,
-			y_ - attackHalfHeight,
-			y_ + attackHalfHeight
+			transform.x,
+			transform.x + attackWidth,
+			transform.y - attackHalfHeight,
+			transform.y + attackHalfHeight
 		};
 	}
 
 	return
 	{
-		x_ - attackWidth,
-		x_,
-		y_ - attackHalfHeight,
-		y_ + attackHalfHeight
+		transform.x - attackWidth,
+		transform.x,
+		transform.y - attackHalfHeight,
+		transform.y + attackHalfHeight
 	};
 }
 

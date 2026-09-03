@@ -38,8 +38,6 @@ public:
 		return facingRight_;
 	}
 
-	AABB GetBodyBox() const;
-
 protected:
 	Animator animator_;
 
@@ -51,9 +49,6 @@ protected:
 	float velocityY_ = 0.0f;
 
 	bool facingRight_ = true;
-
-	float colliderHalfWidth_ = 0.05f;
-	float colliderHalfHeight_ = 0.05f;
 
 	float renderOffsetY = -0.07f;
 };

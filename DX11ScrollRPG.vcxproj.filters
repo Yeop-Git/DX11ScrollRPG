@@ -149,6 +149,12 @@
     <ClInclude Include="Engine\Graphics\SpriteId.h">
       <Filter>헤더 파일\Engine\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="Game\Entity\Collider.h">
+      <Filter>헤더 파일\Game\Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\Entity\Transform.h">
+      <Filter>헤더 파일\Game\Entity</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\BasicVS.hlsl">

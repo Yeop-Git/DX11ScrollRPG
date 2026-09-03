@@ -6,11 +6,11 @@ Monster::Monster()
 	maxHp_ = 3;
 	hp_ = maxHp_;
 
-	colliderHalfHeight_ = 0.07f;
-	colliderHalfWidth_ = 0.08f;
+	collider.halfHeight = 0.07f;
+	collider.halfWidth = 0.08f;
 
-	x_ = 0.6f;
-	y_ = -0.18f;
+	transform.x = 0.6f;
+	transform.y = -0.18f;
 
 	renderOffsetY = -0.03f;
 
@@ -58,7 +58,7 @@ void Monster::Update(float deltaTime)
 	if (target_ == nullptr) return;
 	if (state_ == MonsterState::Dead) return;
 
-	const float targetX = target_->GetX();
+	const float targetX = target_->transform.x;
 
 	UpdateState(targetX);
 
@@ -76,7 +76,7 @@ void Monster::Update(float deltaTime)
 	// Chase 이동
 	else if (state_ == MonsterState::Chase)
 	{
-		if (targetX < x_)
+		if (targetX < transform.x)
 		{
 			velocityX_ = -kChaseSpeed;
 			facingRight_ = false;
@@ -127,7 +127,7 @@ void Monster::UpdateState(float playerX)
 	if (state_ == MonsterState::Hurt) return;
 	if (state_ == MonsterState::Dead) return;
 
-	const float distance = std::abs(playerX - x_);
+	const float distance = std::abs(playerX - transform.x);
 
 	if (distance <= kChaseRange) ChangeState(MonsterState::Chase);
 	else ChangeState(MonsterState::Idle);
@@ -163,7 +163,7 @@ void Monster::TakeDamage(int damage, float attackerX)
 
 	hp_ -= damage;
 
-	velocityX_ = x_ > attackerX ? kKnockbackSpeed : -kKnockbackSpeed;
+	velocityX_ = transform.x > attackerX ? kKnockbackSpeed : -kKnockbackSpeed;
 
 	if (hp_ <= 0)
 	{
@@ -190,22 +190,11 @@ void Monster::FinishHit()
 
 void Monster::Reset()
 {
-	x_ = 0.6f;
+	transform.x = 0.6f;
 	velocityX_ = 0.0f;
 	hp_ = maxHp_;
 	facingRight_ = false;
 	ChangeState(MonsterState::Idle);
-}
-
-AABB Monster::GetHurtBox() const
-{
-	return
-	{
-		x_ - colliderHalfWidth_,
-		x_ + colliderHalfWidth_,
-		y_ - colliderHalfHeight_,
-		y_ + colliderHalfHeight_
-	};
 }
 
 MonsterState Monster::GetState() const

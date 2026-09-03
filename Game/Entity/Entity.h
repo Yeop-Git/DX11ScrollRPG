@@ -1,11 +1,15 @@
 #pragma once
 
+#include "Transform.h"
+#include "Collider.h"
 #include "../../Engine/Graphics/RenderInfo.h"
 
 // 월드에서 Update되는 모든 객체를 Entity로 추상화
 class Entity
 {
-public :
+public:
+	Transform transform;
+	Collider collider;
 
 	// 소멸자 virtual
 	virtual ~Entity() = default;
@@ -14,30 +18,14 @@ public :
 	virtual void Update(float deltaTime) = 0;
 	virtual RenderInfo GetRenderInfo() const = 0;
 
-	float GetX() const
+	AABB GetBodyBox() const
 	{
-		return x_;
+		return collider.GetBounds(transform);
 	}
 
-	float GetY() const
-	{
-		return y_;
-	}
+	bool IsActive() const { return active_; }
 
-	bool IsActive() const
-	{
-		return active_;
-	}
-
-	void SetActive(bool active)
-	{
-		active_ = active;
-	}
-
-protected:
-	// 월드 내 좌표와 활성화 여부만을 가짐
-	float x_ = 0.0f;
-	float y_ = 0.0f;
+	void SetActive(bool active) { active_ = active; }
 
 	bool active_ = true;
 };

@@ -32,8 +32,6 @@ public :
 
 	void ChangeState(MonsterState newState);
 
-	AABB GetHurtBox() const;
-
 private:
 	void UpdateState(float playerX);
 

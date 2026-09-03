@@ -48,30 +48,43 @@ void GameWorld::Update(float deltaTime)
 
 void GameWorld::UpdateCombat()
 {
-	if (player_ == nullptr) return;
-	if (monster_ == nullptr)return;
+	if (player_ == nullptr)return;
 
-	if (player_->IsDead()) return;
-	if (monster_->IsDead()) return;
+	if (player_->IsDead())return;
 
-	// 1. Player → Monster
-	if (player_->IsAttackFrameActive() &&
-		player_->CanRegisterAttackHit())
+	if (!player_->collider.enabled)return;
+
+	for (auto& entity : entities_)
 	{
-		if (Intersects(
-			player_->GetAttackHitBox(),
-			monster_->GetBodyBox()))
+		auto* monster =
+			dynamic_cast<Monster*>(entity.get());
+
+		if (monster == nullptr)continue;
+
+		if (monster->IsDead())continue;
+
+		if (!monster->collider.enabled)continue;
+
+		const AABB playerBody = player_->collider.GetBounds(player_->transform);
+
+		const AABB monsterBody = monster->collider.GetBounds(monster->transform);
+
+		// Player -> Monster
+		if (player_->CanRegisterAttackHit())
 		{
-			monster_->TakeDamage(1, player_->GetX());
-			player_->RegisterAttackHit();
-		}
-	}
+			if (Intersects(player_->GetAttackHitBox(), monsterBody))
+			{
+				monster->TakeDamage(1, player_->transform.x);
 
-	if (Intersects(
-		player_->GetBodyBox(),
-		monster_->GetBodyBox()))
-	{
-		player_->TakeDamage(1, monster_->GetX());
+				player_->RegisterAttackHit();
+			}
+		}
+
+		// Monster -> Player
+		if (Intersects(playerBody, monsterBody))
+		{
+			player_->TakeDamage(1, monster->transform.x);
+		}
 	}
 }
 
