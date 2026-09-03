@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Entity/Character.h"
-#include "Animation/Animator.h"
 
 enum class MonsterState
 {
@@ -18,6 +17,7 @@ public :
 
 	// Update에서 playerX 제거
 	void Update(float deltaTime) override;
+	RenderInfo GetRenderInfo() const override;
 
 	void TakeDamage(int damage, float attackerX);
 
@@ -42,9 +42,7 @@ private :
 	Character* target_ = nullptr;
 	MonsterState state_ = MonsterState::Idle;
 
-	// Animation
-	Animator animator_;
-	
+	// Animation Clips
 	AnimationClip idleClip_;
 	AnimationClip chaseClip_;
 	AnimationClip hurtClip_;

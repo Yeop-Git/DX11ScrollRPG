@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Entity/Character.h"
-#include "Animation//Animator.h"
 
 enum class PlayerState
 {
@@ -20,6 +19,7 @@ public:
 	Player();
 
 	void Update(float deltaTime) override;
+	RenderInfo GetRenderInfo() const override;
 
 	PlayerState GetState() const;
 
@@ -54,10 +54,7 @@ private:
 
 	PlayerState state_ = PlayerState::Idle;
 
-	// Animation
-	Animator animator_;
-
-	// 각 클립 정보 저장
+	// Animation Clips
 	AnimationClip idleClip_;
 	AnimationClip runClip_;
 	AnimationClip jumpStartClip_;

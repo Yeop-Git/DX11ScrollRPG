@@ -1,26 +1,13 @@
 #include "Application.h"
 #include <algorithm>
 
-// HLSL 컴파일러
-#include <d3dcompiler.h>
-
 // Image 디코더
 #include "../ThirdParty/stb/stb_image.h"
 
-
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
-#pragma comment(lib, "d3dcompiler.lib")
 
 using namespace std::chrono;
-
-// 정점 structure
-struct Vertex
-{
-	float x, y, z;
-	float u, v;
-	//float r, g, b, a;
-};
 
 // Windows -> Message Queue -> WindowProc
 namespace
@@ -53,17 +40,21 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 
 	if (!InitializeDirectX()) return false;
 
-	if (!CreateGeometry()) return false;
-
-	if (!CreateShaders()) return false;
-
 	if (!CreatePlayerTextures()) return false;
 
 	if (!CreateMonsterTextures()) return false;
 
 	if (!CreateWorldTextures()) return false;
 
-	if (!CreateBlendState()) return false;
+	if (!renderer_.Initialize(
+		device_.Get(),
+		context_.Get(),
+		&resourceManager_,
+		static_cast<float>(kWindowWidth),
+		static_cast<float>(kWindowHeight)))
+	{
+		return false;
+	}
 
 	gameWorld_.Initialize();
 
@@ -218,236 +209,32 @@ bool Application::InitializeDirectX()
 	return true;
 }
 
-bool Application::CreateGeometry()
-{
-	float u0 = 0.0f;
-	float u1 = 0.25f;
-
-	// 사각형 vertex 데이터
-	Vertex vertices[] =
-	{
-		{ -0.5f, -0.5f, 0.0f, u0, 1.0f },
-		{ 0.5f, -0.5f, 0.0f, u1, 1.0f },
-		{ 0.5f,  0.5f, 0.0f, u1, 0.0f },
-		{ -0.5f,  0.5f, 0.0f, u0, 0.0f }
-	};
-
-	// vertex 버퍼 생성
-	D3D11_BUFFER_DESC bufferDesc{};
-	bufferDesc.ByteWidth = sizeof(vertices);
-
-	// vertex 퍼버 Default -> Dynamic으로 변경
-	// Default : 일반적인 정적 Geometry에 적합
-	// Dynamic : CPU가 자주 내용을 갱신하는 Resource
-	bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	// 매 애니메이션 프레임마다 UV 변경 -> vertex buffer 수정
-
-	D3D11_SUBRESOURCE_DATA initData{};
-	initData.pSysMem = vertices;
-
-	// Device에 vertex buffer 리소스 생성 요청
-	HRESULT hr = device_->CreateBuffer(&bufferDesc, &initData, vertexBuffer_.GetAddressOf());
-
-	if (FAILED(hr)) return false;
-
-	// 사각형 index 데이터, 삼각형 2개로 구성
-	unsigned int indices[] = { 0, 2, 1, 0, 3, 2 }; // index를 사용하여 중복되는 vertex를 재사용.
-
-	bufferDesc.ByteWidth = sizeof(indices);
-	bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-
-	initData.pSysMem = indices;
-
-	hr = device_->CreateBuffer(&bufferDesc, &initData, indexBuffer_.GetAddressOf());
-
-	return SUCCEEDED(hr);
-}
-
-bool Application::CreateShaders()
-{
-	ComPtr<ID3DBlob> vertexShaderBlob; // 컴파일 결과는 ID3DBlob라는 바이너리 덩어리로 나옴
-	ComPtr<ID3DBlob> pixelShaderBlob; // hlsl -> compile -> Shader Bytecode -> ID3DBlob
-
-	// Vertex Shader 컴파일
-	HRESULT hr = D3DCompileFromFile(
-		L"Shaders/BasicVs.hlsl",
-		nullptr,
-		nullptr,
-		"main", // entry point
-		"vs_5_0", // model version
-		0,
-		0,
-		vertexShaderBlob.GetAddressOf(),
-		nullptr
-	);
-
-	if (FAILED(hr)) return false;
-
-	// Pixel Shader 컴파일
-	hr = D3DCompileFromFile(
-		L"Shaders/BasicPS.hlsl",
-		nullptr,
-		nullptr,
-		"main", // entry point
-		"ps_5_0", // model version
-		0,
-		0,
-		pixelShaderBlob.GetAddressOf(),
-		nullptr
-	);
-
-	if (FAILED(hr)) return false;
-
-	// Device에 VertexShader 생성 요청 (Context)
-	hr = device_->CreateVertexShader(
-		vertexShaderBlob->GetBufferPointer(),
-		vertexShaderBlob->GetBufferSize(),
-		nullptr,
-		vertexShader_.GetAddressOf()
-	);
-
-	if (FAILED(hr)) return false;
-
-	// Device에 Pixel Shader 생성 요청 (Context)
-	hr = device_->CreatePixelShader(
-		pixelShaderBlob->GetBufferPointer(),
-		pixelShaderBlob->GetBufferSize(),
-		nullptr,
-		pixelShader_.GetAddressOf()
-	);
-
-	if (FAILED(hr)) return false;
-
-	// Input Layout
-	D3D11_INPUT_ELEMENT_DESC inputElements[] =
-	{
-		{"POSITION",0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
-	};
-
-	hr = device_->CreateInputLayout(
-		inputElements,
-		2,
-		vertexShaderBlob->GetBufferPointer(),
-		vertexShaderBlob->GetBufferSize(),
-		inputLayout_.GetAddressOf()
-	);
-
-	return SUCCEEDED(hr);
-}
-
 bool Application::CreatePlayerTextures()
 {
-	if (!LoadTexture("Assets/Textures/Player/Idle.png", idleTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Player/Run.png", runTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Player/JumpStart.png", jumpStartTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Player/JumpEnd.png", jumpEndTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Player/Attack.png", attackTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Player/Dead.png", deadTextureView_)) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::PlayerIdle, "Assets/Textures/Player/Idle.png")) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::PlayerRun, "Assets/Textures/Player/Run.png")) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::PlayerJumpStart, "Assets/Textures/Player/JumpStart.png")) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::PlayerJumpEnd, "Assets/Textures/Player/JumpEnd.png")) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::PlayerAttack, "Assets/Textures/Player/Attack.png")) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::PlayerDead, "Assets/Textures/Player/Dead.png")) return false;
 	return true;
 }
 
 bool Application::CreateMonsterTextures()
 {
-	if (!LoadTexture("Assets/Textures/Monster/Idle.png", monsterIdleTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Monster/Chase.png", monsterChaseTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Monster/Hit.png", monsterHitTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/Monster/Dead.png", monsterDeadTextureView_)) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::MonsterIdle, "Assets/Textures/Monster/Idle.png")) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::MonsterChase, "Assets/Textures/Monster/Chase.png")) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::MonsterHurt, "Assets/Textures/Monster/Hurt.png")) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::MonsterDead, "Assets/Textures/Monster/Dead.png")) return false;
 	return true;
 }
 
 bool Application::CreateWorldTextures()
 {
-	if (!LoadTexture("Assets/Textures/World/Ground.png", groundTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/World/Tree.png", treeTextureView_)) return false;
-	if (!LoadTexture("Assets/Textures/World/Background.png", backgroundTextureView_)) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::Ground, "Assets/Textures/World/Ground.png")) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::Tree, "Assets/Textures/World/Tree.png")) return false;
+	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::Background, "Assets/Textures/World/Background.png")) return false;
 	return true;
-}
-
-// file 경로를 받아 Shader Resource View를 만드는 범용 Texture Loader
-// 상단의 CreateTexture()를 대체
-bool Application::LoadTexture(const char* filePath, ComPtr<ID3D11ShaderResourceView>& outTextureView)
-{
-	int width = 0;
-	int height = 0;
-	int channels = 0;
-
-	unsigned char* pixels = stbi_load(
-		filePath,
-		&width,
-		&height,
-		&channels,
-		STBI_rgb_alpha
-	);
-
-	if (!pixels) return false;
-
-	D3D11_TEXTURE2D_DESC textureDesc{};
-
-	textureDesc.Width = static_cast<UINT>(width);
-	textureDesc.Height = static_cast<UINT>(height);
-
-	textureDesc.MipLevels = 1;
-	textureDesc.ArraySize = 1;
-
-	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-	textureDesc.SampleDesc.Count = 1;
-
-	textureDesc.Usage = D3D11_USAGE_DEFAULT;
-	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-
-	D3D11_SUBRESOURCE_DATA initialData{};
-	initialData.pSysMem = pixels;
-	initialData.SysMemPitch = static_cast<UINT>(width * 4);
-
-	ComPtr<ID3D11Texture2D> texture;
-
-	HRESULT hr = device_->CreateTexture2D(
-		&textureDesc,
-		&initialData,
-		texture.GetAddressOf()
-	);
-
-	stbi_image_free(pixels);
-
-	if (FAILED(hr)) return false;
-
-	hr = device_->CreateShaderResourceView(
-		texture.Get(),
-		nullptr,
-		outTextureView.GetAddressOf()
-	);
-
-	return SUCCEEDED(hr);
-}
-
-bool Application::CreateBlendState()
-{
-	D3D11_BLEND_DESC blendDesc{};
-
-	blendDesc.RenderTarget[0].BlendEnable = TRUE;
-
-	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-
-	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-
-	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-
-	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-
-	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
-
-	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-
-	blendDesc.RenderTarget[0].RenderTargetWriteMask =
-		D3D11_COLOR_WRITE_ENABLE_ALL;
-
-	HRESULT hr = device_->CreateBlendState(&blendDesc, blendState_.GetAddressOf());
-
-	return SUCCEEDED(hr);
 }
 
 bool Application::ProcessMessages()
@@ -479,44 +266,19 @@ void Application::Render()
 	const float clearColor[4] = { 0.1f, 0.15f, 0.25f, 1.0f };
 	context_->ClearRenderTargetView(renderTargetView_.Get(), clearColor);
 
-	// Input Assembler 설정
-
-	UINT stride = sizeof(Vertex); // 다음 vertex 값을 읽기 위해서 이동하는 byte 수, 즉 sizeof(Vertex)
-	UINT offset = 0;
-
-	// Vertex Buffer 연결
-	context_->IASetVertexBuffers(0, 1, vertexBuffer_.GetAddressOf(), &stride, &offset);
-
-	// Index Buffer 연결
-	context_->IASetIndexBuffer(indexBuffer_.Get(), DXGI_FORMAT_R32_UINT, 0);
-
-	// Vertex 구조
-	context_->IASetInputLayout(inputLayout_.Get());
-
-	// Index 3개마다 하나의 Triangle로
-	context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// Shader 설정
-	context_->VSSetShader(vertexShader_.Get(), nullptr, 0);
-	context_->PSSetShader(pixelShader_.Get(), nullptr, 0);
-
-	// 현재 State에 맞는 Player Texture 가져오기
-	ID3D11ShaderResourceView* currentTexture = GetCurrentPlayerTexture();
-
-	// Pixel Shader Texture slot 0에 Shader Resource 연결
-	context_->PSSetShaderResources(0, 1, &currentTexture);
-	// Pixel Shader Texture slot 0에 Sampler 연결
-	context_->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
-
-	// Blend State 적용
-	context_->OMSetBlendState(blendState_.Get(), nullptr, 0xFFFFFFFF);
-
+	renderer_.Begin();
 	// Draw
 	DrawBackground();
 	DrawTrees();
 	DrawGround();
-	DrawMonster();
-	DrawPlayer();
+
+	// 모든 entities Draw
+	for (const auto& entity :gameWorld_.GetEntities())
+	{
+		if (!entity->IsActive()) continue;
+
+		renderer_.Draw(entity->GetRenderInfo());
+	}
 
 	// BackBuffer 출력
 	swapChain_->Present(1, 0);
@@ -526,8 +288,8 @@ void Application::Render()
 // 화면 전체에 배경 draw
 void Application::DrawBackground()
 {
-	DrawSprite(
-		backgroundTextureView_.Get(),
+	renderer_.DrawSprite(
+		SpriteId::Background,
 		0.0f,
 		0.0f,
 		1.0f,
@@ -546,16 +308,16 @@ void Application::DrawTrees()
 
 
 	// 왼쪽, 오른쪽에 나무 그리기
-	DrawSprite(
-		treeTextureView_.Get(),
+	renderer_.DrawSprite(
+		SpriteId::Tree,
 		-0.65f,
 		treeCenterY,
 		treeHalfWidth,
 		treeHalfHeight
 	);
 
-	DrawSprite(
-		treeTextureView_.Get(),
+	renderer_.DrawSprite(
+		SpriteId::Tree,
 		0.6f,
 		treeCenterY,
 		treeHalfWidth,
@@ -579,114 +341,14 @@ void Application::DrawGround()
 	{
 		const float x = -1.0f + static_cast<float>(i) * halfWidth * 1.5f;
 
-		DrawSprite(
-			groundTextureView_.Get(),
+		renderer_.DrawSprite(
+			SpriteId::Ground,
 			x,
 			centerY,
 			halfWidth,
 			halfHeight
 		);
 	}
-}
-
-void Application::DrawPlayer()
-{
-	Player* player = gameWorld_.GetPlayer();
-	if (player == nullptr) return;
-	if (!player->ShouldRender()) return;
-	const float frameCount = static_cast<float>(player->GetAnimator().GetFrameCount());
-	const float frameWidth = 1.0f / frameCount;
-
-	const float u0 = player->GetAnimator().GetCurrentFrame() * frameWidth;
-	const float u1 = u0 + frameWidth;
-
-	constexpr float renderOffsetY = -0.07f; // player sprite를 ground에 맞추기 위해 y offset 적용
-
-	DrawSprite(
-		GetCurrentPlayerTexture(),
-		player->GetX(),
-		player->GetY() + renderOffsetY,
-		0.1f,
-		0.18f,
-		u0,
-		0.0f,
-		u1,
-		1.0f,
-		!player->IsFacingRight()
-	);
-}
-
-void Application::DrawMonster()
-{
-	Monster* monster = gameWorld_.GetMonster();
-	if (monster == nullptr) return;
-	const float frameCount = static_cast<float>(monster->GetAnimator().GetFrameCount());
-	const float frameWidth = 1.0f / frameCount;
-
-	const float u0 = monster->GetAnimator().GetCurrentFrame() * frameWidth;
-	const float u1 = u0 + frameWidth;
-
-	constexpr float renderOffsetY = -0.04f;
-
-	DrawSprite(
-		GetCurrentMonsterTexture(),
-		monster->GetX(),
-		monster->GetY() + renderOffsetY,
-		0.08f,
-		0.08f,
-		u0,
-		0.0f,
-		u1,
-		1.0f,
-		monster->IsFacingRight()
-	);
-}
-
-void Application::DrawSprite(
-	ID3D11ShaderResourceView* textureView,
-	float x,
-	float y,
-	float halfWidth,
-	float halfHeight,
-	float u0,
-	float v0,
-	float u1,
-	float v1,
-	bool flipX)
-{
-	float leftU = flipX ? u1 : u0;
-	float rightU = flipX ? u0 : u1;
-
-	const float vertices[] =
-	{
-		x - halfWidth, y - halfHeight, 0.0f, leftU, v1,
-		x + halfWidth, y - halfHeight, 0.0f, rightU, v1,
-		x + halfWidth, y + halfHeight, 0.0f, rightU, v0,
-		x - halfWidth, y + halfHeight, 0.0f, leftU, v0
-	};
-
-	// vertex buffer를 CPU가 접근 가능한 메모리 영역으로 매핑
-	D3D11_MAPPED_SUBRESOURCE mappedResource{};
-
-	HRESULT hr = context_->Map(
-		vertexBuffer_.Get(),
-		0,
-		D3D11_MAP_WRITE_DISCARD,
-		0,
-		&mappedResource
-	);
-
-	if (FAILED(hr)) return;
-
-	// 새 vertex 데이터 넣기
-	memcpy(mappedResource.pData, vertices, sizeof(vertices));
-
-	// CPU 작업 끝, GPU가 Resource 사용
-	context_->Unmap(vertexBuffer_.Get(), 0);
-
-	// 이번 Draw에서 사용할 Texture
-	context_->PSSetShaderResources(0, 1, &textureView);
-	context_->DrawIndexed(6, 0, 0);
 }
 
 float Application::GetDeltaTime()
@@ -700,44 +362,4 @@ float Application::GetDeltaTime()
 	previousTime_ = currentTime;
 
 	return deltaTime;
-}
-
-ID3D11ShaderResourceView* Application::GetCurrentPlayerTexture() const
-{
-	Player* player = gameWorld_.GetPlayer();
-	if (player == nullptr) return nullptr;
-	switch (player->GetState())
-	{
-	case PlayerState::Idle:
-		return idleTextureView_.Get();
-	case PlayerState::Run:
-		return runTextureView_.Get();
-	case PlayerState::JumpStart:
-		return jumpStartTextureView_.Get();
-	case PlayerState::JumpEnd:
-		return jumpEndTextureView_.Get();
-	case PlayerState::Attack:
-		return attackTextureView_.Get();
-	case PlayerState ::Dead :
-		return deadTextureView_.Get();
-	}
-	return nullptr;
-}
-
-ID3D11ShaderResourceView* Application::GetCurrentMonsterTexture() const
-{
-	Monster* monster = gameWorld_.GetMonster();
-	if (monster == nullptr) return nullptr;
-	switch (monster->GetState())
-	{
-	case MonsterState::Idle:
-		return monsterIdleTextureView_.Get();
-	case MonsterState::Chase:
-		return monsterChaseTextureView_.Get();
-	case MonsterState::Hurt:
-		return monsterHitTextureView_.Get();
-	case MonsterState::Dead:
-		return monsterDeadTextureView_.Get();
-	}
-	return nullptr;
 }

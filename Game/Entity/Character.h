@@ -2,6 +2,7 @@
 
 #include "Entity.h"
 #include "../Collision/AABB.h"
+#include "../Animation/Animator.h"
 
 // 움직이며 전투가능한 Entity
 class Character : public Entity
@@ -14,6 +15,8 @@ public:
 	virtual void TakeDamage(int damage, float attackerX);
 
 	void UpdatePosition(float deltaTime);
+
+	RenderInfo GetRenderInfo() const override;
 
 	int GetHP() const
 	{
@@ -38,6 +41,8 @@ public:
 	AABB GetBodyBox() const;
 
 protected:
+	Animator animator_;
+
 	// 전투가 가능한 Entity이기 때문에 HP, Collider, Velocity를 가짐.
 	int hp_ = 3;
 	int maxHp_ = 3;
@@ -49,4 +54,6 @@ protected:
 
 	float colliderHalfWidth_ = 0.05f;
 	float colliderHalfHeight_ = 0.05f;
+
+	float renderOffsetY = -0.07f;
 };

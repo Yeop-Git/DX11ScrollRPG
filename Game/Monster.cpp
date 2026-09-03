@@ -12,11 +12,13 @@ Monster::Monster()
 	x_ = 0.6f;
 	y_ = -0.18f;
 
+	renderOffsetY = -0.03f;
+
 	idleClip_ = {
 		kIdleClipCount,      // frameCount
 		0.12f,  // frameDuration
 		true,   // loop
-		32, 32,
+		48, 32,
 		0.10f
 	};
 
@@ -24,7 +26,7 @@ Monster::Monster()
 		kChaseClipCount,
 		0.10f,
 		true,
-		32, 32,
+		48, 32,
 		0.10f
 	};
 
@@ -32,7 +34,7 @@ Monster::Monster()
 		kHurtClipCount,
 		0.10f,
 		false,
-		32, 32,
+		48, 32,
 		0.10f
 	};
 
@@ -40,7 +42,7 @@ Monster::Monster()
 		kDeadClipCount,
 		0.12f,
 		false,
-		32, 32,
+		48, 32,
 		0.10f
 	};
 
@@ -88,6 +90,36 @@ void Monster::Update(float deltaTime)
 	else velocityX_ = 0.0f;
 
 	UpdatePosition(deltaTime);
+}
+
+RenderInfo Monster::GetRenderInfo() const
+{
+	RenderInfo info = Character::GetRenderInfo();
+
+	info.flipX = facingRight_;
+
+	info.visible = true;
+
+	switch (state_)
+	{
+	case MonsterState::Idle:
+		info.spriteId = SpriteId::MonsterIdle;
+		break;
+
+	case MonsterState::Chase:
+		info.spriteId = SpriteId::MonsterChase;
+		break;
+
+	case MonsterState::Hurt:
+		info.spriteId = SpriteId::MonsterHurt;
+		break;
+
+	case MonsterState::Dead:
+		info.spriteId = SpriteId::MonsterDead;
+		break;
+	}
+
+	return info;
 }
 
 void Monster::UpdateState(float playerX)

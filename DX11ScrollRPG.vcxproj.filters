@@ -67,6 +67,12 @@
     <Filter Include="소스 파일\Game\World">
       <UniqueIdentifier>{d5267a42-fd9e-4980-acef-f48827230de3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="헤더 파일\Engine\Graphics">
+      <UniqueIdentifier>{211eb348-5ef1-4ee2-bb48-8f23b0eac12e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Engine\Graphics">
+      <UniqueIdentifier>{ef0405a0-c2cc-47ac-a6ef-82ec412d7db5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -92,6 +98,12 @@
     </ClCompile>
     <ClCompile Include="Game\World\GameWorld.cpp">
       <Filter>소스 파일\Game\World</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Graphics\Renderer.cpp">
+      <Filter>소스 파일\Engine\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Graphics\ResourceManager.cpp">
+      <Filter>소스 파일\Engine\Graphics</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -124,6 +136,18 @@
     </ClInclude>
     <ClInclude Include="Game\World\GameWorld.h">
       <Filter>헤더 파일\Game\World</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Graphics\Renderer.h">
+      <Filter>헤더 파일\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Graphics\RenderInfo.h">
+      <Filter>헤더 파일\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Graphics\ResourceManager.h">
+      <Filter>헤더 파일\Engine\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Graphics\SpriteId.h">
+      <Filter>헤더 파일\Engine\Graphics</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

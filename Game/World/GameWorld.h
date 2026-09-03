@@ -16,6 +16,12 @@ public :
 	void Update(float deltaTime);
 	void Reset();
 
+	// const reference로 push_back, clear 등으로 수정할 수 없도록
+	const std::vector<std::unique_ptr<Entity>>& GetEntities() const
+	{
+		return entities_;
+	}
+
 	Player* GetPlayer() const
 	{
 		return player_;

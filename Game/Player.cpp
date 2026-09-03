@@ -9,52 +9,54 @@ Player::Player()
 	maxHp_ = 3;
 	hp_ = maxHp_;
 
+	renderOffsetY = -0.05f;
+
 	idleClip_ = {
 		kIdleClipCount,      // frameCount
 		0.12f,  // frameDuration
 		true,   // loop
-		32, 32,
-		0.18f
+		64, 80,
+		0.22f
 	};
 
 	runClip_ = {
 		kRunClipCount,
 		0.10f,
 		true,
-		32, 32,
-		0.18f
+		80, 80,
+		0.22f
 	};
 
 	jumpStartClip_ = {
 		kJumpStartClipCount,
 		0.10f,
 		false,
-		48, 40,
-		0.18f
+		64, 64,
+		0.176f
 	};
 
 	jumpEndClip_ = {
 		kJumpEndClipCount,
 		0.10f,
 		false,
-		32, 32,
-		0.18f
+		64, 64,
+		0.176f
 	};
 
 	attackClip_ = {
 		kAttackClipCount,
 		0.08f,
 		false,
-		64, 32,
-		0.18f
+		96, 80,
+		0.22f
 	};
 
 	deadClip_ = {
 		kDeadClipCount,
 		0.12f,
 		false,
-		48, 32,
-		0.18f
+		80, 64,
+		0.176f
 	};
 
 	animator_.Play(idleClip_);
@@ -87,6 +89,47 @@ void Player::Update(float deltaTime)
 	}
 
 	UpdateState();
+}
+
+RenderInfo Player::GetRenderInfo() const
+{
+	RenderInfo info = Character::GetRenderInfo();
+
+	info.flipX = !facingRight_;
+	info.visible = ShouldRender();
+
+	switch (state_)
+	{
+	case PlayerState::Idle:
+		info.spriteId = SpriteId::PlayerIdle;
+		break;
+
+	case PlayerState::Run:
+		info.spriteId = SpriteId::PlayerRun;
+		break;
+
+	case PlayerState::JumpStart:
+		info.spriteId =
+			SpriteId::PlayerJumpStart;
+		break;
+
+	case PlayerState::JumpEnd:
+		info.spriteId =
+			SpriteId::PlayerJumpEnd;
+		break;
+
+	case PlayerState::Attack:
+		info.spriteId =
+			SpriteId::PlayerAttack;
+		break;
+
+	case PlayerState::Dead:
+		info.spriteId =
+			SpriteId::PlayerDead;
+		break;
+	}
+
+	return info;
 }
 
 void Player::HandleInput()

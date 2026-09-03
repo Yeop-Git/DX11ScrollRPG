@@ -18,6 +18,30 @@ void Character::UpdatePosition(float deltaTime)
 	x_ = std::clamp(x_, -1.0f + colliderHalfWidth_, 1.0f - colliderHalfWidth_);
 }
 
+RenderInfo Character::GetRenderInfo() const
+{
+	const AnimationClip& clip =
+		animator_.GetCurrentClip();
+
+	RenderInfo info;
+
+	info.x = x_;
+	info.y = y_;
+
+	info.frame = animator_.GetCurrentFrame();
+	info.frameCount = animator_.GetFrameCount();
+
+	info.frameWidthPx = clip.frameWidthPx;
+	info.frameHeightPx = clip.frameHeightPx;
+
+	info.renderHalfHeight =clip.renderHalfHeight;
+
+	info.offsetX = clip.offsetX;
+	info.offsetY = clip.offsetY + renderOffsetY;
+
+	return info;
+}
+
 AABB Character::GetBodyBox() const
 {
 	return

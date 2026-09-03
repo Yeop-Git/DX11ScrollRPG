@@ -8,6 +8,8 @@
 #include "../../Game/Player.h"
 #include "../../Game/Monster.h"
 #include "../../Game/World/GameWorld.h"
+#include "../Graphics/ResourceManager.h"
+#include "../Graphics/Renderer.h"
 
 using namespace Microsoft::WRL;
 
@@ -24,13 +26,9 @@ private:
 	bool CreateMainWindow(HINSTANCE hInstance, int nCmdShow);
 	bool InitializeDirectX();
 
-	bool CreateGeometry();
-	bool CreateShaders();
 	bool CreatePlayerTextures();
 	bool CreateWorldTextures();
 	bool CreateMonsterTextures();
-	bool CreateBlendState();
-	bool LoadTexture(const char* filePath, ComPtr<ID3D11ShaderResourceView>& outTextureView); // CreateTexture()를 대체
 
 	bool ProcessMessages();
 
@@ -42,23 +40,6 @@ private:
 	void DrawBackground();
 	void DrawTrees();
 	void DrawGround();
-	void DrawPlayer();
-	void DrawMonster();
-	void DrawSprite(
-		ID3D11ShaderResourceView* textureView,
-		float x,
-		float y,
-		float halfWidth,
-		float halfHeight,
-		float u0 = 0.0f,
-		float v0 = 0.0f,
-		float u1 = 1.0f,
-		float v1 = 1.0f,
-		bool flipX = false
-	);
-
-	ID3D11ShaderResourceView* GetCurrentPlayerTexture() const;
-	ID3D11ShaderResourceView* GetCurrentMonsterTexture() const;
 
 private:
 	// Windows 창 Handle
@@ -67,8 +48,10 @@ private:
 	// Update용 previousTime
 	std::chrono::steady_clock::time_point previousTime_;
 
-	// Game World Composition
+	// Components
 	GameWorld gameWorld_;
+	ResourceManager resourceManager_;
+	Renderer renderer_;
 
 	// constexpr : 컴파일 시점에 값이 결정되는 상수
 	// Window
