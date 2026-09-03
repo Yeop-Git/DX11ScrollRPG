@@ -61,6 +61,12 @@
     <Filter Include="헤더 파일\Game\Animation">
       <UniqueIdentifier>{e2a3b2e2-cce9-442a-b50a-505b562b57cc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="헤더 파일\Game\World">
+      <UniqueIdentifier>{54a83c5a-a0d7-4957-b0ac-5c181bf45ce7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Game\World">
+      <UniqueIdentifier>{d5267a42-fd9e-4980-acef-f48827230de3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -83,6 +89,9 @@
     </ClCompile>
     <ClCompile Include="Game\Animation\Animator.cpp">
       <Filter>소스 파일\Game\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\World\GameWorld.cpp">
+      <Filter>소스 파일\Game\World</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -112,6 +121,9 @@
     </ClInclude>
     <ClInclude Include="Game\Animation\Animator.h">
       <Filter>헤더 파일\Game\Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\World\GameWorld.h">
+      <Filter>헤더 파일\Game\World</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

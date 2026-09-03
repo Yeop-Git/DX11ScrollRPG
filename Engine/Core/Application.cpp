@@ -65,7 +65,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 
 	if (!CreateBlendState()) return false;
 
-	monster_.SetTarget(&player_);
+	gameWorld_.Initialize();
 
 	previousTime_ = steady_clock::now();
 
@@ -468,16 +468,8 @@ bool Application::ProcessMessages()
 
 void Application::Update(float deltaTime)
 {
-	// Player 죽으면 Retry 처리
-	if (player_.IsDead())
-	{
-		if (GetAsyncKeyState('R') & 0x8000) ResetGame();
-	}
-
-	player_.Update(deltaTime);
-	monster_.Update(deltaTime);
-
-	UpdateCombat();
+	// player, enemy관련 전부 gameWorld로 이관
+	gameWorld_.Update(deltaTime);
 }
 
 void Application::Render()
@@ -528,36 +520,6 @@ void Application::Render()
 
 	// BackBuffer 출력
 	swapChain_->Present(1, 0);
-}
-
-void Application::UpdateCombat()
-{
-	if (player_.IsDead()) return;
-	if (monster_.IsDead()) return;
-	// 1. Player → Monster
-	if (player_.IsAttackFrameActive() &&
-		player_.CanRegisterAttackHit())
-	{
-		if (Intersects(
-			player_.GetAttackHitBox(),
-			monster_.GetBodyBox()))
-		{
-			monster_.TakeDamage(1, player_.GetX());
-			player_.RegisterAttackHit();
-		}
-	}
-
-	// 2. Monster → Player
-	if (!player_.IsDead() &&
-		!monster_.IsDead())
-	{
-		if (Intersects(
-			player_.GetBodyBox(),
-			monster_.GetBodyBox()))
-		{
-			player_.TakeDamage(1, monster_.GetX());
-		}
-	}
 }
 
 
@@ -629,50 +591,54 @@ void Application::DrawGround()
 
 void Application::DrawPlayer()
 {
-	if (!player_.ShouldRender()) return;
-	const float frameCount = static_cast<float>(player_.GetAnimator().GetFrameCount());
+	Player* player = gameWorld_.GetPlayer();
+	if (player == nullptr) return;
+	if (!player->ShouldRender()) return;
+	const float frameCount = static_cast<float>(player->GetAnimator().GetFrameCount());
 	const float frameWidth = 1.0f / frameCount;
 
-	const float u0 = player_.GetAnimator().GetCurrentFrame() * frameWidth;
+	const float u0 = player->GetAnimator().GetCurrentFrame() * frameWidth;
 	const float u1 = u0 + frameWidth;
 
 	constexpr float renderOffsetY = -0.07f; // player sprite를 ground에 맞추기 위해 y offset 적용
 
 	DrawSprite(
 		GetCurrentPlayerTexture(),
-		player_.GetX(),
-		player_.GetY() + renderOffsetY,
+		player->GetX(),
+		player->GetY() + renderOffsetY,
 		0.1f,
 		0.18f,
 		u0,
 		0.0f,
 		u1,
 		1.0f,
-		!player_.IsFacingRight()
+		!player->IsFacingRight()
 	);
 }
 
 void Application::DrawMonster()
 {
-	const float frameCount = static_cast<float>(monster_.GetAnimator().GetFrameCount());
+	Monster* monster = gameWorld_.GetMonster();
+	if (monster == nullptr) return;
+	const float frameCount = static_cast<float>(monster->GetAnimator().GetFrameCount());
 	const float frameWidth = 1.0f / frameCount;
 
-	const float u0 = monster_.GetAnimator().GetCurrentFrame() * frameWidth;
+	const float u0 = monster->GetAnimator().GetCurrentFrame() * frameWidth;
 	const float u1 = u0 + frameWidth;
 
 	constexpr float renderOffsetY = -0.04f;
 
 	DrawSprite(
 		GetCurrentMonsterTexture(),
-		monster_.GetX(),
-		monster_.GetY() + renderOffsetY,
+		monster->GetX(),
+		monster->GetY() + renderOffsetY,
 		0.08f,
 		0.08f,
 		u0,
 		0.0f,
 		u1,
 		1.0f,
-		monster_.IsFacingRight()
+		monster->IsFacingRight()
 	);
 }
 
@@ -738,7 +704,9 @@ float Application::GetDeltaTime()
 
 ID3D11ShaderResourceView* Application::GetCurrentPlayerTexture() const
 {
-	switch (player_.GetState())
+	Player* player = gameWorld_.GetPlayer();
+	if (player == nullptr) return nullptr;
+	switch (player->GetState())
 	{
 	case PlayerState::Idle:
 		return idleTextureView_.Get();
@@ -758,7 +726,9 @@ ID3D11ShaderResourceView* Application::GetCurrentPlayerTexture() const
 
 ID3D11ShaderResourceView* Application::GetCurrentMonsterTexture() const
 {
-	switch (monster_.GetState())
+	Monster* monster = gameWorld_.GetMonster();
+	if (monster == nullptr) return nullptr;
+	switch (monster->GetState())
 	{
 	case MonsterState::Idle:
 		return monsterIdleTextureView_.Get();
@@ -770,10 +740,4 @@ ID3D11ShaderResourceView* Application::GetCurrentMonsterTexture() const
 		return monsterDeadTextureView_.Get();
 	}
 	return nullptr;
-}
-
-void Application::ResetGame()
-{
-	player_.Reset();
-	monster_.Reset();
 }

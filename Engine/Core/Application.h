@@ -7,6 +7,7 @@
 
 #include "../../Game/Player.h"
 #include "../../Game/Monster.h"
+#include "../../Game/World/GameWorld.h"
 
 using namespace Microsoft::WRL;
 
@@ -35,9 +36,7 @@ private:
 
 	void Update(float deltaTime);
 	void Render();
-	void UpdateCombat();
 	float GetDeltaTime();
-	void ResetGame();
 
 	// Draw Functions
 	void DrawBackground();
@@ -65,11 +64,11 @@ private:
 	// Windows 창 Handle
 	HWND hwnd_ = nullptr;
 
-	//Entities
-	Player player_;
-	Monster monster_;
-
+	// Update용 previousTime
 	std::chrono::steady_clock::time_point previousTime_;
+
+	// Game World Composition
+	GameWorld gameWorld_;
 
 	// constexpr : 컴파일 시점에 값이 결정되는 상수
 	// Window
