@@ -155,6 +155,9 @@
     <ClInclude Include="Game\Entity\Transform.h">
       <Filter>헤더 파일\Game\Entity</Filter>
     </ClInclude>
+    <ClInclude Include="Game\Entity\GameObject.h">
+      <Filter>헤더 파일\Game\Entity</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\BasicVS.hlsl">

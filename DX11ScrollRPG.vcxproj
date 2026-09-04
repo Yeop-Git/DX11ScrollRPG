@@ -167,6 +167,7 @@
     <ClInclude Include="Game\Entity\Character.h" />
     <ClInclude Include="Game\Entity\Collider.h" />
     <ClInclude Include="Game\Entity\Entity.h" />
+    <ClInclude Include="Game\Entity\GameObject.h" />
     <ClInclude Include="Game\Entity\Transform.h" />
     <ClInclude Include="Game\Monster.h" />
     <ClInclude Include="Game\Player.h" />
