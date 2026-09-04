@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Entity.h"
-#include "../Collision/AABB.h"
 #include "../Animation/Animator.h"
 
 // 움직이며 전투가능한 Entity
@@ -44,9 +43,6 @@ protected:
 	// 전투가 가능한 Entity이기 때문에 HP, Collider, Velocity를 가짐.
 	int hp_ = 3;
 	int maxHp_ = 3;
-
-	float velocityX_ = 0.0f;
-	float velocityY_ = 0.0f;
 
 	bool facingRight_ = true;
 

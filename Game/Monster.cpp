@@ -6,11 +6,8 @@ Monster::Monster()
 	maxHp_ = 3;
 	hp_ = maxHp_;
 
-	collider.halfHeight = 0.07f;
-	collider.halfWidth = 0.08f;
-
-	transform.x = 0.6f;
-	transform.y = -0.18f;
+	collider.halfSize = { 0.08f, 0.07f };
+	transform.position = kStartPosition;
 
 	renderOffsetY = -0.03f;
 
@@ -18,32 +15,32 @@ Monster::Monster()
 		kIdleClipCount,      // frameCount
 		0.12f,  // frameDuration
 		true,   // loop
-		48, 32,
-		0.10f
+		{ 48.0f, 32.0f },
+		{ 0.0f, 0.10f }
 	};
 
 	chaseClip_ = {
 		kChaseClipCount,
 		0.10f,
 		true,
-		48, 32,
-		0.10f
+		{ 48.0f, 32.0f },
+		{ 0.0f, 0.10f }
 	};
 
 	hurtClip_ = {
 		kHurtClipCount,
 		0.10f,
 		false,
-		48, 32,
-		0.10f
+		{ 48.0f, 32.0f },
+		{ 0.0f, 0.10f }
 	};
 
 	deadClip_ = {
 		kDeadClipCount,
 		0.12f,
 		false,
-		48, 32,
-		0.10f
+		{ 48.0f, 32.0f },
+		{ 0.0f, 0.10f }
 	};
 
 	animator_.Play(idleClip_);
@@ -51,6 +48,8 @@ Monster::Monster()
 
 void Monster::Update(float deltaTime)
 {
+	physics.isGrounded = false;
+
 	// animator 갱신
 	animator_.Update(deltaTime);
 
@@ -58,36 +57,36 @@ void Monster::Update(float deltaTime)
 	if (target_ == nullptr) return;
 	if (state_ == MonsterState::Dead) return;
 
-	const float targetX = target_->transform.x;
+	const float targetX = target_->transform.position.x;
 
 	UpdateState(targetX);
 
 	// 넉백 감속
 	if (state_ == MonsterState::Hurt)
 	{
-		velocityX_ *= std::pow(0.9f, deltaTime * 60.0f);
+		physics.velocity.x *= std::pow(0.9f, deltaTime * 60.0f);
 
 		if (animator_.IsFinished())
 		{
-			velocityX_ = 0.0f;
+			physics.velocity.x = 0.0f;
 			ChangeState(MonsterState::Idle);
 		}
 	}
 	// Chase 이동
 	else if (state_ == MonsterState::Chase)
 	{
-		if (targetX < transform.x)
+		if (targetX < transform.position.x)
 		{
-			velocityX_ = -kChaseSpeed;
+			physics.velocity.x = -kChaseSpeed;
 			facingRight_ = false;
 		}
 		else
 		{
-			velocityX_ = kChaseSpeed;
+			physics.velocity.x = kChaseSpeed;
 			facingRight_ = true;
 		}
 	}
-	else velocityX_ = 0.0f;
+	else physics.velocity.x = 0.0f;
 
 	UpdatePosition(deltaTime);
 }
@@ -127,7 +126,7 @@ void Monster::UpdateState(float playerX)
 	if (state_ == MonsterState::Hurt) return;
 	if (state_ == MonsterState::Dead) return;
 
-	const float distance = std::abs(playerX - transform.x);
+	const float distance = std::abs(playerX - transform.position.x);
 
 	if (distance <= kChaseRange) ChangeState(MonsterState::Chase);
 	else ChangeState(MonsterState::Idle);
@@ -163,7 +162,7 @@ void Monster::TakeDamage(int damage, float attackerX)
 
 	hp_ -= damage;
 
-	velocityX_ = transform.x > attackerX ? kKnockbackSpeed : -kKnockbackSpeed;
+	physics.velocity.x = transform.position.x > attackerX ? kKnockbackSpeed : -kKnockbackSpeed;
 
 	if (hp_ <= 0)
 	{
@@ -184,14 +183,14 @@ void Monster::FinishHit()
 {
 	if (state_ != MonsterState::Hurt) return;
 
-	velocityX_ = 0.0f;
+	physics.velocity.x = 0.0f;
 	ChangeState(MonsterState::Idle);
 }
 
 void Monster::Reset()
 {
-	transform.x = 0.6f;
-	velocityX_ = 0.0f;
+	transform.position = kStartPosition;
+	physics.velocity = {};
 	hp_ = maxHp_;
 	facingRight_ = false;
 	ChangeState(MonsterState::Idle);

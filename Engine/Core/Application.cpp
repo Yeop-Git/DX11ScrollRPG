@@ -50,8 +50,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 		device_.Get(),
 		context_.Get(),
 		&resourceManager_,
-		static_cast<float>(kWindowWidth),
-		static_cast<float>(kWindowHeight)))
+		kWindowSize))
 	{
 		return false;
 	}
@@ -107,8 +106,13 @@ bool Application::CreateMainWindow(HINSTANCE hInstance, int nCmdShow)
 		return false;
 	}
 
-	// kWindowWidth * kWindowHight 창
-	RECT windowRect{ 0, 0, kWindowWidth, kWindowHeight };
+	// 지정한 게임 화면 크기로 창 생성
+	RECT windowRect{
+		0,
+		0,
+		static_cast<LONG>(kWindowSize.x),
+		static_cast<LONG>(kWindowSize.y)
+	};
 
 	// 실제 원하는 게임 화면 크기와 동일하게 windowRect를 조정 
 	// (title bar, border 등을 고려)
@@ -145,8 +149,8 @@ bool Application::InitializeDirectX()
 	// SwapChain 설정값
 	DXGI_SWAP_CHAIN_DESC desc{};
 
-	desc.BufferDesc.Width = kWindowWidth;
-	desc.BufferDesc.Height = kWindowHeight;
+	desc.BufferDesc.Width = static_cast<UINT>(kWindowSize.x);
+	desc.BufferDesc.Height = static_cast<UINT>(kWindowSize.y);
 	// Format : 색상 표현 방식
 	desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
@@ -198,8 +202,8 @@ bool Application::InitializeDirectX()
 	viewport.TopLeftX = 0.0f;
 	viewport.TopLeftY = 0.0f;
 
-	viewport.Width = static_cast<float>(kWindowWidth);
-	viewport.Height = static_cast<float>(kWindowHeight);
+	viewport.Width = kWindowSize.x;
+	viewport.Height = kWindowSize.y;
 
 	viewport.MinDepth = 0.0f;
 	viewport.MaxDepth = 1.0f;
@@ -267,89 +271,22 @@ void Application::Render()
 	context_->ClearRenderTargetView(renderTargetView_.Get(), clearColor);
 
 	renderer_.Begin();
-	// Draw
-	DrawBackground();
-	DrawTrees();
-	DrawGround();
 
-	// 모든 entities Draw
-	for (const auto& entity :gameWorld_.GetEntities())
+	// 모든 GameObject를 생성 순서대로 렌더링
+	for (const auto& object : gameWorld_.GetGameObjects())
 	{
-		if (!entity->IsActive()) continue;
+		if (!object->IsActive()) continue;
 
-		renderer_.Draw(entity->GetRenderInfo());
+		const RenderInfo info = object->GetRenderInfo();
+		if (!info.visible) continue;
+
+		renderer_.Draw(info);
 	}
 
 	// BackBuffer 출력
 	swapChain_->Present(1, 0);
 }
 
-
-// 화면 전체에 배경 draw
-void Application::DrawBackground()
-{
-	renderer_.DrawSprite(
-		SpriteId::Background,
-		0.0f,
-		0.0f,
-		1.0f,
-		1.0f
-	);
-}
-
-void Application::DrawTrees()
-{
-	constexpr float groundY = -0.3f;
-
-	constexpr float treeHalfWidth = 0.1f;
-	constexpr float treeHalfHeight = 0.34f;
-
-	constexpr float treeCenterY = groundY + treeHalfHeight;
-
-
-	// 왼쪽, 오른쪽에 나무 그리기
-	renderer_.DrawSprite(
-		SpriteId::Tree,
-		-0.65f,
-		treeCenterY,
-		treeHalfWidth,
-		treeHalfHeight
-	);
-
-	renderer_.DrawSprite(
-		SpriteId::Tree,
-		0.6f,
-		treeCenterY,
-		treeHalfWidth,
-		treeHalfHeight
-	);
-}
-
-void Application::DrawGround()
-{
-	constexpr float groundY = -0.3f;
-
-	constexpr float halfWidth = 0.1f;
-	constexpr float halfHeight = 0.1f;
-
-	constexpr float centerY = groundY - halfHeight;
-
-	constexpr int groundCount = 15;
-
-	// groundCount만큼 groundTextureView_를 반복해서 그리기
-	for (int i = 0; i < groundCount; ++i)
-	{
-		const float x = -1.0f + static_cast<float>(i) * halfWidth * 1.5f;
-
-		renderer_.DrawSprite(
-			SpriteId::Ground,
-			x,
-			centerY,
-			halfWidth,
-			halfHeight
-		);
-	}
-}
 
 float Application::GetDeltaTime()
 {

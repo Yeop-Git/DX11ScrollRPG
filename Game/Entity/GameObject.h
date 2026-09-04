@@ -11,11 +11,17 @@ public:
 	Transform transform;
 	Collider collider;
 
+public:
+	GameObject() = default;
+
+	// GameObject 정보 받고 생성 (클래스 필요없이)
+	GameObject(SpriteId spriteId, Vector2 position, Vector2 halfSize);
+
 	// 소멸자 virtual
 	virtual ~GameObject() = default;
 
 	// Update를 순수 virtual 함수로 하여 자식에서 구현을 강제
-	virtual RenderInfo GetRenderInfo() const = 0;
+	virtual RenderInfo GetRenderInfo() const;
 
 	// AABB Box Collider
 	AABB GetBodyBox() const
@@ -42,4 +48,7 @@ protected:
 
 private:
 	bool active_ = true;
+
+	SpriteId spriteId_= SpriteId::None;
+	Vector2 renderSize_ = { 0.0f, 0.0f };
 };

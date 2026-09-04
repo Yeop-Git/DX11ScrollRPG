@@ -44,14 +44,11 @@ public:
 private:
 	void HandleInput();
 	void ApplyGravity(float deltaTime);
-	void ResolveGroundCollisions();
-	void UpdateState();
+	void UpdateState(bool wasGrounded);
 	void ChangeState(PlayerState newState);
 	void UpdateDamageState(float deltaTime);
 
 private:
-	bool isGrounded_ = true;
-
 	PlayerState state_ = PlayerState::Idle;
 
 	// Animation Clips
@@ -72,15 +69,14 @@ private:
 
 	static constexpr float kInvincibleDuration = 2.4f;
 	static constexpr float kKnockbackDuration = 0.4f;
-	static constexpr float kKnockbackSpeedX = 1.8f;
-	static constexpr float kKnockbackSpeedY = 1.0f;
+	static constexpr Vector2 kKnockbackSpeed{ 1.8f, 1.0f };
 
 	// Run
 	static constexpr float kMoveSpeed = 0.8f;
 	static constexpr float kJumpSpeed = 1.5f;
 	static constexpr float kGravity = -3.0f;
 
-	static constexpr float kGroundY = -0.3f;
+	static constexpr Vector2 kStartPosition{ 0.0f, -0.12f };
 
 	// Animation Clip
 	static constexpr int kIdleClipCount = 4;

@@ -17,15 +17,13 @@ bool Renderer::Initialize(
     ID3D11Device* device,
     ID3D11DeviceContext* context,
     ResourceManager* resources,
-    float viewportWidth,
-    float viewportHeight)
+    Vector2 viewportSize)
 {
     device_ = device;
     context_ = context;
     resources_ = resources;
 
-    viewportWidth_ = viewportWidth;
-    viewportHeight_ = viewportHeight;
+    viewportSize_ = viewportSize;
 
 	if (!CreateGeometry()) return false;
 	if (!CreateShaders()) return false;
@@ -68,56 +66,41 @@ void Renderer::Draw(
 		u0 + frameWidthUV;
 
 	const float spriteAspect =
-		static_cast<float>(
-			info.frameWidthPx)
-		/
-		static_cast<float>(
-			info.frameHeightPx);
+		info.frameSizePixels.x / info.frameSizePixels.y;
 
-	const float halfHeight =
-		info.renderHalfHeight;
-
-	const float halfWidth =
-		halfHeight
-		* spriteAspect
-		* viewportHeight_
-		/ viewportWidth_;
+	Vector2 halfSize = info.renderHalfSize;
+	if (halfSize.x <= 0.0f)
+	{
+		halfSize.x = halfSize.y * spriteAspect * viewportSize_.y / viewportSize_.x;
+	}
 
 	DrawSprite(
 		texture,
-		info.x + info.offsetX,
-		info.y + info.offsetY,
-		halfWidth,
-		halfHeight,
-		u0,
-		0.0f,
-		u1,
-		1.0f,
+		info.position + info.offset,
+		halfSize,
+		{ u0, 0.0f },
+		{ u1, 1.0f },
 		info.flipX
 	);
 }
 
 void Renderer::DrawSprite(
 	ID3D11ShaderResourceView* textureView,
-	float x,
-	float y,
-	float halfWidth,
-	float halfHeight,
-	float u0,
-	float v0,
-	float u1,
-	float v1,
+	Vector2 position,
+	Vector2 halfSize,
+	Vector2 uvMin,
+	Vector2 uvMax,
 	bool flipX)
 {
-	float leftU = flipX ? u1 : u0;
-	float rightU = flipX ? u0 : u1;
+	float leftU = flipX ? uvMax.x : uvMin.x;
+	float rightU = flipX ? uvMin.x : uvMax.x;
 
 	const float vertices[] =
 	{
-		x - halfWidth, y - halfHeight, 0.0f, leftU, v1,
-		x + halfWidth, y - halfHeight, 0.0f, rightU, v1,
-		x + halfWidth, y + halfHeight, 0.0f, rightU, v0,
-		x - halfWidth, y + halfHeight, 0.0f, leftU, v0
+		position.x - halfSize.x, position.y - halfSize.y, 0.0f, leftU, uvMax.y,
+		position.x + halfSize.x, position.y - halfSize.y, 0.0f, rightU, uvMax.y,
+		position.x + halfSize.x, position.y + halfSize.y, 0.0f, rightU, uvMin.y,
+		position.x - halfSize.x, position.y + halfSize.y, 0.0f, leftU, uvMin.y
 	};
 
 	// vertex buffer를 CPU가 접근 가능한 메모리 영역으로 매핑
@@ -146,10 +129,8 @@ void Renderer::DrawSprite(
 
 void Renderer::DrawSprite(
 	SpriteId id,
-	float x,
-	float y,
-	float halfWidth,
-	float halfHeight)
+	Vector2 position,
+	Vector2 halfSize)
 {
 	auto* texture =
 		resources_->GetTexture(id);
@@ -159,14 +140,10 @@ void Renderer::DrawSprite(
 
 	DrawSprite(
 		texture,
-		x,
-		y,
-		halfWidth,
-		halfHeight,
-		0.0f,
-		0.0f,
-		1.0f,
-		1.0f,
+		position,
+		halfSize,
+		{ 0.0f, 0.0f },
+		{ 1.0f, 1.0f },
 		false
 	);
 }

@@ -11,11 +11,13 @@ void Character::TakeDamage(int damage, float)
 void Character::UpdatePosition(float deltaTime)
 {
 	// Velocity에 따른 위치 업데이트
-	transform.x += velocityX_ * deltaTime;
-	transform.y += velocityY_ * deltaTime;
+	transform.position += physics.velocity * deltaTime;
 
 	// 화면 밖으로 나가지 않도록 clamp
-	transform.x = std::clamp(transform.x, -1.0f + collider.halfHeight, 1.0f - collider.halfWidth);
+	transform.position.x = std::clamp(
+		transform.position.x,
+		-1.0f + collider.halfSize.x,
+		1.0f - collider.halfSize.x);
 }
 
 RenderInfo Character::GetRenderInfo() const
@@ -25,19 +27,17 @@ RenderInfo Character::GetRenderInfo() const
 
 	RenderInfo info;
 
-	info.x = transform.x;
-	info.y = transform.y;
+	info.position = transform.position;
 
 	info.frame = animator_.GetCurrentFrame();
 	info.frameCount = animator_.GetFrameCount();
 
-	info.frameWidthPx = clip.frameWidthPx;
-	info.frameHeightPx = clip.frameHeightPx;
+	info.frameSizePixels = clip.frameSizePixels;
 
-	info.renderHalfHeight =clip.renderHalfHeight;
+	info.renderHalfSize = clip.renderHalfSize;
 
-	info.offsetX = clip.offsetX;
-	info.offsetY = clip.offsetY + renderOffsetY;
+	info.offset = clip.offset;
+	info.offset.y += renderOffsetY;
 
 	return info;
 }

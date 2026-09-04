@@ -17,8 +17,7 @@ public:
 		ID3D11Device* device,
 		ID3D11DeviceContext* context,
 		ResourceManager* resources,
-		float viewportWidth,
-		float viewportHeight
+		Vector2 viewportSize
 	);
 
 	void Draw(const RenderInfo& info);
@@ -26,22 +25,16 @@ public:
 
 	void DrawSprite(
 		SpriteId id,
-		float x,
-		float y,
-		float halfWidth,
-		float halfHeight);
+		Vector2 position,
+		Vector2 halfSize);
 
 private:
 	void DrawSprite(
 		ID3D11ShaderResourceView* textureView,
-		float x,
-		float y,
-		float halfWidth,
-		float halfHeight,
-		float u0 = 0.0f,
-		float v0 = 0.0f,
-		float u1 = 1.0f,
-		float v1 = 1.0f,
+		Vector2 position,
+		Vector2 halfSize,
+		Vector2 uvMin = { 0.0f, 0.0f },
+		Vector2 uvMax = { 1.0f, 1.0f },
 		bool flipX = false
 	);
 	bool CreateGeometry();
@@ -56,8 +49,7 @@ private:
 
 	ResourceManager* resources_ = nullptr;
 
-	float viewportWidth_ = 1.0f;
-	float viewportHeight_ = 1.0f;
+	Vector2 viewportSize_{ 1.0f, 1.0f };
 
 	//Buffer
 	ComPtr<ID3D11Buffer> vertexBuffer_;

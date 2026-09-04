@@ -15,80 +15,80 @@ Player::Player()
 		kIdleClipCount,      // frameCount
 		0.12f,  // frameDuration
 		true,   // loop
-		64, 80,
-		0.22f
+		{ 64.0f, 80.0f },
+		{ 0.0f, 0.22f }
 	};
 
 	runClip_ = {
 		kRunClipCount,
 		0.10f,
 		true,
-		80, 80,
-		0.22f
+		{ 80.0f, 80.0f },
+		{ 0.0f, 0.22f }
 	};
 
 	jumpStartClip_ = {
 		kJumpStartClipCount,
 		0.10f,
 		false,
-		64, 64,
-		0.176f
+		{ 64.0f, 64.0f },
+		{ 0.0f, 0.176f }
 	};
 
 	jumpEndClip_ = {
 		kJumpEndClipCount,
 		0.10f,
 		false,
-		64, 64,
-		0.176f
+		{ 64.0f, 64.0f },
+		{ 0.0f, 0.176f }
 	};
 
 	attackClip_ = {
 		kAttackClipCount,
 		0.08f,
 		false,
-		96, 80,
-		0.22f
+		{ 96.0f, 80.0f },
+		{ 0.0f, 0.22f }
 	};
 
 	deadClip_ = {
 		kDeadClipCount,
 		0.12f,
 		false,
-		80, 64,
-		0.176f
+		{ 80.0f, 64.0f },
+		{ 0.0f, 0.176f }
 	};
 
 	animator_.Play(idleClip_);
 
-	collider.halfWidth = 0.1f;
-	collider.halfHeight = 0.18f;
-
-	transform.x = 0.0f;
-	transform.y = kGroundY + collider.halfHeight;
+	collider.halfSize = { 0.1f, 0.18f };
+	transform.position = kStartPosition;
+	physics.isGrounded = true;
 }
 
 void Player::Update(float deltaTime)
 {
+	const bool wasGrounded = physics.isGrounded;
+
 	animator_.Update(deltaTime);
 
 	UpdateDamageState(deltaTime);
 
 	HandleInput();
 
+	// 입력은 이전 프레임의 착지 상태를 사용하고, 이번 프레임 판정 전에 초기화한다.
+	physics.isGrounded = false;
+
 	ApplyGravity(deltaTime);
 
-	// Update Position 후 ResolveGroundCollisions 순서를 지켜야 점프가 가능
 	UpdatePosition(deltaTime);
-
-	ResolveGroundCollisions();
 
 	if (state_ == PlayerState::Attack)
 	{
 		if (animator_.IsFinished()) FinishAttack();
 	}
 
-	UpdateState();
+	UpdateState(wasGrounded);
 }
 
 RenderInfo Player::GetRenderInfo() const
@@ -137,7 +137,7 @@ void Player::HandleInput()
 	if (state_ == PlayerState::Dead) return;
 	if (knockbackTimer_ > 0.0f) return;
 
-	velocityX_ = 0.0f;
+	physics.velocity.x = 0.0f;
 
 	// Attack
 	if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
@@ -150,54 +150,46 @@ void Player::HandleInput()
 	// 화살표 수평 이동 처리
 	if (GetAsyncKeyState(VK_LEFT) & 0x8000)
 	{
-		velocityX_ = -kMoveSpeed;
+		physics.velocity.x = -kMoveSpeed;
 		facingRight_ = false;
 	}
 
 	if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
 	{
-		velocityX_ = kMoveSpeed;
+		physics.velocity.x = kMoveSpeed;
 		facingRight_ = true;
 	}
 
 
 	// Alt 점프 처리
-	if (isGrounded_ && GetAsyncKeyState(VK_MENU) & 0x8000)
+	if (physics.isGrounded && GetAsyncKeyState(VK_MENU) & 0x8000)
 	{
-		velocityY_ = kJumpSpeed;
-		isGrounded_ = false;
+		physics.velocity.y = kJumpSpeed;
+		physics.isGrounded = false;
 	}
 }
 
 void Player::ApplyGravity(float deltaTime)
 {
 	// 공중에서는 중력 적용
-	if (!isGrounded_)
+	if (!physics.isGrounded)
 	{
-		velocityY_ += kGravity * deltaTime;
+		physics.velocity.y += kGravity * deltaTime;
 	}
 }
 
-void Player::ResolveGroundCollisions()
-{
-	// 땅과 충돌 처리
-	if (transform.y <= kGroundY + collider.halfHeight)
-	{
-		transform.y = kGroundY + collider.halfHeight;
-		velocityY_ = 0.0f;
-		isGrounded_ = true;
-	}
-}
-
-void Player::UpdateState()
+void Player::UpdateState(bool wasGrounded)
 {
 	if (state_ == PlayerState::Attack) return;
 	if (state_ == PlayerState::Dead) return;
 
+	const bool isGroundedForState =
+		wasGrounded && physics.velocity.y <= 0.0f;
+
 	// 상태 전환
-	if (!isGrounded_)
+	if (!isGroundedForState)
 	{
-		if (velocityY_ > 0.0f)
+		if (physics.velocity.y > 0.0f)
 		{
 			ChangeState(PlayerState::JumpStart);
 		}
@@ -206,7 +198,7 @@ void Player::UpdateState()
 			ChangeState(PlayerState::JumpEnd);
 		}
 	}
-	else if (velocityX_ != 0.0f)
+	else if (physics.velocity.x != 0.0f)
 	{
 		ChangeState(PlayerState::Run);
 	}
@@ -225,7 +217,7 @@ void Player::UpdateDamageState(float deltaTime)
 	if (knockbackTimer_ > 0.0f)
 	{
 		knockbackTimer_ -= deltaTime;
-		velocityX_ *= std::pow(0.9f, deltaTime * 60.0f);
+		physics.velocity.x *= std::pow(0.9f, deltaTime * 60.0f);
 	}
 
 	if (invincibleTimer_ <= 0.0f)
@@ -283,8 +275,7 @@ void Player::TakeDamage(int damage, float attackerX)
 	{
 		hp_ = 0;
 
-		velocityX_ = 0.0f;
-		velocityY_ = 0.0f;
+		physics.velocity = {};
 
 		ChangeState(PlayerState::Dead);
 		return;
@@ -297,10 +288,9 @@ void Player::TakeDamage(int damage, float attackerX)
 	// 넉백 시작
 	knockbackTimer_ = kKnockbackDuration;
 
-	velocityX_ = transform.x < attackerX ? -kKnockbackSpeedX : kKnockbackSpeedX;
-
-	velocityY_ = kKnockbackSpeedY;
-	isGrounded_ = false;
+	physics.velocity = kKnockbackSpeed;
+	if (transform.position.x < attackerX) physics.velocity.x *= -1.0f;
+	physics.isGrounded = false;
 }
 
 bool Player::ShouldRender() const
@@ -317,10 +307,10 @@ void Player::StartAttack()
 {
 	if (state_ == PlayerState::Attack) return;
 	if (state_ == PlayerState::Dead) return;
-	if (!isGrounded_) return;
+	if (!physics.isGrounded) return;
 	ChangeState(PlayerState::Attack);
 	attackHitRegistered_ = false;
-	velocityX_ = 0.0f;
+	physics.velocity.x = 0.0f;
 }
 
 void Player::FinishAttack()
@@ -330,15 +320,12 @@ void Player::FinishAttack()
 
 void Player::Reset()
 {
-	transform.x = 0.0f;
-	transform.y = kGroundY + collider.halfHeight;
-
-	velocityX_ = 0.0f;
-	velocityY_ = 0.0f;
+	transform.position = kStartPosition;
+	physics.velocity = {};
 
 	hp_ = maxHp_;
 
-	isGrounded_ = true;
+	physics.isGrounded = true;
 	facingRight_ = true;
 
 	isInvincible_ = false;
@@ -369,26 +356,21 @@ void Player::RegisterAttackHit()
 
 AABB Player::GetAttackHitBox() const
 {
-	constexpr float attackWidth = 0.18f;
-	constexpr float attackHalfHeight = 0.10f;
+	constexpr Vector2 attackExtent{ 0.18f, 0.10f };
 
 	if (facingRight_)
 	{
 		return
 		{
-			transform.x,
-			transform.x + attackWidth,
-			transform.y - attackHalfHeight,
-			transform.y + attackHalfHeight
+			transform.position - Vector2{ 0.0f, attackExtent.y },
+			transform.position + attackExtent
 		};
 	}
 
 	return
 	{
-		transform.x - attackWidth,
-		transform.x,
-		transform.y - attackHalfHeight,
-		transform.y + attackHalfHeight
+		transform.position - attackExtent,
+		transform.position + Vector2{ 0.0f, attackExtent.y }
 	};
 }
 

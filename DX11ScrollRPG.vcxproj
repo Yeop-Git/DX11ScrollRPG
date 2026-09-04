@@ -149,9 +149,11 @@
     <ClCompile Include="Engine\ThirdParty\stb\StbImage.cpp" />
     <ClCompile Include="Game\Animation\Animator.cpp" />
     <ClCompile Include="Game\Entity\Character.cpp" />
+    <ClCompile Include="Game\Entity\GameObject.cpp" />
     <ClCompile Include="Game\Monster.cpp" />
     <ClCompile Include="Game\Player.cpp" />
     <ClCompile Include="Game\World\GameWorld.cpp" />
+    <ClCompile Include="Game\World\Ground.cpp" />
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -160,6 +162,7 @@
     <ClInclude Include="Engine\Graphics\RenderInfo.h" />
     <ClInclude Include="Engine\Graphics\ResourceManager.h" />
     <ClInclude Include="Engine\Graphics\SpriteId.h" />
+    <ClInclude Include="Engine\Math\Vector2.h" />
     <ClInclude Include="Engine\ThirdParty\stb\stb_image.h" />
     <ClInclude Include="Game\Animation\AnimationClip.h" />
     <ClInclude Include="Game\Animation\Animator.h" />
@@ -168,10 +171,12 @@
     <ClInclude Include="Game\Entity\Collider.h" />
     <ClInclude Include="Game\Entity\Entity.h" />
     <ClInclude Include="Game\Entity\GameObject.h" />
+    <ClInclude Include="Game\Entity\Physics.h" />
     <ClInclude Include="Game\Entity\Transform.h" />
     <ClInclude Include="Game\Monster.h" />
     <ClInclude Include="Game\Player.h" />
     <ClInclude Include="Game\World\GameWorld.h" />
+    <ClInclude Include="Game\World\Ground.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\BasicPS.hlsl">

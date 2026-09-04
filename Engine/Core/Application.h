@@ -36,11 +36,6 @@ private:
 	void Render();
 	float GetDeltaTime();
 
-	// Draw Functions
-	void DrawBackground();
-	void DrawTrees();
-	void DrawGround();
-
 private:
 	// Windows 창 Handle
 	HWND hwnd_ = nullptr;
@@ -55,8 +50,7 @@ private:
 
 	// constexpr : 컴파일 시점에 값이 결정되는 상수
 	// Window
-	static constexpr int kWindowWidth = 1280;
-	static constexpr int kWindowHeight = 720;
+	static constexpr Vector2 kWindowSize{ 1280.0f, 720.0f };
 
 	// DirectX 핵심 객체
 	// ComPtr : 스마트 포인터, 참조 카운트 기반 COM 객체 관리(RAII)

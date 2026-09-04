@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../../Engine/Math/Vector2.h"
+
 struct AnimationClip
 {
 	int frameCount = 1;
@@ -7,11 +9,9 @@ struct AnimationClip
 	bool loop = true;
 
 	// 렌더링 비율 자동 보정
-	int frameWidthPx = 1;
-	int frameHeightPx = 1;
+	Vector2 frameSizePixels{ 1.0f, 1.0f };
 
 	// 미세 조정
-	float renderHalfHeight = 0.18f;
-	float offsetX = 0.0f;
-	float offsetY = 0.0f;
+	Vector2 renderHalfSize{ 0.0f, 0.18f };
+	Vector2 offset{ 0.0f, 0.0f };
 };

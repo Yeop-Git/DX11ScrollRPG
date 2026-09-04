@@ -73,6 +73,9 @@
     <Filter Include="소스 파일\Engine\Graphics">
       <UniqueIdentifier>{ef0405a0-c2cc-47ac-a6ef-82ec412d7db5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="헤더 파일\Engine\Math">
+      <UniqueIdentifier>{436b1bde-6f16-47a4-995b-9b334336f97d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -104,6 +107,12 @@
     </ClCompile>
     <ClCompile Include="Engine\Graphics\ResourceManager.cpp">
       <Filter>소스 파일\Engine\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\World\Ground.cpp">
+      <Filter>소스 파일\Game\World</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\Entity\GameObject.cpp">
+      <Filter>소스 파일\Game\Entity</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -157,6 +166,15 @@
     </ClInclude>
     <ClInclude Include="Game\Entity\GameObject.h">
       <Filter>헤더 파일\Game\Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\World\Ground.h">
+      <Filter>헤더 파일\Game\World</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\Entity\Physics.h">
+      <Filter>헤더 파일\Game\Entity</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Math\Vector2.h">
+      <Filter>헤더 파일\Engine\Math</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
