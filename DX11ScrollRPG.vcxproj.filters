@@ -114,6 +114,9 @@
     <ClCompile Include="Game\Entity\GameObject.cpp">
       <Filter>소스 파일\Game\Entity</Filter>
     </ClCompile>
+    <ClCompile Include="Game\World\WorldItem.cpp">
+      <Filter>소스 파일\Game\World</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\Core\Application.h">
@@ -175,6 +178,9 @@
     </ClInclude>
     <ClInclude Include="Engine\Math\Vector2.h">
       <Filter>헤더 파일\Engine\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\World\WorldItem.h">
+      <Filter>헤더 파일\Game\World</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

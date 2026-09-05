@@ -16,6 +16,7 @@ void GameWorld::Initialize()
 	CreateGrounds();
 	CreatePlayer();
 	CreateMonsters();
+	CreateItems();
 }
 
 void GameWorld::Update(float deltaTime)
@@ -35,6 +36,8 @@ void GameWorld::Update(float deltaTime)
 	CollectDeadMonsters();
 	UpdateMonsterLock();
 	UpdateMonsterRespawn(deltaTime);
+
+	UpdateItemPickup();
 }
 
 void GameWorld::CreateEnvironment()
@@ -79,6 +82,39 @@ void GameWorld::CreateMonsters()
 
 		// 첫번째 몬스터만 Active하여 스폰
 		monsterPtr->SetActive(i==0);
+	}
+}
+
+void GameWorld::CreateItems()
+{
+	// Coin
+	for (int i = 0; i < kCoinPoolSize; i++)
+	{
+		auto item = std::make_unique<WorldItem>(ItemType::Coin);
+
+		WorldItem* ptr = item.get();
+
+		ptr->SetActive(false);
+
+		coinPool_.push(ptr);
+		items_.push_back(ptr);
+		entities_.push_back(ptr);
+		gameObjects_.push_back(std::move(item));
+	}
+
+	// Potion
+	for (int i = 0; i < kPotionPoolSize; i++)
+	{
+		auto item = std::make_unique<WorldItem>(ItemType::Potion);
+
+		WorldItem* ptr = item.get();
+
+		ptr->SetActive(false);
+
+		potionPool_.push(ptr);
+		items_.push_back(ptr);
+		entities_.push_back(ptr);
+		gameObjects_.push_back(std::move(item));
 	}
 }
 
@@ -225,6 +261,7 @@ void GameWorld::UpdateMonsterLock()
 
 void GameWorld::CollectDeadMonsters()
 {
+	// Dead이면서 애니메이션 끝난 몬스터 모아서 비활성화하고 respawnQueue에 집어넣기
 	for (Monster* monster : monsters_)
 	{
 		if (!monster)
@@ -237,6 +274,8 @@ void GameWorld::CollectDeadMonsters()
 			continue;
 
 		++killCount_;
+
+		DropItem(monster->transform.position);
 
 		monster->SetActive(false);
 		respawnQueue_.push(monster);
@@ -261,6 +300,69 @@ void GameWorld::UpdateMonsterRespawn(float deltaTime)
 	respawnQueue_.pop();
 
 	monster->SetActive(true);
+}
+
+WorldItem* GameWorld::FindInactiveItem(ItemType type)
+{
+	for (WorldItem* item : items_)
+	{
+		if (!item->IsActive() && item->GetType() == type)
+			return item;
+	}
+	return nullptr;
+}
+
+void GameWorld::DropItem(Vector2 position)
+{
+	const int roll = std::rand() % 100;
+	if (roll < kPotionRate) DropPotion(position);
+	else DropCoin(position);
+}
+
+void GameWorld::DropCoin(Vector2 position)
+{
+	if (coinPool_.empty()) return;
+
+	WorldItem* coin = coinPool_.front();
+	coinPool_.pop();
+
+	coin->Spawn(position);
+}
+
+void GameWorld::DropPotion(Vector2 position)
+{
+	if (potionPool_.empty()) return;
+
+	WorldItem* potion = potionPool_.front();
+	potionPool_.pop();
+
+	potion->Spawn(position);
+}
+
+void GameWorld::UpdateItemPickup()
+{
+	if (!player_)return;
+	if(player_->IsDead())return;
+
+	for (WorldItem* item : items_)
+	{
+		if (!item)continue;
+		if(!item->IsActive())continue;
+
+		if (!Intersects(player_->GetBodyBox(), item->GetBodyBox()))continue;
+
+		if (item->GetType() == ItemType::Potion)
+		{
+			player_->Heal(1);
+			potionPool_.push(item);
+		}
+		else if (item->GetType() == ItemType::Coin)
+		{
+			coinPool_.push(item);
+		}
+
+		item->SetActive(false);
+	}
 }
 
 void GameWorld::Reset()

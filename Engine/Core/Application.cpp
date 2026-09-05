@@ -40,11 +40,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 
 	if (!InitializeDirectX()) return false;
 
-	if (!CreatePlayerTextures()) return false;
-
-	if (!CreateMonsterTextures()) return false;
-
-	if (!CreateWorldTextures()) return false;
+	if (!resourceManager_.Initialize(device_.Get())) return false;
 
 	if (!renderer_.Initialize(
 		device_.Get(),
@@ -210,34 +206,6 @@ bool Application::InitializeDirectX()
 
 	context_->RSSetViewports(1, &viewport);
 
-	return true;
-}
-
-bool Application::CreatePlayerTextures()
-{
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::PlayerIdle, "Assets/Textures/Player/Idle.png")) return false;
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::PlayerRun, "Assets/Textures/Player/Run.png")) return false;
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::PlayerJumpStart, "Assets/Textures/Player/JumpStart.png")) return false;
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::PlayerJumpEnd, "Assets/Textures/Player/JumpEnd.png")) return false;
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::PlayerAttack, "Assets/Textures/Player/Attack.png")) return false;
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::PlayerDead, "Assets/Textures/Player/Dead.png")) return false;
-	return true;
-}
-
-bool Application::CreateMonsterTextures()
-{
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::MonsterIdle, "Assets/Textures/Monster/Idle.png")) return false;
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::MonsterChase, "Assets/Textures/Monster/Chase.png")) return false;
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::MonsterHurt, "Assets/Textures/Monster/Hurt.png")) return false;
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::MonsterDead, "Assets/Textures/Monster/Dead.png")) return false;
-	return true;
-}
-
-bool Application::CreateWorldTextures()
-{
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::Ground, "Assets/Textures/World/Ground.png")) return false;
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::Tree, "Assets/Textures/World/Tree.png")) return false;
-	if (!resourceManager_.LoadTextrue(device_.Get(), SpriteId::Background, "Assets/Textures/World/Background.png")) return false;
 	return true;
 }
 

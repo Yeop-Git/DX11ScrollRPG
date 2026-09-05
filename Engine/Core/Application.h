@@ -26,10 +26,6 @@ private:
 	bool CreateMainWindow(HINSTANCE hInstance, int nCmdShow);
 	bool InitializeDirectX();
 
-	bool CreatePlayerTextures();
-	bool CreateWorldTextures();
-	bool CreateMonsterTextures();
-
 	bool ProcessMessages();
 
 	void Update(float deltaTime);
@@ -74,23 +70,4 @@ private:
 	
 	// Alpha Blending
 	ComPtr<ID3D11BlendState> blendState_;
-
-	// Player Animation Texture
-	ComPtr<ID3D11ShaderResourceView> idleTextureView_;
-	ComPtr<ID3D11ShaderResourceView> runTextureView_;
-	ComPtr<ID3D11ShaderResourceView> jumpStartTextureView_;
-	ComPtr<ID3D11ShaderResourceView> jumpEndTextureView_;
-	ComPtr<ID3D11ShaderResourceView> attackTextureView_;
-	ComPtr<ID3D11ShaderResourceView> deadTextureView_;
-
-	// Monster Animation Texture
-	ComPtr<ID3D11ShaderResourceView> monsterIdleTextureView_;
-	ComPtr<ID3D11ShaderResourceView> monsterChaseTextureView_;
-	ComPtr<ID3D11ShaderResourceView> monsterHitTextureView_;
-	ComPtr<ID3D11ShaderResourceView> monsterDeadTextureView_;
-
-	// World Coordinate Texture
-	ComPtr<ID3D11ShaderResourceView> groundTextureView_;
-	ComPtr<ID3D11ShaderResourceView> treeTextureView_;
-	ComPtr<ID3D11ShaderResourceView> backgroundTextureView_;
 };

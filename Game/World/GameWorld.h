@@ -5,10 +5,12 @@
 #include <queue>
 
 #include "../Entity/Entity.h"
+#include "WorldItem.h"
 
 class Player;
 class Monster;
 class Ground;
+class WorldItem;
 
 class GameWorld
 {
@@ -39,16 +41,25 @@ private:
 	void CreatePlayer();
 	void CreateMonsters();
 	void CreateGrounds();
+	void CreateItems();
 
 	void UpdateEntities(float deltaTime);
 	void UpdatePhysics(float deltaTime);
 	void UpdateCombat();
 
+	// Monster Pool 관리
 	void UpdateMonsterLock();
 	void CollectDeadMonsters();
 	void UpdateMonsterRespawn(float deltaTime);
 
+	// World Item Pool 관리
+	WorldItem* FindInactiveItem(ItemType type);
+	void DropItem(Vector2 position);
+	void DropCoin(Vector2 position);
+	void DropPotion(Vector2 position);
+	void UpdateItemPickup();
 
+	// Entity - Ground Collision 관리
 	void ResolveGroundCollisions();
 	void ResolveGroundCollision(Entity& entity, const Ground& ground);
 
@@ -57,11 +68,12 @@ private:
 	std::vector<Entity*> entities_;
 	std::vector<Monster*> monsters_;
 	std::vector<Ground*> grounds_;
+	std::vector<WorldItem*> items_;
 
 	// Player는 월드에 하나뿐인 객체임으로 특별 관리.
 	Player* player_ = nullptr;
 
-	// Monster Spawner
+	// Monster Pool
 	std::queue<Monster*> respawnQueue_;
 
 	int killCount_ = 0;
@@ -70,6 +82,15 @@ private:
 	float respawnTimer_ = 0.0f;
 	static constexpr float kRespawnInterval = 2.0f;
 	static constexpr int kMonsterUnlockKills[] = { 0,3,7 };
+
+	// Item Pool
+	std::queue<WorldItem*> coinPool_;
+	std::queue<WorldItem*> potionPool_;
+
+	static constexpr int kCoinPoolSize = 5;
+	static constexpr int kPotionPoolSize = 3;
+
+	static constexpr int kPotionRate = 50;
 
 	// Physics 설정 값
 	static constexpr float gravity_ = -3.0f;

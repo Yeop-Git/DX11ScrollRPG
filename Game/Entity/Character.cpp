@@ -8,6 +8,13 @@ void Character::TakeDamage(int damage, float)
 	if (hp_ < 0) hp_ = 0;
 }
 
+void Character::Heal(int amount)
+{
+	if (IsDead()) return;
+
+	hp_ = std::min(hp_ + amount, maxHp_);
+}
+
 void Character::ClampWorld()
 {
 	// 화면 밖으로 나가지 않도록 clamp

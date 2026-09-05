@@ -22,5 +22,9 @@ enum class SpriteId
 	//Map
 	Background,
 	Tree,
-	Ground
+	Ground,
+
+	// Item
+	Coin,
+	Potion
 };

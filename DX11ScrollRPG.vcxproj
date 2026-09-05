@@ -154,6 +154,7 @@
     <ClCompile Include="Game\Player.cpp" />
     <ClCompile Include="Game\World\GameWorld.cpp" />
     <ClCompile Include="Game\World\Ground.cpp" />
+    <ClCompile Include="Game\World\WorldItem.cpp" />
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -177,6 +178,7 @@
     <ClInclude Include="Game\Player.h" />
     <ClInclude Include="Game\World\GameWorld.h" />
     <ClInclude Include="Game\World\Ground.h" />
+    <ClInclude Include="Game\World\WorldItem.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\BasicPS.hlsl">
