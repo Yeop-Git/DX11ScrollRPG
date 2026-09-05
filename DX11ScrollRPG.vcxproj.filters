@@ -184,11 +184,11 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shaders\BasicVS.hlsl">
+    <None Include="Shaders\BasicPS.hlsl">
       <Filter>소스 파일\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\BasicPS.hlsl">
+    </None>
+    <None Include="Shaders\BasicVS.hlsl">
       <Filter>소스 파일\Shaders</Filter>
-    </FxCompile>
+    </None>
   </ItemGroup>
 </Project>

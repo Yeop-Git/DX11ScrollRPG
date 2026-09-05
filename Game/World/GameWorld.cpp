@@ -376,9 +376,11 @@ void GameWorld::Reset()
 	unlockedMonsterCount_ = 1;
 	respawnTimer_ = 0.0f;
 
+	// Monster Queue 초기화
 	std::queue<Monster*> empty;
 	std::swap(respawnQueue_, empty);
 
+	// Monster들 초기화
 	for (Monster* monster : monsters_)
 	{
 		if (!monster)continue;
@@ -388,5 +390,30 @@ void GameWorld::Reset()
 	if (!monsters_.empty())
 	{
 		monsters_[0]->SetActive(true);
+	}
+
+	// Item Queue 초기화
+	std::queue<WorldItem*> emptyCoinPool;
+	std::swap(coinPool_, emptyCoinPool);
+
+	std::queue<WorldItem*> emptyPotionPool;
+	std::swap(potionPool_, emptyPotionPool);
+
+	// 모든 Item 회수
+	for (WorldItem* item : items_)
+	{
+		if (!item)
+			continue;
+
+		item->SetActive(false);
+
+		if (item->GetType() == ItemType::Coin)
+		{
+			coinPool_.push(item);
+		}
+		else if (item->GetType() == ItemType::Potion)
+		{
+			potionPool_.push(item);
+		}
 	}
 }

@@ -26,5 +26,9 @@ enum class SpriteId
 
 	// Item
 	Coin,
-	Potion
+	Potion,
+
+	//UI
+	Heart,
+	GameOver
 };

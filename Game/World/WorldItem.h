@@ -21,5 +21,5 @@ public:
 	void Spawn(Vector2 position);
 private:
 	ItemType type_;
-	static constexpr Vector2 spawnOffset{ 0.0f, 0.05f };
+	static constexpr Vector2 spawnOffset{ 0.0f, 0.1f };
 };

@@ -39,28 +39,18 @@ void Renderer::Draw(
 	if (!info.visible)
 		return;
 
-	if (info.spriteId ==
-		SpriteId::None)
-		return;
+	if (info.spriteId ==SpriteId::None)return;
 
-	auto* texture =
-		resources_->GetTexture(
-			info.spriteId
-		);
+	auto* texture =resources_->GetTexture(info.spriteId);
 
 	if (texture == nullptr)
 		return;
 
-	const float frameWidthUV =
-		1.0f /
-		static_cast<float>(
-			info.frameCount
-			);
+	const float frameWidthUV = 1.0f /
+		static_cast<float>(info.frameCount);
 
 	const float u0 =
-		static_cast<float>(
-			info.frame
-			) * frameWidthUV;
+		static_cast<float>(info.frame) * frameWidthUV;
 
 	const float u1 =
 		u0 + frameWidthUV;

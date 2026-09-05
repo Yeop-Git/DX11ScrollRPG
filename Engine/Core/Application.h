@@ -30,6 +30,7 @@ private:
 
 	void Update(float deltaTime);
 	void Render();
+	void RenderUI();
 	float GetDeltaTime();
 
 private:

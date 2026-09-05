@@ -25,8 +25,14 @@ bool ResourceManager::Initialize(ID3D11Device* device)
 	if (!LoadTextrue(device, SpriteId::Background, "Assets/Textures/World/Background.png")) return false;
 
 	//World Item
-	if (!LoadTextrue(device, SpriteId::Coin,"Assets/Textures/Item/Coin.png")) return false;
-	if (!LoadTextrue(device, SpriteId::Potion,"Assets/Textures/Item/Potion.png")) return false;
+	if (!LoadTextrue(device, SpriteId::Coin, "Assets/Textures/Item/Coin.png")) return false;
+	if (!LoadTextrue(device, SpriteId::Potion, "Assets/Textures/Item/Potion.png")) return false;
+
+	//UI
+	if (!LoadTextrue(device, SpriteId::Heart, "Assets/Textures/UI/Heart.png"))return false;
+	if (!LoadTextrue(device, SpriteId::GameOver, "Assets/Textures/UI/GameOver.png"))return false;
+
+	return true;
 }
 
 // Application.cpp의 함수를 매개변수만 조금 바꿔서 사용

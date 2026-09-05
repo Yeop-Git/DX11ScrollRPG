@@ -251,6 +251,8 @@ void Application::Render()
 		renderer_.Draw(info);
 	}
 
+	RenderUI();
+
 	// BackBuffer 출력
 	swapChain_->Present(1, 0);
 }
@@ -267,4 +269,33 @@ float Application::GetDeltaTime()
 	previousTime_ = currentTime;
 
 	return deltaTime;
+}
+
+void Application::RenderUI()
+{
+	Player* player = gameWorld_.GetPlayer();
+
+	if (!player)return;
+
+	for (int i = 0; i < player->GetHP(); ++i)
+	{
+		RenderInfo heart;
+		heart.spriteId = SpriteId::Heart;
+		heart.position = { -0.9f + i * 0.1f, 0.88f };
+		heart.frameSizePixels = { 1254,1254 };
+		heart.renderHalfSize = { 0.0f, 0.08f };
+
+		renderer_.Draw(heart);
+	}
+
+	if (player->IsDead())
+	{
+		RenderInfo gameOver;
+		gameOver.spriteId = SpriteId::GameOver;
+		gameOver.position = { 0.0f, 0.1f };
+		gameOver.frameSizePixels = { 1921, 819 };
+		gameOver.renderHalfSize = { 0.0f, 0.2f };
+
+		renderer_.Draw(gameOver);
+	}
 }
