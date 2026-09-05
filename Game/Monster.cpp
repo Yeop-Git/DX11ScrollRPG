@@ -56,11 +56,8 @@ void Monster::Update(float deltaTime)
 	// 타겟 없으면 
 	if (target_ == nullptr) return;
 	if (state_ == MonsterState::Dead) return;
-	if (target_->IsDead()) return;
 
-	const float targetX = target_->transform.position.x;
-
-	UpdateState(targetX);
+	UpdateState();
 
 	// 넉백 감속
 	if (state_ == MonsterState::Hurt)
@@ -76,7 +73,7 @@ void Monster::Update(float deltaTime)
 	// Chase 이동
 	else if (state_ == MonsterState::Chase)
 	{
-		if (targetX < transform.position.x)
+		if (target_->transform.position.x < transform.position.x)
 		{
 			physics.velocity.x = -kChaseSpeed;
 			facingRight_ = false;
@@ -90,6 +87,29 @@ void Monster::Update(float deltaTime)
 	else physics.velocity.x = 0.0f;
 
 	ClampWorld();
+}
+
+void Monster::OnEnable()
+{
+	hp_ = maxHp_;
+
+	physics.enabled = true;
+	physics.velocity = {};
+	physics.isGrounded = false;
+
+	collider.enabled = true;
+
+	facingRight_ = false;
+
+	transform.position = kStartPosition;
+
+	ChangeState(MonsterState::Idle);
+}
+
+void Monster::OnDisable()
+{
+	physics.velocity = {};
+	collider.enabled = false;
 }
 
 RenderInfo Monster::GetRenderInfo() const
@@ -122,14 +142,14 @@ RenderInfo Monster::GetRenderInfo() const
 	return info;
 }
 
-void Monster::UpdateState(float playerX)
+void Monster::UpdateState()
 {
 	if (state_ == MonsterState::Hurt) return;
 	if (state_ == MonsterState::Dead) return;
 
-	const float distance = std::abs(playerX - transform.position.x);
+	const float distance = std::abs(target_->transform.position.x - transform.position.x);
 
-	if (distance <= kChaseRange) ChangeState(MonsterState::Chase);
+	if (distance <= kChaseRange && !target_->IsDead()) ChangeState(MonsterState::Chase);
 	else ChangeState(MonsterState::Idle);
 }
 
@@ -208,4 +228,9 @@ MonsterState Monster::GetState() const
 const Animator& Monster::GetAnimator() const
 {
 	return animator_;
+}
+
+bool Monster::IsDeadAnimationFinished() const
+{
+	return state_ == MonsterState::Dead && animator_.IsFinished();
 }

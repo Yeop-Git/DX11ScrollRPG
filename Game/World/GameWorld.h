@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <queue>
 
 #include "../Entity/Entity.h"
 
@@ -35,12 +36,18 @@ public :
 
 private:
 	void CreateEnvironment();
-	void CreateEntities();
+	void CreatePlayer();
+	void CreateMonsters();
 	void CreateGrounds();
 
 	void UpdateEntities(float deltaTime);
 	void UpdatePhysics(float deltaTime);
 	void UpdateCombat();
+
+	void UpdateMonsterLock();
+	void CollectDeadMonsters();
+	void UpdateMonsterRespawn(float deltaTime);
+
 
 	void ResolveGroundCollisions();
 	void ResolveGroundCollision(Entity& entity, const Ground& ground);
@@ -48,10 +55,21 @@ private:
 private:
 	std::vector<std::unique_ptr<GameObject>> gameObjects_;
 	std::vector<Entity*> entities_;
+	std::vector<Monster*> monsters_;
 	std::vector<Ground*> grounds_;
 
 	// Player는 월드에 하나뿐인 객체임으로 특별 관리.
 	Player* player_ = nullptr;
+
+	// Monster Spawner
+	std::queue<Monster*> respawnQueue_;
+
+	int killCount_ = 0;
+	int unlockedMonsterCount_ = 1;
+
+	float respawnTimer_ = 0.0f;
+	static constexpr float kRespawnInterval = 2.0f;
+	static constexpr int kMonsterUnlockKills[] = { 0,3,7 };
 
 	// Physics 설정 값
 	static constexpr float gravity_ = -3.0f;

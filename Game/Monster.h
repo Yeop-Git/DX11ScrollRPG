@@ -17,6 +17,9 @@ public :
 
 	// Update에서 playerX 제거
 	void Update(float deltaTime) override;
+	void OnEnable() override;
+	void OnDisable() override;
+
 	RenderInfo GetRenderInfo() const override;
 
 	void TakeDamage(int damage, float attackerX);
@@ -32,8 +35,10 @@ public :
 
 	void ChangeState(MonsterState newState);
 
+	bool IsDeadAnimationFinished() const;
+
 private:
-	void UpdateState(float playerX);
+	void UpdateState();
 
 private :
 	// Chase Target, 주로 플레이어

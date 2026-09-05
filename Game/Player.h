@@ -66,7 +66,7 @@ private:
 	float invincibleTimer_ = 0.0f;
 	float knockbackTimer_ = 0.0f;
 
-	static constexpr float kInvincibleDuration = 2.4f;
+	static constexpr float kInvincibleDuration = 1.5f;
 	static constexpr float kKnockbackDuration = 0.4f;
 	static constexpr Vector2 kKnockbackSpeed{ 1.8f, 1.0f };
 

@@ -14,7 +14,27 @@ void GameWorld::Initialize()
 
 	CreateEnvironment();
 	CreateGrounds();
-	CreateEntities();
+	CreatePlayer();
+	CreateMonsters();
+}
+
+void GameWorld::Update(float deltaTime)
+{
+	if (player_->IsDead())
+	{
+		if (GetAsyncKeyState('R') & 0x8000) Reset();
+	}
+	UpdateEntities(deltaTime);
+	UpdatePhysics(deltaTime);
+
+	// Collision 처리
+	ResolveGroundCollisions();
+	UpdateCombat();
+
+	// Monster Pool 관리
+	CollectDeadMonsters();
+	UpdateMonsterLock();
+	UpdateMonsterRespawn(deltaTime);
 }
 
 void GameWorld::CreateEnvironment()
@@ -35,19 +55,31 @@ void GameWorld::CreateEnvironment()
 		treeHalfSize));
 }
 
-void GameWorld::CreateEntities()
+void GameWorld::CreatePlayer()
 {
 	// Create Player
 	auto player = std::make_unique<Player>();
 	player_ = player.get();
 	entities_.push_back(player.get());
 	gameObjects_.push_back(std::move(player));
+}
 
-	// Create Monster
-	auto monster = std::make_unique<Monster>();
-	monster->SetTarget(player_);
-	entities_.push_back(monster.get());
-	gameObjects_.push_back(std::move(monster));
+void GameWorld::CreateMonsters()
+{
+	for (int i = 0; i < std::size(kMonsterUnlockKills); i++)
+	{
+		auto monster = std::make_unique<Monster>();
+		monster->SetTarget(player_);
+
+		Monster* monsterPtr = monster.get();
+
+		monsters_.push_back(monsterPtr);
+		entities_.push_back(monsterPtr);
+		gameObjects_.push_back(std::move(monster));
+
+		// 첫번째 몬스터만 Active하여 스폰
+		monsterPtr->SetActive(i==0);
+	}
 }
 
 void GameWorld::CreateGrounds()
@@ -61,18 +93,6 @@ void GameWorld::CreateGrounds()
 		grounds_.push_back(ground.get());
 		gameObjects_.push_back(std::move(ground));
 	}
-}
-
-void GameWorld::Update(float deltaTime)
-{
-	if (player_->IsDead())
-	{
-		if (GetAsyncKeyState('R') & 0x8000) Reset();
-	}
-	UpdateEntities(deltaTime);
-	UpdatePhysics(deltaTime);
-	ResolveGroundCollisions();
-	UpdateCombat();
 }
 
 void GameWorld::UpdateEntities(float deltaTime)
@@ -187,6 +207,62 @@ void GameWorld::UpdateCombat()
 	}
 }
 
+void GameWorld::UpdateMonsterLock()
+{
+	while (unlockedMonsterCount_ < static_cast<int>(monsters_.size()))
+	{
+		const int nextIndex = unlockedMonsterCount_;
+
+		if (killCount_ < kMonsterUnlockKills[nextIndex]) break;
+
+		Monster* monster = monsters_[nextIndex];
+
+		monster->SetActive(true);
+
+		++unlockedMonsterCount_;
+	}
+}
+
+void GameWorld::CollectDeadMonsters()
+{
+	for (Monster* monster : monsters_)
+	{
+		if (!monster)
+			continue;
+
+		if (!monster->IsActive())
+			continue;
+
+		if (!monster->IsDeadAnimationFinished())
+			continue;
+
+		++killCount_;
+
+		monster->SetActive(false);
+		respawnQueue_.push(monster);
+	}
+}
+
+void GameWorld::UpdateMonsterRespawn(float deltaTime)
+{
+	if (respawnQueue_.empty())
+	{
+		respawnTimer_ = 0.0f;
+		return;
+	}
+
+	respawnTimer_ += deltaTime;
+
+	if (respawnTimer_ < kRespawnInterval) return;
+
+	respawnTimer_ = 0.0f;
+
+	Monster* monster = respawnQueue_.front();
+	respawnQueue_.pop();
+
+	monster->SetActive(true);
+}
+
 void GameWorld::Reset()
 {
 	if (player_ != nullptr)
@@ -194,9 +270,21 @@ void GameWorld::Reset()
 		player_->Reset();
 	}
 
-	for (Entity* entity : entities_)
+	killCount_ = 0;
+	unlockedMonsterCount_ = 1;
+	respawnTimer_ = 0.0f;
+
+	std::queue<Monster*> empty;
+	std::swap(respawnQueue_, empty);
+
+	for (Monster* monster : monsters_)
 	{
-		auto* monster = dynamic_cast<Monster*>(entity);
-		if (monster != nullptr) monster->Reset();
+		if (!monster)continue;
+		monster->SetActive(false);
+	}
+
+	if (!monsters_.empty())
+	{
+		monsters_[0]->SetActive(true);
 	}
 }
