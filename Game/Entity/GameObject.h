@@ -20,7 +20,7 @@ public:
 	// 소멸자 virtual
 	virtual ~GameObject() = default;
 
-	// Update를 순수 virtual 함수로 하여 자식에서 구현을 강제
+	// RenderInfo 가져오기
 	virtual RenderInfo GetRenderInfo() const;
 
 	// AABB Box Collider

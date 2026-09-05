@@ -39,9 +39,11 @@ private:
 	void CreateGrounds();
 
 	void UpdateEntities(float deltaTime);
+	void UpdatePhysics(float deltaTime);
+	void UpdateCombat();
+
 	void ResolveGroundCollisions();
 	void ResolveGroundCollision(Entity& entity, const Ground& ground);
-	void UpdateCombat();
 
 private:
 	std::vector<std::unique_ptr<GameObject>> gameObjects_;
@@ -51,12 +53,13 @@ private:
 	// Player는 월드에 하나뿐인 객체임으로 특별 관리.
 	Player* player_ = nullptr;
 
+	// Physics 설정 값
+	static constexpr float gravity_ = -3.0f;
+
+	// Ground, Tree 값
 	static constexpr float groundTop = -0.3f;
 	static constexpr Vector2 groundHalfSize{ 0.1f, 0.1f };
-	static constexpr Vector2 firstGroundPosition{
-		-1.0f,
-		groundTop - groundHalfSize.y
-	};
+	static constexpr Vector2 firstGroundPosition{-1.0f, groundTop - groundHalfSize.y};
 	static constexpr int groundCount = 15;
 
 	static constexpr Vector2 treeHalfSize{ 0.1f, 0.34f };

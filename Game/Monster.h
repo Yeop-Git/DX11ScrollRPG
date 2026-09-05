@@ -52,7 +52,7 @@ private :
 
 	// Hurt
 	static constexpr float kKnockbackSpeed = 0.45f;
-	static constexpr Vector2 kStartPosition{ 0.6f, -0.18f };
+	static constexpr Vector2 kStartPosition{ 0.6f, -0.22f };
 
 	// Animation Clip
 	static constexpr int kIdleClipCount = 4;

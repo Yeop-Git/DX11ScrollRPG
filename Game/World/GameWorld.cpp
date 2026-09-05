@@ -63,6 +63,18 @@ void GameWorld::CreateGrounds()
 	}
 }
 
+void GameWorld::Update(float deltaTime)
+{
+	if (player_->IsDead())
+	{
+		if (GetAsyncKeyState('R') & 0x8000) Reset();
+	}
+	UpdateEntities(deltaTime);
+	UpdatePhysics(deltaTime);
+	ResolveGroundCollisions();
+	UpdateCombat();
+}
+
 void GameWorld::UpdateEntities(float deltaTime)
 {
 	for (Entity* entity : entities_)
@@ -73,19 +85,31 @@ void GameWorld::UpdateEntities(float deltaTime)
 	}
 }
 
-void GameWorld::Update(float deltaTime)
+void GameWorld::UpdatePhysics(float deltaTime)
 {
-	if (player_->IsDead())
+	for (Entity* entity : entities_)
 	{
-		if (GetAsyncKeyState('R') & 0x8000) Reset();
+		if (entity == nullptr) continue;
+		if (!entity->IsActive()) continue;
+		if (!entity->physics.enabled) continue;
+
+		// isGrounded 초기화
+		entity->physics.isGrounded = false;
+
+		// 중력 적용
+		if (entity->physics.useGravity)
+		{
+			entity->physics.velocity.y +=
+				gravity_ * entity->physics.gravityScale * deltaTime;
+		}
+
+		entity->transform.position += entity->physics.velocity * deltaTime;
 	}
-	UpdateEntities(deltaTime);
-	ResolveGroundCollisions();
-	UpdateCombat();
 }
 
 void GameWorld::ResolveGroundCollisions()
 {
+	// 모든 월드의 Entity를 순회하며 Ground와의 충돌 계산
 	for (Entity* entity : entities_)
 	{
 		if (entity == nullptr) continue;
@@ -121,6 +145,7 @@ void GameWorld::ResolveGroundCollision(Entity& entity, const Ground& ground)
 	entity.physics.isGrounded = true;
 }
 
+// Player와 Monster간의 충돌 계산, 둘다 Entity라 여기서 충돌 로직을 부여.ㄴ
 void GameWorld::UpdateCombat()
 {
 	if (player_ == nullptr)return;

@@ -13,7 +13,7 @@ public:
 	// Take Damage virtual로 선언하여 다형성 부여
 	virtual void TakeDamage(int damage, float attackerX);
 
-	void UpdatePosition(float deltaTime);
+	void ClampWorld();
 
 	RenderInfo GetRenderInfo() const override;
 

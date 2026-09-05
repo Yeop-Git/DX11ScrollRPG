@@ -8,11 +8,8 @@ void Character::TakeDamage(int damage, float)
 	if (hp_ < 0) hp_ = 0;
 }
 
-void Character::UpdatePosition(float deltaTime)
+void Character::ClampWorld()
 {
-	// Velocity에 따른 위치 업데이트
-	transform.position += physics.velocity * deltaTime;
-
 	// 화면 밖으로 나가지 않도록 clamp
 	transform.position.x = std::clamp(
 		transform.position.x,

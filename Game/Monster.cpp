@@ -9,7 +9,7 @@ Monster::Monster()
 	collider.halfSize = { 0.08f, 0.07f };
 	transform.position = kStartPosition;
 
-	renderOffsetY = -0.03f;
+	renderOffsetY = 0.02f;
 
 	idleClip_ = {
 		kIdleClipCount,      // frameCount
@@ -56,6 +56,7 @@ void Monster::Update(float deltaTime)
 	// 타겟 없으면 
 	if (target_ == nullptr) return;
 	if (state_ == MonsterState::Dead) return;
+	if (target_->IsDead()) return;
 
 	const float targetX = target_->transform.position.x;
 
@@ -88,7 +89,7 @@ void Monster::Update(float deltaTime)
 	}
 	else physics.velocity.x = 0.0f;
 
-	UpdatePosition(deltaTime);
+	ClampWorld();
 }
 
 RenderInfo Monster::GetRenderInfo() const
@@ -167,6 +168,9 @@ void Monster::TakeDamage(int damage, float attackerX)
 	if (hp_ <= 0)
 	{
 		hp_ = 0;
+
+		physics.velocity.x = 0;
+
 		ChangeState(MonsterState::Dead);
 		return;
 	}

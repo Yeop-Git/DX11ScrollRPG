@@ -43,7 +43,6 @@ public:
 
 private:
 	void HandleInput();
-	void ApplyGravity(float deltaTime);
 	void UpdateState(bool wasGrounded);
 	void ChangeState(PlayerState newState);
 	void UpdateDamageState(float deltaTime);
@@ -74,7 +73,6 @@ private:
 	// Run
 	static constexpr float kMoveSpeed = 0.8f;
 	static constexpr float kJumpSpeed = 1.5f;
-	static constexpr float kGravity = -3.0f;
 
 	static constexpr Vector2 kStartPosition{ 0.0f, -0.12f };
 

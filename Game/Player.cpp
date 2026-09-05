@@ -9,7 +9,7 @@ Player::Player()
 	maxHp_ = 3;
 	hp_ = maxHp_;
 
-	renderOffsetY = -0.05f;
+	renderOffsetY = -0.06f;
 
 	idleClip_ = {
 		kIdleClipCount,      // frameCount
@@ -56,7 +56,8 @@ Player::Player()
 		0.12f,
 		false,
 		{ 80.0f, 64.0f },
-		{ 0.0f, 0.176f }
+		{ 0.0f, 0.176f },
+		{0.0f, -0.04f}
 	};
 
 	animator_.Play(idleClip_);
@@ -76,12 +77,8 @@ void Player::Update(float deltaTime)
 
 	HandleInput();
 
-	// 입력은 이전 프레임의 착지 상태를 사용하고, 이번 프레임 판정 전에 초기화한다.
-	physics.isGrounded = false;
 
-	ApplyGravity(deltaTime);
-
-	UpdatePosition(deltaTime);
+	ClampWorld();
 
 	if (state_ == PlayerState::Attack)
 	{
@@ -166,15 +163,6 @@ void Player::HandleInput()
 	{
 		physics.velocity.y = kJumpSpeed;
 		physics.isGrounded = false;
-	}
-}
-
-void Player::ApplyGravity(float deltaTime)
-{
-	// 공중에서는 중력 적용
-	if (!physics.isGrounded)
-	{
-		physics.velocity.y += kGravity * deltaTime;
 	}
 }
 
@@ -308,6 +296,7 @@ void Player::StartAttack()
 	if (state_ == PlayerState::Attack) return;
 	if (state_ == PlayerState::Dead) return;
 	if (!physics.isGrounded) return;
+
 	ChangeState(PlayerState::Attack);
 	attackHitRegistered_ = false;
 	physics.velocity.x = 0.0f;
