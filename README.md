@@ -2,7 +2,7 @@
 
 C++와 DirectX 11을 활용해 렌더링 파이프라인부터 게임 로직까지 직접 구현한 2D 액션 게임 프로토타입입니다.
 
-[프로젝트 상세 문서](https://petalite-hammer-1f2.notion.site/DirectX-2D-3ce1d5742420805abcb9d4c0eb6d077c) · [GitHub 저장소](https://github.com/Yeop-Git/DX11ScrollRPG)
+[프로젝트 상세 문서](https://petalite-hammer-1f2.notion.site/DirectX-2D-3ce1d5742420805abcb9d4c0eb6d077c) · [GitHub 저장소](https://github.com/Yeop-Git/DX11ScrollRPG) · [v0.1.0 다운로드](https://github.com/Yeop-Git/DX11ScrollRPG/releases/tag/v0.1.0)
 
 ![게임 플레이 데모](Docs/output.gif)
 
