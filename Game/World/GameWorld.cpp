@@ -201,7 +201,7 @@ void GameWorld::ResolveGroundCollision(Entity& entity, const Ground& ground)
 	entity.physics.isGrounded = true;
 }
 
-// Player와 Monster간의 충돌 계산, 둘다 Entity라 여기서 충돌 로직을 부여.ㄴ
+// Player와 Monster간의 충돌 계산, 둘다 Entity라 여기서 충돌 로직을 부여
 void GameWorld::UpdateCombat()
 {
 	if (player_ == nullptr)return;
@@ -210,11 +210,11 @@ void GameWorld::UpdateCombat()
 
 	if (!player_->collider.enabled)return;
 
-	for (auto& entity : entities_)
+	for (auto& monster : monsters_)
 	{
-		auto* monster = dynamic_cast<Monster*>(entity);
-
 		if (monster == nullptr)continue;
+
+		if (!monster->IsActive()) continue;
 
 		if (monster->IsDead())continue;
 
