@@ -139,6 +139,25 @@ GameObject
 
 - `GameWorld`가 `unique_ptr<GameObject>`로 전체 객체의 수명을 소유합니다.
 - Physics와 Collision 시스템은 필요한 객체를 비소유 포인터로 참조합니다.
+
+```text
+GameWorld
+  │
+  └─ gameObjects_
+       ├─ unique_ptr<Player> ────────┐
+       ├─ unique_ptr<Monster> ───────┼── 실제 객체 소유
+       ├─ unique_ptr<Ground> ────────┤
+       └─ unique_ptr<WorldItem> ─────┘
+
+entities_ ────── Entity*
+monsters_ ───── Monster*
+grounds_ ────── Ground*
+items_ ──────── WorldItem*
+player_ ─────── Player*
+
+↑ 모두 gameObjects_ 내부 객체를 참조만 함
+```
+
 - Player와 Monster는 입력 또는 AI에 따라 Velocity만 결정합니다.
 - `GameWorld::UpdatePhysics()`에서 Gravity와 Position 갱신을 공통 처리합니다.
 - AABB 충돌 판정을 Ground, Combat, Item 시스템에 공통 사용합니다.
