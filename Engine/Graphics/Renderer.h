@@ -3,6 +3,7 @@
 #include <d3d11.h>
 #include <wrl/client.h>
 
+#include "../Core/Profiler.h"
 #include "RenderInfo.h"
 #include "ResourceManager.h"
 
@@ -17,6 +18,7 @@ public:
 		ID3D11Device* device,
 		ID3D11DeviceContext* context,
 		ResourceManager* resources,
+		Profiler* profiler,
 		Vector2 viewportSize
 	);
 
@@ -48,6 +50,8 @@ private:
 	ID3D11DeviceContext* context_ = nullptr;
 
 	ResourceManager* resources_ = nullptr;
+	// Application 소유 Profiler를 빌려 쓰며 Renderer는 수명을 관리하지 않는다.
+	Profiler* profiler_ = nullptr;
 
 	Vector2 viewportSize_{ 1.0f, 1.0f };
 

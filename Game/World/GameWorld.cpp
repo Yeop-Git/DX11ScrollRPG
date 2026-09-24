@@ -19,25 +19,25 @@ void GameWorld::Initialize()
 	CreateItems();
 }
 
-void GameWorld::Update(float deltaTime)
+void GameWorld::Update(float deltaTime, Profiler& profiler)
 {
 	if (player_->IsDead())
 	{
 		if (GetAsyncKeyState('R') & 0x8000) Reset();
 	}
-	UpdateEntities(deltaTime);
-	UpdatePhysics(deltaTime);
+	UpdateEntities(deltaTime, profiler);
+	UpdatePhysics(deltaTime, profiler);
 
 	// Collision 처리
-	ResolveGroundCollisions();
-	UpdateCombat();
+	ResolveGroundCollisions(profiler);
+	UpdateCombat(profiler);
 
 	// Monster Pool 관리
 	CollectDeadMonsters();
 	UpdateMonsterLock();
 	UpdateMonsterRespawn(deltaTime);
 
-	UpdateItemPickup();
+	UpdateItemPickup(profiler);
 }
 
 void GameWorld::CreateEnvironment()
@@ -131,18 +131,24 @@ void GameWorld::CreateGrounds()
 	}
 }
 
-void GameWorld::UpdateEntities(float deltaTime)
+void GameWorld::UpdateEntities(float deltaTime, Profiler& profiler)
 {
+	// 이 구간은 Entity 게임 로직과 애니메이션 Update를 포함한다.
+	ProfileScope scope(profiler, ProfileCategory::EntityUpdate);
 	for (Entity* entity : entities_)
 	{
 		if (entity == nullptr) continue;
 		if (!entity->IsActive()) continue;
+		// 실제 Update 대상으로 선택된 활성 Entity 수를 프레임 카운터에 반영한다.
+		profiler.Increment(ProfileCounter::ActiveEntities);
 		entity->Update(deltaTime);
 	}
 }
 
-void GameWorld::UpdatePhysics(float deltaTime)
+void GameWorld::UpdatePhysics(float deltaTime, Profiler& profiler)
 {
+	// 중력 적용과 Transform 위치 갱신에 걸린 시간만 측정한다.
+	ProfileScope scope(profiler, ProfileCategory::Physics);
 	for (Entity* entity : entities_)
 	{
 		if (entity == nullptr) continue;
@@ -163,8 +169,10 @@ void GameWorld::UpdatePhysics(float deltaTime)
 	}
 }
 
-void GameWorld::ResolveGroundCollisions()
+void GameWorld::ResolveGroundCollisions(Profiler& profiler)
 {
+	// Ground 후보 순회와 AABB 판정을 포함한 총 시간을 측정한다.
+	ProfileScope scope(profiler, ProfileCategory::GroundCollision);
 	// 모든 월드의 Entity를 순회하며 Ground와의 충돌 계산
 	for (Entity* entity : entities_)
 	{
@@ -179,6 +187,8 @@ void GameWorld::ResolveGroundCollisions()
 			if (!ground->IsActive()) continue;
 			if (!ground->collider.enabled) continue;
 
+			// 실제 Intersects 호출 횟수를 세어 Broad Phase 전 Baseline으로 사용한다.
+			profiler.Increment(ProfileCounter::CollisionChecks);
 			if (!Intersects(entity->GetBodyBox(), ground->GetBodyBox())) continue;
 
 			ResolveGroundCollision(*entity, *ground);
@@ -202,8 +212,10 @@ void GameWorld::ResolveGroundCollision(Entity& entity, const Ground& ground)
 }
 
 // Player와 Monster간의 충돌 계산, 둘다 Entity라 여기서 충돌 로직을 부여
-void GameWorld::UpdateCombat()
+void GameWorld::UpdateCombat(Profiler& profiler)
 {
+	// Player와 Monster 사이의 공격 및 몸체 AABB 판정 시간을 측정한다.
+	ProfileScope scope(profiler, ProfileCategory::CombatCollision);
 	if (player_ == nullptr)return;
 
 	if (player_->IsDead())return;
@@ -227,6 +239,8 @@ void GameWorld::UpdateCombat()
 		// Player -> Monster
 		if (player_->CanRegisterAttackHit())
 		{
+			// 공격 HitBox가 실제 검사 대상이 된 경우에만 검사 수를 올린다.
+			profiler.Increment(ProfileCounter::CollisionChecks);
 			if (Intersects(player_->GetAttackHitBox(), monsterBody))
 			{
 				monster->TakeDamage(1, player_->transform.position.x);
@@ -236,6 +250,8 @@ void GameWorld::UpdateCombat()
 		}
 
 		// Monster -> Player
+		// 활성 Monster의 몸체와 Player 몸체 간 실제 검사 횟수다.
+		profiler.Increment(ProfileCounter::CollisionChecks);
 		if (Intersects(playerBody, monsterBody))
 		{
 			player_->TakeDamage(1, monster->transform.position.x);
@@ -339,8 +355,10 @@ void GameWorld::DropPotion(Vector2 position)
 	potion->Spawn(position);
 }
 
-void GameWorld::UpdateItemPickup()
+void GameWorld::UpdateItemPickup(Profiler& profiler)
 {
+	// 활성 Item에 대해서만 Player와의 획득 AABB 판정 시간을 측정한다.
+	ProfileScope scope(profiler, ProfileCategory::ItemCollision);
 	if (!player_)return;
 	if(player_->IsDead())return;
 
@@ -349,6 +367,8 @@ void GameWorld::UpdateItemPickup()
 		if (!item)continue;
 		if(!item->IsActive())continue;
 
+		// 비활성 Item을 제외한 실제 pickup 검사 수를 합산한다.
+		profiler.Increment(ProfileCounter::CollisionChecks);
 		if (!Intersects(player_->GetBodyBox(), item->GetBodyBox()))continue;
 
 		if (item->GetType() == ItemType::Potion)

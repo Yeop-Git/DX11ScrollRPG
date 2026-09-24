@@ -1,5 +1,6 @@
 #include "Application.h"
 #include <algorithm>
+#include <cwchar>
 
 // Image 디코더
 #include "../ThirdParty/stb/stb_image.h"
@@ -46,6 +47,7 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 		device_.Get(),
 		context_.Get(),
 		&resourceManager_,
+		&profiler_,
 		kWindowSize))
 	{
 		return false;
@@ -63,13 +65,27 @@ int Application::Run()
 {
 	MSG message{};
 
-	//반복
-	while (ProcessMessages()) // 메시지 처리
+	while (true)
 	{
+		// Message Pump부터 Present까지 한 프레임 바깥 구간을 측정한다.
+		profiler_.BeginFrame();
+		bool shouldContinue = false;
+		{
+			// 메시지 큐 확인에 걸린 시간도 전체 프레임과 별도 집계한다.
+			ProfileScope scope(profiler_, ProfileCategory::MessagePump);
+			shouldContinue = ProcessMessages();
+		}
+		if (!shouldContinue) break;
+
 		//게임 상태 갱신
-		Update(GetDeltaTime());
+		const float deltaTime = GetDeltaTime();
+		Update(deltaTime);
 		//화면 그리기
 		Render();
+		profiler_.EndFrame();
+
+		// 표시 갱신은 측정 구간 밖에서 제한된 주기로 실행한다.
+		UpdateProfilerWindowTitle(deltaTime);
 	}
 
 	return static_cast<int>(message.wParam);
@@ -227,34 +243,45 @@ bool Application::ProcessMessages()
 
 void Application::Update(float deltaTime)
 {
+	// 이 상위 시간에는 Entity Update, Physics, Collision 하위 시간이 포함된다.
+	ProfileScope scope(profiler_, ProfileCategory::Update);
 	// player, enemy관련 전부 gameWorld로 이관
-	gameWorld_.Update(deltaTime);
+	gameWorld_.Update(deltaTime, profiler_);
 }
 
 void Application::Render()
 {
-	// BackBuffer를 남청색으로 초기화
-	context_->OMSetRenderTargets(1, renderTargetView_.GetAddressOf(), nullptr);
-	const float clearColor[4] = { 0.1f, 0.15f, 0.25f, 1.0f };
-	context_->ClearRenderTargetView(renderTargetView_.Get(), clearColor);
-
-	renderer_.Begin();
-
-	// 모든 GameObject를 생성 순서대로 렌더링
-	for (const auto& object : gameWorld_.GetGameObjects())
 	{
-		if (!object->IsActive()) continue;
+		// Render CPU 시간은 Present의 VSync 대기와 분리해서 기록한다.
+		ProfileScope renderScope(profiler_, ProfileCategory::Render);
 
-		const RenderInfo info = object->GetRenderInfo();
-		if (!info.visible) continue;
+		// BackBuffer를 남청색으로 초기화
+		context_->OMSetRenderTargets(1, renderTargetView_.GetAddressOf(), nullptr);
+		const float clearColor[4] = { 0.1f, 0.15f, 0.25f, 1.0f };
+		context_->ClearRenderTargetView(renderTargetView_.Get(), clearColor);
 
-		renderer_.Draw(info);
+		renderer_.Begin();
+
+		// 모든 GameObject를 생성 순서대로 렌더링
+		for (const auto& object : gameWorld_.GetGameObjects())
+		{
+			if (!object->IsActive()) continue;
+
+			const RenderInfo info = object->GetRenderInfo();
+			if (!info.visible) continue;
+
+			renderer_.Draw(info);
+		}
+
+		RenderUI();
 	}
 
-	RenderUI();
-
 	// BackBuffer 출력
-	swapChain_->Present(1, 0);
+	{
+		// Present(1, 0)는 VSync 대기를 포함할 수 있어 별도 항목으로 측정한다.
+		ProfileScope presentScope(profiler_, ProfileCategory::Present);
+		swapChain_->Present(1, 0);
+	}
 }
 
 
@@ -269,6 +296,39 @@ float Application::GetDeltaTime()
 	previousTime_ = currentTime;
 
 	return deltaTime;
+}
+
+void Application::UpdateProfilerWindowTitle(float deltaTime)
+{
+	profilerTitleTimer_ += deltaTime;
+	if (profilerTitleTimer_ < 0.5f)
+	{
+		return;
+	}
+	profilerTitleTimer_ = 0.0f;
+
+	// 창 제목을 간단한 런타임 측정 표시로 사용하며 게임 렌더 흐름에는 개입하지 않는다.
+	const ProfileSnapshot average = profiler_.GetAverage();
+	const double collisionMilliseconds =
+		average.GetMilliseconds(ProfileCategory::GroundCollision)
+		+ average.GetMilliseconds(ProfileCategory::CombatCollision)
+		+ average.GetMilliseconds(ProfileCategory::ItemCollision);
+	wchar_t title[384]{};
+	swprintf_s(
+		title,
+		L"DX11ScrollRPG | %.1f FPS | Frame %.2f ms | Update %.2f ms | Physics %.2f ms | Collision %.2f ms | Render %.2f ms | Present %.2f ms | Entity %.0f | Sprite %.0f | Draw %.0f | AABB %.0f",
+		average.GetAverageFPS(),
+		average.GetMilliseconds(ProfileCategory::Frame),
+		average.GetMilliseconds(ProfileCategory::Update),
+		average.GetMilliseconds(ProfileCategory::Physics),
+		collisionMilliseconds,
+		average.GetMilliseconds(ProfileCategory::Render),
+		average.GetMilliseconds(ProfileCategory::Present),
+		average.GetCounter(ProfileCounter::ActiveEntities),
+		average.GetCounter(ProfileCounter::SpriteDraws),
+		average.GetCounter(ProfileCounter::DrawCalls),
+		average.GetCounter(ProfileCounter::CollisionChecks));
+	SetWindowText(hwnd_, title);
 }
 
 void Application::RenderUI()

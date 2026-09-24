@@ -4,6 +4,7 @@
 #include <vector>
 #include <queue>
 
+#include "../../Engine/Core/Profiler.h"
 #include "../Entity/Entity.h"
 #include "WorldItem.h"
 
@@ -17,7 +18,8 @@ class GameWorld
 public :
 	void Initialize();
 
-	void Update(float deltaTime);
+	// Application 소유 Profiler를 빌려 Update 하위 구간을 측정한다.
+	void Update(float deltaTime, Profiler& profiler);
 	void Reset();
 
 	// const reference로 push_back, clear 등으로 수정할 수 없도록
@@ -43,9 +45,9 @@ private:
 	void CreateGrounds();
 	void CreateItems();
 
-	void UpdateEntities(float deltaTime);
-	void UpdatePhysics(float deltaTime);
-	void UpdateCombat();
+	void UpdateEntities(float deltaTime, Profiler& profiler);
+	void UpdatePhysics(float deltaTime, Profiler& profiler);
+	void UpdateCombat(Profiler& profiler);
 
 	// Monster Pool 관리
 	void UpdateMonsterLock();
@@ -57,10 +59,10 @@ private:
 	void DropItem(Vector2 position);
 	void DropCoin(Vector2 position);
 	void DropPotion(Vector2 position);
-	void UpdateItemPickup();
+	void UpdateItemPickup(Profiler& profiler);
 
 	// Entity - Ground Collision 관리
-	void ResolveGroundCollisions();
+	void ResolveGroundCollisions(Profiler& profiler);
 	void ResolveGroundCollision(Entity& entity, const Ground& ground);
 
 private:

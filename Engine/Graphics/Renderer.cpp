@@ -14,14 +14,16 @@ struct Vertex
 };
 
 bool Renderer::Initialize(
-    ID3D11Device* device,
-    ID3D11DeviceContext* context,
-    ResourceManager* resources,
-    Vector2 viewportSize)
+	ID3D11Device* device,
+	ID3D11DeviceContext* context,
+	ResourceManager* resources,
+	Profiler* profiler,
+	Vector2 viewportSize)
 {
     device_ = device;
     context_ = context;
-    resources_ = resources;
+	resources_ = resources;
+	profiler_ = profiler;
 
     viewportSize_ = viewportSize;
 
@@ -115,6 +117,13 @@ void Renderer::DrawSprite(
 	// 이번 Draw에서 사용할 Texture
 	context_->PSSetShaderResources(0, 1, &textureView);
 	context_->DrawIndexed(6, 0, 0);
+	// 실제 Draw 명령을 제출한 뒤 세어 실패하거나 생략된 Sprite는 제외한다.
+	if (profiler_ != nullptr)
+	{
+		// 현 Renderer에서는 스프라이트 한 장마다 Draw Call 하나가 발생한다.
+		profiler_->Increment(ProfileCounter::SpriteDraws);
+		profiler_->Increment(ProfileCounter::DrawCalls);
+	}
 }
 
 void Renderer::DrawSprite(
