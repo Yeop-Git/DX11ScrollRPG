@@ -78,6 +78,8 @@ Rasterizer
         ↓
 Pixel Shader + Texture
         ↓
+Output Merger
+        ↓
 Render Target
         ↓
 SwapChain Present
@@ -97,7 +99,7 @@ SwapChain Present
 
 ```text
 Device           → GPU Resource 생성
-DeviceContext    → Pipeline State 설정 및 Draw 명령 실행
+DeviceContext    → Pipeline State 설정 및 Draw 명령 발행
 RenderTargetView → 렌더링 결과 출력 대상
 DrawIndexed      → 현재 Pipeline State를 이용한 Draw Call
 ```
@@ -121,8 +123,8 @@ ResourceManager  → Texture 생성, 보관 및 조회
 Animator         → Animation Frame 진행 및 종료 상태 관리
 ```
 
-- `Application`은 시스템 초기화와 실행 순서만 관리합니다.
-- 게임 객체는 `RenderInfo`를 통해 화면 출력에 필요한 데이터만 전달합니다.
+- `Application`은 시스템 초기화와 Game Loop 실행 순서를 관리합니다. 현재는 일부 UI 렌더링 연결도 담당합니다.
+- 게임 객체는 DirectX API와 텍스처 경로를 직접 다루지 않고 `RenderInfo`로 화면 출력 데이터를 전달합니다.
 - `Renderer`는 `RenderInfo`를 실제 DirectX Draw Call로 변환합니다.
 - `ResourceManager`가 Texture와 ShaderResourceView의 생명주기를 관리합니다.
 - `AnimationClip`은 프레임 수, 재생 시간, 스프라이트 크기, Offset을 보관합니다.
@@ -146,25 +148,14 @@ struct RenderInfo
 - Animation 데이터가 Character 클래스 생성자에 직접 정의되어 있습니다.
 - Animation 수가 증가하면 JSON 등의 외부 데이터나 Asset Table로 분리할 필요가 있습니다.
 - 큰 `deltaTime` 입력 시 여러 Animation Frame을 한 번에 진행할 수 있도록 보완이 필요합니다.
+- 일부 UI 렌더링 연결이 아직 `Application`에 남아 있어, UI 규모가 커지면 별도 UI 렌더링 책임으로 옮길 수 있습니다.
 
 <a id="entity-physics-collision"></a>
 ### 3. Entity, Physics, Collision 구조
 
 Unity에서 접했던 `Transform`, `Physics`, 활성화 생명주기 같은 개념을 출발점으로 삼아, 엔진 기능을 그대로 가져오는 대신 현재 프로젝트에 필요한 역할과 데이터만 C++로 다시 구성했습니다. Entity 한 곳에 이동, 물리, 충돌, 렌더링 책임이 모이지 않도록 객체의 공통 상태와 동작을 나누고 필요한 구성 요소를 함께 사용합니다.
 
-#### Vector2와 Transform
-
-- `Vector2`는 위치, 속도, 방향 계산과 렌더링 좌표에 공통으로 사용하는 최소 2D 수학 타입입니다.
-- 덧셈, 뺄셈, 스칼라 곱처럼 현재 게임에 필요한 연산만 직접 정의해 사용 범위를 작게 유지합니다.
-- `Transform`은 월드 위치와 크기를 보관합니다. Collider는 Transform의 위치를 기준으로 충돌 영역을 계산하고, Renderer로 전달되는 `RenderInfo`도 같은 위치를 사용합니다.
-
-#### Physics와 이동 흐름
-
-- `Physics`는 `Transform`과 분리되어 Velocity, Gravity 사용 여부, 지면 상태 등 물리 시뮬레이션에 필요한 값을 보관합니다.
-- Player와 Monster의 행동 로직은 이동 의도를 Velocity에 반영하고, `GameWorld::UpdatePhysics()`가 중력과 속도를 적용해 Transform 위치를 갱신합니다.
-- 초기에는 객체별 업데이트에서 위치까지 직접 변경했지만, 이를 분리해 행동 결정과 공통 물리 갱신의 책임을 구분했습니다. 충돌 처리에서는 보정된 위치와 Velocity를 함께 갱신합니다.
-
-이 구조를 만든 과정은 Unity에서 익숙했던 개념을 단순히 흉내 내는 데 그치지 않고, 각 개념이 어떤 문제를 해결하는지 살펴보는 학습 과정이기도 했습니다. 상태와 기능을 역할별로 분리하고 객체를 구성 요소의 조합으로 설계하는 이유를 직접 확인하면서, 현재 게임 규모에 필요한 범위와 엔진이 제공하는 범용 기능의 차이를 배웠습니다.
+#### GameObject / Entity / Character 계층
 
 ```text
 GameObject
@@ -176,8 +167,29 @@ GameObject
       └─ Monster
 ```
 
+- `GameObject`는 월드 Transform과 Collider를 가진 객체의 공통 기반입니다.
+- 프레임마다 동작 갱신이 필요한 객체는 `Entity`, HP와 전투 동작을 공유하는 객체는 `Character`로 구분합니다.
+- `GameObject`와 `Entity`는 상속으로 역할을 확장하고, Transform·Collider·Physics 상태는 필요한 객체에 구성 요소로 둡니다.
+
+#### Vector2와 Transform
+
+- `Vector2`는 위치, 속도, 오프셋 등 2D 값을 표현하는 최소 수학 타입입니다.
+- 덧셈, 뺄셈, 스칼라 곱처럼 현재 게임에 필요한 연산만 직접 정의해 사용 범위를 작게 유지합니다.
+- `Transform`은 월드 위치와 스케일을 보관합니다. 렌더링은 월드 위치를 기준으로 하고, Sprite에는 `RenderInfo`의 offset을 별도로 적용합니다.
+- 현재 AABB 크기는 `Transform::scale`이 아니라 `Collider::halfSize`로 결정됩니다.
+
+#### Physics와 Collision
+
+- `Physics`는 `Transform`과 분리되어 Velocity, 중력 적용 여부와 지면 상태 등 이동 시뮬레이션 상태를 보관합니다.
+- Player와 Monster의 행동 로직은 입력이나 AI에 따라 Velocity를 결정하고, `GameWorld::UpdatePhysics()`가 중력과 속도를 적용해 위치를 갱신합니다.
+- `Collider::GetBounds()`는 Transform 위치와 Collider의 offset, halfSize를 이용해 AABB를 계산합니다. `Intersects()`는 두 AABB의 겹침 여부만 판정합니다.
+- `GameWorld`가 지면·전투·아이템 충돌 대상을 순회해 `Intersects()`를 호출하고, 지면 충돌 시 위치와 Y축 Velocity를 보정합니다.
+
+Unity에서 접한 개념을 그대로 옮기기보다, 각 개념이 해결하는 문제를 살펴보고 현재 게임에 필요한 형태로 다시 구성했습니다. 중복되던 물리 갱신을 월드에 모으고, 객체 상태는 역할별 구성 요소로 나눠 책임을 분리했습니다.
+
 - `GameWorld`가 `unique_ptr<GameObject>`로 전체 객체의 수명을 소유합니다.
-- Physics와 Collision 시스템은 필요한 객체를 비소유 포인터로 참조합니다.
+- `entities_`, `grounds_`, `monsters_`, `items_`, `player_`는 `gameObjects_`가 소유한 객체를 가리키는 비소유 포인터입니다.
+- `GameWorld`가 활성 Entity를 순회하며 객체 업데이트, 물리 이동, 충돌 처리를 수행합니다.
 
 ```text
 GameWorld
@@ -197,28 +209,15 @@ player_ ─────── Player*
 ↑ 모두 gameObjects_ 내부 객체를 참조만 함
 ```
 
-- Player와 Monster는 입력 또는 AI에 따라 Velocity만 결정합니다.
-- `GameWorld::UpdatePhysics()`에서 Gravity와 Position 갱신을 공통 처리합니다.
-- AABB 충돌 판정을 Ground, Combat, Item 시스템에 공통 사용합니다.
-- Ground 충돌 시 Entity를 지면 위로 보정하고 Y축 Velocity를 초기화합니다.
-
-```text
-Transform Position → 실제 객체 위치
-Collider Offset    → 충돌 판정 위치
-Render Offset      → Sprite 출력 위치
-Animation Offset   → Animation별 Sprite 위치 보정
-```
-
 #### 한계 및 개선점
 
-- 현재 충돌 처리는 Ground 착지를 가정한 단순 AABB 방식입니다.
-- 벽, 천장 및 고속 이동 객체에 대한 충돌은 지원하지 않습니다.
-- 동적 생성·삭제가 늘어나면 Handle 또는 ID 기반 참조 구조가 필요합니다.
+- 현재 충돌 반응은 주로 Ground 착지를 대상으로 하며, 벽·천장 및 고속 이동 객체 처리는 지원하지 않습니다.
+- 실제 객체 삭제 시 비소유 포인터 목록도 함께 갱신해야 합니다. 누락하면 Dangling Pointer가 발생할 수 있습니다.
 
 <a id="character-combat-fsm"></a>
 ### 4. FSM 기반 Character 및 전투
 
-여러 Boolean 조합 대신 한 시점에 하나의 명시적인 Character State만 유지하도록 FSM을 구성했습니다.
+이동, 점프, 공격, 피격, 사망 상태를 여러 Boolean으로 조합할 때 생기는 복잡성과 상충 상태를 줄이기 위해, 한 시점에 하나의 명시적인 Character State만 유지하도록 FSM을 구성했습니다. 몸체 충돌과 공격 범위를 별도로 조절할 수 있도록 Attack HitBox도 분리했습니다.
 
 ```text
 Player  → Idle / Run / JumpStart / JumpEnd / Attack / Dead
@@ -253,7 +252,7 @@ bool Player::IsAttackFrameActive() const
 <a id="object-reuse"></a>
 ### 5. Active 상태 기반 객체 재사용
 
-Monster와 Item의 반복적인 생성·삭제에서 발생하는 메모리 할당을 줄이기 위해 필요한 수만큼 객체를 미리 생성하고 재사용합니다.
+Monster와 Item을 반복 생성·삭제하는 대신 필요한 수만큼 미리 생성해 재사용합니다. 재사용 대상과 흐름이 Monster 리스폰 및 Item 획득으로 정해져 있어, 범용 Pool 클래스를 만들지 않고 Active 상태와 목적별 Queue로 관리합니다.
 
 - `GameObject::SetActive()`가 상태가 실제로 바뀌는 경우에만 `OnEnable()` 또는 `OnDisable()`을 호출합니다.
 - Monster, Coin, Potion을 최대 수만큼 미리 생성합니다.
