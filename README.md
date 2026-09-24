@@ -6,15 +6,15 @@ C++와 DirectX 11로 만든 2D 액션 게임 프로토타입입니다. 기반 �
 
 - [프로젝트 정보](#project-information)
 - [조작법](#controls)
-- [이전 단계: 직접 구현하며 학습한 기반](#handmade-foundation)
-  - [DirectX 11 렌더링 파이프라인](#directx-rendering-pipeline)
-  - [Rendering, Resource, Animation 책임 분리](#system-responsibilities)
-  - [Entity, Physics, Collision 구조](#entity-physics-collision)
-  - [FSM 기반 Character 및 전투](#character-combat-fsm)
-  - [Active 상태 기반 객체 재사용](#object-reuse)
+- [기본: 직접 구현하며 학습한 기반](#handmade-foundation)
+  1. [DirectX 11 렌더링 파이프라인](#directx-rendering-pipeline)
+  2. [Rendering, Resource, Animation 책임 분리](#system-responsibilities)
+  3. [Entity, Physics, Collision 구조](#entity-physics-collision)
+  4. [FSM 기반 Character 및 전투](#character-combat-fsm)
+  5. [Active 상태 기반 객체 재사용](#object-reuse)
 - [AI Sprint: AI와 함께 분석·설계·구현](#ai-sprint)
-  - [Profiler / Stress Test](#profiler-stress-test)
-  - [다음 Sprint 작업](#upcoming-sprint-work)
+  1. [Profiler / Stress Test](#profiler-stress-test)
+  2. [다음 Sprint 작업](#upcoming-sprint-work)
 - [빌드 및 실행](#build-and-run)
 - [프로젝트 구조](#project-structure)
 - [에셋 크레딧](#asset-credits)
@@ -52,7 +52,7 @@ C++와 DirectX 11로 만든 2D 액션 게임 프로토타입입니다. 기반 �
 | `F1` | Profiler 패널 열기 / 닫기 및 Stress Test 버튼 표시 |
 
 <a id="handmade-foundation"></a>
-## 이전 단계: 직접 구현하며 학습한 기반
+## 기본: 직접 구현하며 학습한 기반
 
 - Win32 API 기반 윈도우 및 게임 루프 구현
 - DirectX 11 기반 2D 스프라이트 렌더링 환경 구성
@@ -150,7 +150,21 @@ struct RenderInfo
 <a id="entity-physics-collision"></a>
 ### 3. Entity, Physics, Collision 구조
 
-Player와 Monster에서 반복되던 Gravity, Velocity, Position 갱신을 공통화하고, 물리 위치와 화면 출력 위치를 분리했습니다.
+Unity에서 접했던 `Transform`, `Physics`, 활성화 생명주기 같은 개념을 출발점으로 삼아, 엔진 기능을 그대로 가져오는 대신 현재 프로젝트에 필요한 역할과 데이터만 C++로 다시 구성했습니다. Entity 한 곳에 이동, 물리, 충돌, 렌더링 책임이 모이지 않도록 객체의 공통 상태와 동작을 나누고 필요한 구성 요소를 함께 사용합니다.
+
+#### Vector2와 Transform
+
+- `Vector2`는 위치, 속도, 방향 계산과 렌더링 좌표에 공통으로 사용하는 최소 2D 수학 타입입니다.
+- 덧셈, 뺄셈, 스칼라 곱처럼 현재 게임에 필요한 연산만 직접 정의해 사용 범위를 작게 유지합니다.
+- `Transform`은 월드 위치와 크기를 보관합니다. Collider는 Transform의 위치를 기준으로 충돌 영역을 계산하고, Renderer로 전달되는 `RenderInfo`도 같은 위치를 사용합니다.
+
+#### Physics와 이동 흐름
+
+- `Physics`는 `Transform`과 분리되어 Velocity, Gravity 사용 여부, 지면 상태 등 물리 시뮬레이션에 필요한 값을 보관합니다.
+- Player와 Monster의 행동 로직은 이동 의도를 Velocity에 반영하고, `GameWorld::UpdatePhysics()`가 중력과 속도를 적용해 Transform 위치를 갱신합니다.
+- 초기에는 객체별 업데이트에서 위치까지 직접 변경했지만, 이를 분리해 행동 결정과 공통 물리 갱신의 책임을 구분했습니다. 충돌 처리에서는 보정된 위치와 Velocity를 함께 갱신합니다.
+
+이 구조를 만든 과정은 Unity에서 익숙했던 개념을 단순히 흉내 내는 데 그치지 않고, 각 개념이 어떤 문제를 해결하는지 살펴보는 학습 과정이기도 했습니다. 상태와 기능을 역할별로 분리하고 객체를 구성 요소의 조합으로 설계하는 이유를 직접 확인하면서, 현재 게임 규모에 필요한 범위와 엔진이 제공하는 범용 기능의 차이를 배웠습니다.
 
 ```text
 GameObject
@@ -241,12 +255,15 @@ bool Player::IsAttackFrameActive() const
 
 Monster와 Item의 반복적인 생성·삭제에서 발생하는 메모리 할당을 줄이기 위해 필요한 수만큼 객체를 미리 생성하고 재사용합니다.
 
+- `GameObject::SetActive()`가 상태가 실제로 바뀌는 경우에만 `OnEnable()` 또는 `OnDisable()`을 호출합니다.
 - Monster, Coin, Potion을 최대 수만큼 미리 생성합니다.
 - 사용 여부는 `Active` 상태로 관리합니다.
-- `OnEnable()`에서 HP, Velocity, State 등 재사용에 필요한 값을 초기화합니다.
-- `OnDisable()`에서 비활성 상태를 정리합니다.
+- `OnEnable()`에서 HP, Velocity, State 등 재사용에 필요한 상태를 초기화합니다.
+- `OnDisable()`에서 전투, 애니메이션, 물리 상태를 정리해 이전 사용의 값이 다음 활성화에 남지 않도록 합니다.
 - Monster 사망 Animation 종료 후 Respawn Queue에 등록합니다.
 - Item 획득 후 비활성화하고 사용 가능한 Queue에 반환합니다.
+
+이 활성화 생명주기도 Unity에서 익숙했던 `OnEnable` / `OnDisable` 개념을 참고해 직접 정의했습니다. 재사용할 때 초기화와 정리 시점을 명시해 각 객체가 풀링에 필요한 동작을 책임지게 하고, `GameWorld`와 시스템은 객체의 실제 수명 소유와 활성 상태에 따른 사용을 구분합니다.
 
 ```text
 Monster Respawn Queue → 사망 후 다시 활성화될 Monster 관리
@@ -263,7 +280,7 @@ Item Pool Queue       → 즉시 사용할 수 있는 비활성 Item 관리
 이 구역에는 AI와 함께 공부하며 구현한 내용, 선택한 설계, 검증 상태를 기록합니다. 아직 시작하지 않은 Sprint 항목은 구현 완료 내용과 구분해 예정 작업으로 표시합니다.
 
 <a id="profiler-stress-test"></a>
-### Profiler / Stress Test — 2026.09.24 ~ 09.25
+### 1. Profiler / Stress Test — 2026.09.24 ~ 09.25
 
 최적화 전 성능을 비교할 수 있도록 최근 프레임 평균 Profiler와 Monster 스트레스 테스트 환경을 추가하고 있습니다.
 
@@ -277,7 +294,7 @@ Item Pool Queue       → 즉시 사용할 수 있는 비활성 Item 관리
 **현재 상태:** Profiler 패널이 표시되는 것을 확인했습니다. 스트레스 개체 수별 동작 검증과 Release x64 Baseline 실측값 기록은 남아 있습니다. 측정 조건 및 결과 표는 [Docs/ProfilerBaseline.md](Docs/ProfilerBaseline.md)에 있습니다.
 
 <a id="upcoming-sprint-work"></a>
-### 다음 Sprint 작업
+### 2. 다음 Sprint 작업
 
 | 예정 작업 | 학습 및 검증 목표 | 상태 |
 | --- | --- | --- |
