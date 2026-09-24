@@ -1,6 +1,7 @@
 #include "Application.h"
 #include <algorithm>
 #include <cwchar>
+#include <windowsx.h>
 
 // Image 디코더
 #include "../ThirdParty/stb/stb_image.h"
@@ -17,6 +18,43 @@ namespace
 	{
 		switch (message)
 		{
+		case WM_NCCREATE:
+		{
+			// CreateWindowEx에서 받은 Application 포인터를 이후 키·마우스 입력에 사용한다.
+			const auto* createInfo = reinterpret_cast<const CREATESTRUCTW*>(lParam);
+			SetWindowLongPtrW(
+				hwnd,
+				GWLP_USERDATA,
+				reinterpret_cast<LONG_PTR>(createInfo->lpCreateParams));
+			break;
+		}
+		case WM_KEYDOWN:
+		{
+			// 키 자동 반복에는 토글하지 않고 F1을 처음 누른 메시지만 처리한다.
+			if (wParam == VK_F1 && (lParam & (1LL << 30)) == 0)
+			{
+				auto* application = reinterpret_cast<Application*>(
+					GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+				if (application != nullptr)
+				{
+					application->ToggleProfilerPanel();
+					return 0;
+				}
+			}
+			break;
+		}
+		case WM_LBUTTONDOWN:
+		{
+			auto* application = reinterpret_cast<Application*>(
+				GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+			if (application != nullptr
+				&& application->HandleUIMouseDown(
+					GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)))
+			{
+				return 0;
+			}
+			break;
+		}
 		case WM_SYSKEYDOWN:
 		case WM_SYSKEYUP:
 			if (wParam == VK_MENU) return 0;
@@ -53,6 +91,9 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 		return false;
 	}
 
+	// UIManager는 Renderer가 사용할 Direct3D Device와 Context를 빌려 쓴다.
+	if (!uiManager_.Initialize(device_.Get(), context_.Get(), kWindowSize)) return false;
+
 	gameWorld_.Initialize();
 
 	previousTime_ = steady_clock::now();
@@ -84,8 +125,14 @@ int Application::Run()
 		Render();
 		profiler_.EndFrame();
 
-		// 표시 갱신은 측정 구간 밖에서 제한된 주기로 실행한다.
-		UpdateProfilerWindowTitle(deltaTime);
+		if (const auto requestedCount = uiManager_.TakeRequestedStressMonsterCount())
+		{
+			// 버튼 요청은 프레임 완료 후 적용해 월드 재구성 시간을 샘플에서 제외한다.
+			gameWorld_.SetStressTestMonsterCount(*requestedCount);
+			profiler_.ResetHistory();
+		}
+
+		UpdateUI(deltaTime);
 	}
 
 	return static_cast<int>(message.wParam);
@@ -146,7 +193,7 @@ bool Application::CreateMainWindow(HINSTANCE hInstance, int nCmdShow)
 		nullptr,
 		nullptr,
 		hInstance,
-		nullptr
+		this
 	);
 
 	if (!hwnd_) return false;
@@ -252,7 +299,7 @@ void Application::Update(float deltaTime)
 void Application::Render()
 {
 	{
-		// Render CPU 시간은 Present의 VSync 대기와 분리해서 기록한다.
+		// Scene Render CPU 시간을 UI 및 Present 대기와 분리해서 기록한다.
 		ProfileScope renderScope(profiler_, ProfileCategory::Render);
 
 		// BackBuffer를 남청색으로 초기화
@@ -273,7 +320,12 @@ void Application::Render()
 			renderer_.Draw(info);
 		}
 
-		RenderUI();
+	}
+	{
+		// HUD와 Profiler는 같은 Renderer를 사용하되 Scene 비용과 별도로 잰다.
+		ProfileScope uiScope(profiler_, ProfileCategory::UIRender);
+		renderer_.Begin();
+		uiManager_.Render(renderer_);
 	}
 
 	// BackBuffer 출력
@@ -298,64 +350,25 @@ float Application::GetDeltaTime()
 	return deltaTime;
 }
 
-void Application::UpdateProfilerWindowTitle(float deltaTime)
+void Application::ToggleProfilerPanel()
 {
-	profilerTitleTimer_ += deltaTime;
-	if (profilerTitleTimer_ < 0.5f)
-	{
-		return;
-	}
-	profilerTitleTimer_ = 0.0f;
-
-	// 창 제목을 간단한 런타임 측정 표시로 사용하며 게임 렌더 흐름에는 개입하지 않는다.
-	const ProfileSnapshot average = profiler_.GetAverage();
-	const double collisionMilliseconds =
-		average.GetMilliseconds(ProfileCategory::GroundCollision)
-		+ average.GetMilliseconds(ProfileCategory::CombatCollision)
-		+ average.GetMilliseconds(ProfileCategory::ItemCollision);
-	wchar_t title[384]{};
-	swprintf_s(
-		title,
-		L"DX11ScrollRPG | %.1f FPS | Frame %.2f ms | Update %.2f ms | Physics %.2f ms | Collision %.2f ms | Render %.2f ms | Present %.2f ms | Entity %.0f | Sprite %.0f | Draw %.0f | AABB %.0f",
-		average.GetAverageFPS(),
-		average.GetMilliseconds(ProfileCategory::Frame),
-		average.GetMilliseconds(ProfileCategory::Update),
-		average.GetMilliseconds(ProfileCategory::Physics),
-		collisionMilliseconds,
-		average.GetMilliseconds(ProfileCategory::Render),
-		average.GetMilliseconds(ProfileCategory::Present),
-		average.GetCounter(ProfileCounter::ActiveEntities),
-		average.GetCounter(ProfileCounter::SpriteDraws),
-		average.GetCounter(ProfileCounter::DrawCalls),
-		average.GetCounter(ProfileCounter::CollisionChecks));
-	SetWindowText(hwnd_, title);
+	uiManager_.ToggleProfilerPanel();
 }
 
-void Application::RenderUI()
+bool Application::HandleUIMouseDown(int x, int y)
 {
-	Player* player = gameWorld_.GetPlayer();
+	return uiManager_.HandleMouseDown(x, y);
+}
 
-	if (!player)return;
-
-	for (int i = 0; i < player->GetHP(); ++i)
+void Application::UpdateUI(float deltaTime)
+{
+	UIFrameData frameData{};
+	if (Player* player = gameWorld_.GetPlayer())
 	{
-		RenderInfo heart;
-		heart.spriteId = SpriteId::Heart;
-		heart.position = { -0.9f + i * 0.1f, 0.88f };
-		heart.frameSizePixels = { 1254,1254 };
-		heart.renderHalfSize = { 0.0f, 0.08f };
-
-		renderer_.Draw(heart);
+		frameData.playerHp = player->GetHP();
+		frameData.playerDead = player->IsDead();
 	}
-
-	if (player->IsDead())
-	{
-		RenderInfo gameOver;
-		gameOver.spriteId = SpriteId::GameOver;
-		gameOver.position = { 0.0f, 0.1f };
-		gameOver.frameSizePixels = { 1921, 819 };
-		gameOver.renderHalfSize = { 0.0f, 0.2f };
-
-		renderer_.Draw(gameOver);
-	}
+	frameData.stressMonsterCount = gameWorld_.GetStressTestMonsterCount();
+	frameData.profiler = profiler_.GetAverage();
+	uiManager_.Update(deltaTime, frameData);
 }

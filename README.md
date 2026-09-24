@@ -1,6 +1,24 @@
 # DirectX 11 2D Action Game
 
-C++와 DirectX 11을 활용해 렌더링 파이프라인부터 게임 로직까지 직접 구현한 2D 액션 게임 프로토타입입니다.
+C++와 DirectX 11로 만든 2D 액션 게임 프로토타입입니다. 기반 게임 시스템은 직접 구현하며 학습했고, 2026년 9월 24일부터는 AI Sprint를 통해 성능 측정, 렌더링, 멀티스레드, 네트워크 기능을 AI와 함께 분석·설계·구현하고 있습니다.
+
+## 목차
+
+- [프로젝트 정보](#project-information)
+- [조작법](#controls)
+- [이전 단계: 직접 구현하며 학습한 기반](#handmade-foundation)
+  - [DirectX 11 렌더링 파이프라인](#directx-rendering-pipeline)
+  - [Rendering, Resource, Animation 책임 분리](#system-responsibilities)
+  - [Entity, Physics, Collision 구조](#entity-physics-collision)
+  - [FSM 기반 Character 및 전투](#character-combat-fsm)
+  - [Active 상태 기반 객체 재사용](#object-reuse)
+- [AI Sprint: AI와 함께 분석·설계·구현](#ai-sprint)
+  - [Profiler / Stress Test](#profiler-stress-test)
+  - [다음 Sprint 작업](#upcoming-sprint-work)
+- [빌드 및 실행](#build-and-run)
+- [프로젝트 구조](#project-structure)
+- [에셋 크레딧](#asset-credits)
+- [핵심 정리](#summary)
 
 ![게임 플레이 데모](Docs/output.gif)
 
@@ -10,6 +28,7 @@ C++와 DirectX 11을 활용해 렌더링 파이프라인부터 게임 로직까�
   </a>
 </p>
 
+<a id="project-information"></a>
 ## 프로젝트 정보
 
 | 구분 | 내용 |
@@ -17,10 +36,11 @@ C++와 DirectX 11을 활용해 렌더링 파이프라인부터 게임 로직까�
 | 플랫폼 | PC (Windows) |
 | 장르 | 2D 액션 게임 |
 | 개발 인원 | 1명 |
-| 개발 기간 | 2026.08 ~ 2026.09 |
+| 개발 기간 | 2026.08 ~ 2026.10 (AI Sprint 진행 중) |
 | 기술 스택 | C++20, Win32 API, DirectX 11, HLSL, stb_image |
 | 개발 목표 | 상용 엔진 없이 2D 게임 클라이언트의 렌더링 및 게임 시스템 구현 |
 
+<a id="controls"></a>
 ## 조작법
 
 | 키 | 동작 |
@@ -29,8 +49,10 @@ C++와 DirectX 11을 활용해 렌더링 파이프라인부터 게임 로직까�
 | `Alt` | 점프 |
 | `Ctrl` | 공격 |
 | `R` | 사망 후 재시작 |
+| `F1` | Profiler 패널 열기 / 닫기 및 Stress Test 버튼 표시 |
 
-## 주요 구현 내용
+<a id="handmade-foundation"></a>
+## 이전 단계: 직접 구현하며 학습한 기반
 
 - Win32 API 기반 윈도우 및 게임 루프 구현
 - DirectX 11 기반 2D 스프라이트 렌더링 환경 구성
@@ -40,7 +62,8 @@ C++와 DirectX 11을 활용해 렌더링 파이프라인부터 게임 로직까�
 - AABB 기반 충돌 판정과 중력·이동 물리 처리
 - 몬스터·아이템 스폰 및 Active 상태 기반 객체 재사용
 
-## 1. DirectX 11 렌더링 파이프라인
+<a id="directx-rendering-pipeline"></a>
+### 1. DirectX 11 렌더링 파이프라인
 
 Unity와 같은 엔진 내부에서 처리되는 렌더링 과정을 직접 구현하며, 스프라이트 한 장을 출력하는 데 필요한 GPU Resource와 Pipeline State를 단계별로 구성했습니다.
 
@@ -60,7 +83,7 @@ Render Target
 SwapChain Present
 ```
 
-### 구현
+#### 구현
 
 - `D3D11CreateDeviceAndSwapChain`을 이용한 Device, DeviceContext, SwapChain 생성
 - Back Buffer 기반 RenderTargetView 및 Viewport 구성
@@ -79,13 +102,14 @@ RenderTargetView → 렌더링 결과 출력 대상
 DrawIndexed      → 현재 Pipeline State를 이용한 Draw Call
 ```
 
-### 한계 및 개선점
+#### 한계 및 개선점
 
 - 현재는 스프라이트마다 Vertex Buffer를 갱신하고 개별 Draw Call을 사용합니다.
 - 객체 수가 증가하면 Sprite Batch와 Texture Atlas 적용이 필요합니다.
 - 고정 Viewport를 사용하므로 Window Resize 대응이 필요합니다.
 
-## 2. Rendering, Resource, Animation 책임 분리
+<a id="system-responsibilities"></a>
+### 2. Rendering, Resource, Animation 책임 분리
 
 초기에는 `Application`이 윈도우 생성, 텍스처 관리, 게임 객체 갱신, 렌더링까지 대부분의 기능을 담당했습니다. 기능 증가에 따라 각 시스템의 변경 책임을 분리하고, 게임 로직이 DirectX 객체와 텍스처 경로를 직접 참조하지 않도록 구조를 개선했습니다.
 
@@ -117,13 +141,14 @@ struct RenderInfo
 };
 ```
 
-### 한계 및 개선점
+#### 한계 및 개선점
 
 - Animation 데이터가 Character 클래스 생성자에 직접 정의되어 있습니다.
 - Animation 수가 증가하면 JSON 등의 외부 데이터나 Asset Table로 분리할 필요가 있습니다.
 - 큰 `deltaTime` 입력 시 여러 Animation Frame을 한 번에 진행할 수 있도록 보완이 필요합니다.
 
-## 3. Entity, Physics, Collision 구조
+<a id="entity-physics-collision"></a>
+### 3. Entity, Physics, Collision 구조
 
 Player와 Monster에서 반복되던 Gravity, Velocity, Position 갱신을 공통화하고, 물리 위치와 화면 출력 위치를 분리했습니다.
 
@@ -170,13 +195,14 @@ Render Offset      → Sprite 출력 위치
 Animation Offset   → Animation별 Sprite 위치 보정
 ```
 
-### 한계 및 개선점
+#### 한계 및 개선점
 
 - 현재 충돌 처리는 Ground 착지를 가정한 단순 AABB 방식입니다.
 - 벽, 천장 및 고속 이동 객체에 대한 충돌은 지원하지 않습니다.
 - 동적 생성·삭제가 늘어나면 Handle 또는 ID 기반 참조 구조가 필요합니다.
 
-## 4. FSM 기반 Character 및 전투
+<a id="character-combat-fsm"></a>
+### 4. FSM 기반 Character 및 전투
 
 여러 Boolean 조합 대신 한 시점에 하나의 명시적인 Character State만 유지하도록 FSM을 구성했습니다.
 
@@ -204,13 +230,14 @@ bool Player::IsAttackFrameActive() const
 }
 ```
 
-### 한계 및 개선점
+#### 한계 및 개선점
 
 - 상태가 늘어나면 하나의 `switch`가 비대해질 수 있습니다.
 - 복잡한 Character에는 State Pattern 또는 별도 Controller 구조를 검토할 수 있습니다.
 - 현재 공격당 하나의 Hit만 기록하므로 다중 대상 공격에는 제약이 있습니다.
 
-## 5. Active 상태 기반 객체 재사용
+<a id="object-reuse"></a>
+### 5. Active 상태 기반 객체 재사용
 
 Monster와 Item의 반복적인 생성·삭제에서 발생하는 메모리 할당을 줄이기 위해 필요한 수만큼 객체를 미리 생성하고 재사용합니다.
 
@@ -228,6 +255,44 @@ Item Pool Queue       → 즉시 사용할 수 있는 비활성 Item 관리
 
 현재 프로젝트 규모에서는 범용 Pool 대신 각 시스템에 필요한 객체만 재사용합니다. 대상이 증가하면 `ObjectPool<T>` 형태의 공통 구조로 확장할 수 있습니다.
 
+<a id="ai-sprint"></a>
+## AI Sprint: AI와 함께 분석·설계·구현
+
+2026년 9월 24일부터 10월 2일까지 기존 코드를 바탕으로 성능 최적화, 렌더링, 동시성, 네트워크 기능을 확장합니다. AI가 작성한 결과를 그대로 반영하지 않고, 호출 흐름 분석 → 설계 비교 → 최소 구현 → 코드 리뷰 → 직접 검증 순서로 진행합니다.
+
+이 구역에는 AI와 함께 공부하며 구현한 내용, 선택한 설계, 검증 상태를 기록합니다. 아직 시작하지 않은 Sprint 항목은 구현 완료 내용과 구분해 예정 작업으로 표시합니다.
+
+<a id="profiler-stress-test"></a>
+### Profiler / Stress Test — 2026.09.24 ~ 09.25
+
+최적화 전 성능을 비교할 수 있도록 최근 프레임 평균 Profiler와 Monster 스트레스 테스트 환경을 추가하고 있습니다.
+
+- `Application`이 Profiler를 소유하고 `ProfileScope`가 측정 구간 종료 시 시간을 기록합니다.
+- 최근 최대 120프레임의 평균을 `ProfileSnapshot`으로 전달합니다.
+- `UIManager`가 기존 하트 / Game Over HUD와 F1 Profiler 패널 상태 및 버튼 입력을 관리합니다. 실제 UI 그리기는 기존 `Renderer`를 사용합니다.
+- 100 / 500 / 1000 / 5000 스트레스 Monster를 생성하며, 기존 `gameObjects_`가 실제 수명을 소유하고 테스트 목록은 비소유 참조로 관리합니다.
+- 스트레스 Monster의 Collider와 Physics를 활성화해 AABB 검사를 수행합니다. 테스트 중 피해 처리와 이동은 비활성화합니다.
+- `UIRender` 시간을 Scene Render와 분리하고, Profiler 패널 자체의 Draw Call은 게임 Sprite / Draw Call 카운터에서 제외합니다.
+
+**현재 상태:** Profiler 패널이 표시되는 것을 확인했습니다. 스트레스 개체 수별 동작 검증과 Release x64 Baseline 실측값 기록은 남아 있습니다. 측정 조건 및 결과 표는 [Docs/ProfilerBaseline.md](Docs/ProfilerBaseline.md)에 있습니다.
+
+<a id="upcoming-sprint-work"></a>
+### 다음 Sprint 작업
+
+| 예정 작업 | 학습 및 검증 목표 | 상태 |
+| --- | --- | --- |
+| 09.25 Sprite Batch | Sprite별 Draw Call과 Batch 적용 후 비용 비교 | 예정 |
+| 09.26 Offscreen Render Target / Post Processing | RTV·SRV 흐름과 Fullscreen Pass 이해 | 예정 |
+| 09.27 HP Vignette | Gameplay 값을 Constant Buffer와 Pixel Shader로 전달 | 예정 |
+| 09.28 Thread Pool / Job Queue | mutex, condition_variable, Worker 종료 흐름 검증 | 예정 |
+| 09.29 IOCP Server / Packet Framing | Overlapped I/O, Session 수명, TCP 부분 패킷 처리 | 예정 |
+| 09.30 2 Client Multiplayer | Spawn, 이동 동기화, Disconnect 처리 | 예정 |
+| 10.01 ~ 10.02 Snapshot Interpolation / Server Authority | Remote 상태 보간과 Server 입력 기반 이동 비교 | 예정 |
+| 10.02 Spatial Hash | Broad Phase 적용 전후 AABB 검사 수 비교 | 예정 |
+
+AI Sprint의 세부 일정, 완료 기준과 AI 활용 평가 질문은 [AGENTS.md](AGENTS.md)에 정리했습니다.
+
+<a id="build-and-run"></a>
 ## 빌드 및 실행
 
 ### 요구 사항
@@ -252,6 +317,7 @@ Item Pool Queue       → 즉시 사용할 수 있는 비활성 Item 관리
 
 셰이더와 텍스처는 상대 경로로 불러오므로, 실행 파일을 직접 실행할 때는 저장소 루트를 작업 디렉터리로 사용해야 합니다.
 
+<a id="project-structure"></a>
 ## 프로젝트 구조
 
 ```text
@@ -273,12 +339,14 @@ DX11ScrollRPG/
 └─ Main.cpp                # Windows 애플리케이션 진입점
 ```
 
+<a id="asset-credits"></a>
 ## 에셋 크레딧
 
 이 프로젝트의 그래픽 리소스에는 Anokolisa의 **[Legacy-Fantasy - High Forest 2.0](https://anokolisa.itch.io/sidescroller-pixelart-sprites-asset-pack-forest-16x16)** 에셋을 사용했습니다.
 
 에셋의 저작권과 이용 조건은 원저작자의 배포 페이지를 따릅니다.
 
+<a id="summary"></a>
 ## 핵심 정리
 
 - DirectX 11 Pipeline State와 Draw Call 구성 과정을 직접 학습했습니다.

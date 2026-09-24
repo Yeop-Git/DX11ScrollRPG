@@ -17,6 +17,8 @@ enum class ProfileCategory : std::size_t
 	CombatCollision,
 	ItemCollision,
 	Render,
+	// 게임 HUD와 Profiler UI 렌더 시간을 Scene Render와 분리한다.
+	UIRender,
 	Present,
 	Count
 };
@@ -28,24 +30,27 @@ enum class ProfileCounter : std::size_t
 	SpriteDraws,
 	DrawCalls,
 	CollisionChecks,
+	// 스트레스 Monster와 Player 몸체가 실제로 겹친 프레임당 평균 횟수.
+	StressCollisionOverlaps,
 	Count
 };
 
 // 최근 프레임 기록에서 계산한 시간 및 카운터 평균값을 외부에 전달한다.
 struct ProfileSnapshot
 {
-	// 시간은 밀리초, 카운터는 프레임 평균 횟수로 보관한다.
-	std::array<double, static_cast<std::size_t>(ProfileCategory::Count)> milliseconds{};
-	std::array<double, static_cast<std::size_t>(ProfileCounter::Count)> counters{};
+	// 최근 기록의 프레임당 평균 시간(ms)과 평균 발생 횟수를 보관한다.
+	std::array<double, static_cast<std::size_t>(ProfileCategory::Count)> averageMilliseconds{};
+	std::array<double, static_cast<std::size_t>(ProfileCounter::Count)> averageCounters{};
 
+	// 항목별 시간 및 평균 카운터 값을 읽는다.
 	double GetMilliseconds(ProfileCategory category) const
 	{
-		return milliseconds[static_cast<std::size_t>(category)];
+		return averageMilliseconds[static_cast<std::size_t>(category)];
 	}
 
 	double GetCounter(ProfileCounter counter) const
 	{
-		return counters[static_cast<std::size_t>(counter)];
+		return averageCounters[static_cast<std::size_t>(counter)];
 	}
 
 	double GetAverageFPS() const
@@ -60,16 +65,18 @@ struct ProfileSnapshot
 class Profiler
 {
 public:
-	// 60~120 프레임 평균을 확인할 수 있도록 최대 120개 프레임을 유지한다.
+	// 짧은 변동과 최근 성능 변화를 함께 볼 수 있도록 최근 최대 120프레임을 유지한다.
 	static constexpr std::size_t kHistorySize = 120;
 
-	// 프레임 경계에서 현재 누적값을 초기화하고 기록한다.
+	// 프레임 측정을 시작하고 완료된 측정값을 기록한다.
 	void BeginFrame();
 	void EndFrame();
-	// 측정 구간의 시간과 카운터를 현재 프레임 데이터에 더한다.
+	// 테스트 구성이 바뀐 경우 이전 프레임 기록을 비운다.
+	void ResetHistory();
+	// 측정 구간의 시간과 발생 횟수를 현재 프레임에 누적한다.
 	void AddTime(ProfileCategory category, double milliseconds);
 	void Increment(ProfileCounter counter, std::uint64_t amount = 1);
-	// 기록된 프레임이 120개보다 적으면 실제 기록 개수만 사용한다.
+	// 저장된 최근 프레임의 평균을 UI에 전달할 복사본으로 만든다.
 	ProfileSnapshot GetAverage() const;
 
 private:
@@ -84,7 +91,7 @@ private:
 		std::array<std::uint64_t, static_cast<std::size_t>(ProfileCounter::Count)> counters{};
 	};
 
-	// 현재 프레임 임시 누적값과 최근 프레임 순환 기록.
+	// currentFrame_은 진행 중인 프레임, history_는 최근 완료 프레임을 보관한다.
 	FrameData currentFrame_{};
 	std::array<FrameData, kHistorySize> history_{};
 	std::size_t historyWriteIndex_ = 0;
@@ -92,31 +99,22 @@ private:
 	Clock::time_point frameStart_{};
 };
 
-// 스코프 수명 동안 시간을 재고 소멸 시 Profiler에 기록하는 RAII 타이머.
+// 선언된 코드 블록의 실행 시간을 재고 블록 종료 시 Profiler에 기록한다.
 class ProfileScope
 {
 public:
-	// Profiler는 소유하지 않고 참조만 빌린다. 이 객체보다 오래 살아야 한다.
-	ProfileScope(Profiler& profiler, ProfileCategory category)
-		: profiler_(profiler), category_(category), start_(std::chrono::steady_clock::now())
-	{
-	}
+	// Profiler는 Application 소유 객체를 참조만 하며, 이 Scope보다 오래 살아야 한다.
+	ProfileScope(Profiler& profiler, ProfileCategory category);
+	~ProfileScope();
 
-	~ProfileScope()
-	{
-		// 조기 return을 포함해 이 객체가 소멸하는 모든 범위 종료 경로에서 기록한다.
-		const auto elapsed = std::chrono::steady_clock::now() - start_;
-		profiler_.AddTime(
-			category_,
-			std::chrono::duration<double, std::milli>(elapsed).count());
-	}
-
-	// 복사하면 같은 구간 시간이 두 번 기록될 수 있어 스코프 타이머 복제를 금지한다.
+	// 복사된 Scope가 같은 구간을 중복 기록하지 않도록 복사와 대입을 막는다.
 	ProfileScope(const ProfileScope&) = delete;
 	ProfileScope& operator=(const ProfileScope&) = delete;
 
 private:
+	using Clock = std::chrono::steady_clock;
+
 	Profiler& profiler_;
 	ProfileCategory category_;
-	std::chrono::steady_clock::time_point start_;
+	Clock::time_point startTime_;
 };

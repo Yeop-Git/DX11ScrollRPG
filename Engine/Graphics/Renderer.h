@@ -11,6 +11,15 @@ using namespace Microsoft::WRL;
 
 class ResourceManager;
 
+// UI 사각형의 정점별 색상과 투명도를 Renderer에 전달한다.
+struct RendererColor
+{
+	float r = 1.0f;
+	float g = 1.0f;
+	float b = 1.0f;
+	float a = 1.0f;
+};
+
 class Renderer
 {
 public:
@@ -24,6 +33,9 @@ public:
 
 	void Draw(const RenderInfo& info);
 	void Begin();
+	// UI 전용 그리기는 게임 Sprite/Draw Call 카운터에서 제외한다.
+	void DrawUIRect(Vector2 position, Vector2 halfSize, RendererColor color);
+	void DrawUITexture(ID3D11ShaderResourceView* texture, Vector2 position, Vector2 halfSize);
 
 	void DrawSprite(
 		SpriteId id,
@@ -37,9 +49,12 @@ private:
 		Vector2 halfSize,
 		Vector2 uvMin = { 0.0f, 0.0f },
 		Vector2 uvMax = { 1.0f, 1.0f },
-		bool flipX = false
+		bool flipX = false,
+		RendererColor color = {},
+		bool countForProfiler = true
 	);
 	bool CreateGeometry();
+	bool CreateWhiteTexture();
 	bool CreateShaders();
 	bool CreateBlendState();
 	bool CreateSamplerState();
@@ -58,6 +73,7 @@ private:
 	//Buffer
 	ComPtr<ID3D11Buffer> vertexBuffer_;
 	ComPtr<ID3D11Buffer> indexBuffer_;
+	ComPtr<ID3D11ShaderResourceView> whiteTextureView_;
 
 	//Shader
 	ComPtr<ID3D11VertexShader> vertexShader_;

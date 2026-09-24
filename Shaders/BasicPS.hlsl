@@ -5,12 +5,13 @@ struct PSInput
 {
     float4 position : SV_Position;
     float2 uv : TEXCOORD;
+    float4 color : COLOR;
 };
 
 float4 main(PSInput input) : SV_Target
 {
     // texture에서 직접 색을 읽음
-    return spriteTexture.Sample(spriteSampler, input.uv);
+    return spriteTexture.Sample(spriteSampler, input.uv) * input.color;
     
     //return input.color; // input color를 그대로 출력
     // Vertex Shadder : 정점 위치 + 색

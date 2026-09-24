@@ -6,6 +6,7 @@
 #include <chrono>
 
 #include "Profiler.h"
+#include "UIManager.h"
 #include "../../Game/Player.h"
 #include "../../Game/Monster.h"
 #include "../../Game/World/GameWorld.h"
@@ -23,6 +24,11 @@ public:
 	bool Initialize(HINSTANCE hInstance, int nCmdShow);
 	int Run();
 
+	// 부모 창에 도착한 F1 입력에서 Profiler 표시 상태를 전환한다.
+	void ToggleProfilerPanel();
+	// 게임 창의 마우스 입력을 UIManager 버튼 hit-test에 전달한다.
+	bool HandleUIMouseDown(int x, int y);
+
 private:
 	bool CreateMainWindow(HINSTANCE hInstance, int nCmdShow);
 	bool InitializeDirectX();
@@ -31,8 +37,7 @@ private:
 
 	void Update(float deltaTime);
 	void Render();
-	void RenderUI();
-	void UpdateProfilerWindowTitle(float deltaTime);
+	void UpdateUI(float deltaTime);
 	float GetDeltaTime();
 
 private:
@@ -47,9 +52,8 @@ private:
 	ResourceManager resourceManager_;
 	// Renderer보다 먼저 선언해 Renderer의 비소유 참조보다 오래 살게 한다.
 	Profiler profiler_;
+	UIManager uiManager_;
 	Renderer renderer_;
-	// 창 제목을 매 프레임 갱신하지 않도록 표시 간격을 누적한다.
-	float profilerTitleTimer_ = 0.0f;
 
 	// constexpr : 컴파일 시점에 값이 결정되는 상수
 	// Window

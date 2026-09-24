@@ -1,4 +1,7 @@
 #include <Windows.h>
+#include <algorithm>
+#include <cmath>
+#include <unordered_set>
 #include "GameWorld.h"
 
 #include "../Player.h"
@@ -23,7 +26,7 @@ void GameWorld::Update(float deltaTime, Profiler& profiler)
 {
 	if (player_->IsDead())
 	{
-		if (GetAsyncKeyState('R') & 0x8000) Reset();
+		if (stressMonsters_.empty() && (GetAsyncKeyState('R') & 0x8000)) Reset();
 	}
 	UpdateEntities(deltaTime, profiler);
 	UpdatePhysics(deltaTime, profiler);
@@ -83,6 +86,110 @@ void GameWorld::CreateMonsters()
 		// 첫번째 몬스터만 Active하여 스폰
 		monsterPtr->SetActive(i==0);
 	}
+}
+
+void GameWorld::SetStressTestMonsterCount(std::size_t count)
+{
+	// UI 버튼에서 오는 고정 입력만 허용해 실수로 대량 생성되지 않게 한다.
+	if (count != 0 && count != 100 && count != 500 && count != 1000 && count != 5000)
+	{
+		return;
+	}
+
+	ClearStressTestMonsters();
+	Reset();
+
+	if (count == 0)
+	{
+		return;
+	}
+
+	// 기본 게임 Monster는 잠시 비활성화해 요청된 테스트 수만 측정한다.
+	for (Monster* monster : monsters_)
+	{
+		if (monster != nullptr)
+		{
+			monster->SetActive(false);
+		}
+	}
+
+	CreateStressTestMonsters(count);
+}
+
+void GameWorld::CreateStressTestMonsters(std::size_t count)
+{
+	// 화면 비율을 고려한 격자로 고정 배치해 매번 같은 분포를 만든다.
+	constexpr float kLeft = -0.92f;
+	constexpr float kRight = 0.92f;
+	constexpr float kTop = 0.82f;
+	constexpr float kBottom = -0.82f;
+	constexpr float kAspectRatio = 1280.0f / 720.0f;
+
+	const std::size_t columns = static_cast<std::size_t>(
+		std::ceil(std::sqrt(static_cast<double>(count) * kAspectRatio)));
+	const std::size_t rows = (count + columns - 1) / columns;
+	const float cellWidth = (kRight - kLeft) / static_cast<float>(columns);
+	const float cellHeight = (kTop - kBottom) / static_cast<float>(rows);
+
+	stressMonsters_.reserve(count);
+	stressMonsterLookup_.reserve(count);
+	entities_.reserve(entities_.size() + count);
+	gameObjects_.reserve(gameObjects_.size() + count);
+
+	for (std::size_t i = 0; i < count; ++i)
+	{
+		auto monster = std::make_unique<Monster>();
+		Monster* monsterPtr = monster.get();
+
+		// OnEnable이 기본 물리·Collider 값을 복원한 뒤 스트레스 설정을 덮어쓴다.
+		monsterPtr->SetActive(false);
+		monsterPtr->SetActive(true);
+		monsterPtr->SetTarget(nullptr);
+		monsterPtr->physics.enabled = true;
+		monsterPtr->physics.useGravity = false;
+		monsterPtr->physics.velocity = {};
+		monsterPtr->collider.enabled = true;
+
+		const std::size_t column = i % columns;
+		const std::size_t row = i / columns;
+		monsterPtr->transform.position = {
+			kLeft + (static_cast<float>(column) + 0.5f) * cellWidth,
+			kTop - (static_cast<float>(row) + 0.5f) * cellHeight
+		};
+
+		stressMonsters_.push_back(monsterPtr);
+		stressMonsterLookup_.insert(monsterPtr);
+		entities_.push_back(monsterPtr);
+		gameObjects_.push_back(std::move(monster));
+	}
+}
+
+void GameWorld::ClearStressTestMonsters()
+{
+	if (stressMonsters_.empty())
+	{
+		return;
+	}
+
+	// 비소유 참조를 지우기 전에 대상 포인터 집합을 만들어 안전하게 찾아낸다.
+	std::unordered_set<const GameObject*> stressObjects;
+	stressObjects.reserve(stressMonsters_.size());
+	for (Monster* monster : stressMonsters_)
+	{
+		stressObjects.insert(monster);
+		monster->SetActive(false);
+	}
+
+	std::erase_if(entities_, [&stressObjects](Entity* entity)
+	{
+		return stressObjects.contains(entity);
+	});
+	std::erase_if(gameObjects_, [&stressObjects](const std::unique_ptr<GameObject>& object)
+	{
+		return stressObjects.contains(object.get());
+	});
+	stressMonsters_.clear();
+	stressMonsterLookup_.clear();
 }
 
 void GameWorld::CreateItems()
@@ -181,6 +288,7 @@ void GameWorld::ResolveGroundCollisions(Profiler& profiler)
 		if (!entity->physics.enabled) continue;
 		if (!entity->collider.enabled) continue;
 
+		const bool isStressMonster = stressMonsterLookup_.contains(entity);
 		for (Ground* ground : grounds_)
 		{
 			if (ground == nullptr) continue;
@@ -190,6 +298,8 @@ void GameWorld::ResolveGroundCollisions(Profiler& profiler)
 			// 실제 Intersects 호출 횟수를 세어 Broad Phase 전 Baseline으로 사용한다.
 			profiler.Increment(ProfileCounter::CollisionChecks);
 			if (!Intersects(entity->GetBodyBox(), ground->GetBodyBox())) continue;
+			// AABB 비용은 측정하되 고정 격자 위치를 지면 반응으로 바꾸지 않는다.
+			if (isStressMonster) continue;
 
 			ResolveGroundCollision(*entity, *ground);
 		}
@@ -255,6 +365,23 @@ void GameWorld::UpdateCombat(Profiler& profiler)
 		if (Intersects(playerBody, monsterBody))
 		{
 			player_->TakeDamage(1, monster->transform.position.x);
+		}
+	}
+
+	// 스트레스 Monster도 매 프레임 Player 몸체와 검사하되 전투 효과는 발생시키지 않는다.
+	const AABB playerBody = player_->collider.GetBounds(player_->transform);
+	for (Monster* monster : stressMonsters_)
+	{
+		if (monster == nullptr || !monster->IsActive() || !monster->collider.enabled)
+		{
+			continue;
+		}
+
+		profiler.Increment(ProfileCounter::CollisionChecks);
+		// 결과를 관측 가능한 카운터에 반영해 Release 최적화에서도 AABB 판정이 유지된다.
+		if (Intersects(playerBody, monster->GetBodyBox()))
+		{
+			profiler.Increment(ProfileCounter::StressCollisionOverlaps);
 		}
 	}
 }

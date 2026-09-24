@@ -10,7 +10,7 @@ struct Vertex
 {
     float x, y, z;
     float u, v;
-    //float r, g, b, a;
+    float r, g, b, a;
 };
 
 bool Renderer::Initialize(
@@ -28,6 +28,7 @@ bool Renderer::Initialize(
     viewportSize_ = viewportSize;
 
 	if (!CreateGeometry()) return false;
+	if (!CreateWhiteTexture()) return false;
 	if (!CreateShaders()) return false;
 	if (!CreateSamplerState()) return false;
 	if (!CreateBlendState()) return false;
@@ -82,17 +83,19 @@ void Renderer::DrawSprite(
 	Vector2 halfSize,
 	Vector2 uvMin,
 	Vector2 uvMax,
-	bool flipX)
+	bool flipX,
+	RendererColor color,
+	bool countForProfiler)
 {
 	float leftU = flipX ? uvMax.x : uvMin.x;
 	float rightU = flipX ? uvMin.x : uvMax.x;
 
-	const float vertices[] =
+	const Vertex vertices[] =
 	{
-		position.x - halfSize.x, position.y - halfSize.y, 0.0f, leftU, uvMax.y,
-		position.x + halfSize.x, position.y - halfSize.y, 0.0f, rightU, uvMax.y,
-		position.x + halfSize.x, position.y + halfSize.y, 0.0f, rightU, uvMin.y,
-		position.x - halfSize.x, position.y + halfSize.y, 0.0f, leftU, uvMin.y
+		{ position.x - halfSize.x, position.y - halfSize.y, 0.0f, leftU, uvMax.y, color.r, color.g, color.b, color.a },
+		{ position.x + halfSize.x, position.y - halfSize.y, 0.0f, rightU, uvMax.y, color.r, color.g, color.b, color.a },
+		{ position.x + halfSize.x, position.y + halfSize.y, 0.0f, rightU, uvMin.y, color.r, color.g, color.b, color.a },
+		{ position.x - halfSize.x, position.y + halfSize.y, 0.0f, leftU, uvMin.y, color.r, color.g, color.b, color.a }
 	};
 
 	// vertex buffer를 CPU가 접근 가능한 메모리 영역으로 매핑
@@ -118,12 +121,28 @@ void Renderer::DrawSprite(
 	context_->PSSetShaderResources(0, 1, &textureView);
 	context_->DrawIndexed(6, 0, 0);
 	// 실제 Draw 명령을 제출한 뒤 세어 실패하거나 생략된 Sprite는 제외한다.
-	if (profiler_ != nullptr)
+	if (countForProfiler && profiler_ != nullptr)
 	{
 		// 현 Renderer에서는 스프라이트 한 장마다 Draw Call 하나가 발생한다.
 		profiler_->Increment(ProfileCounter::SpriteDraws);
 		profiler_->Increment(ProfileCounter::DrawCalls);
 	}
+}
+
+void Renderer::DrawUIRect(Vector2 position, Vector2 halfSize, RendererColor color)
+{
+	// 흰색 1x1 텍스처에 정점 색상을 곱해 UI 배경 사각형을 그린다.
+	DrawSprite(whiteTextureView_.Get(), position, halfSize, {}, { 1.0f, 1.0f }, false, color, false);
+}
+
+void Renderer::DrawUITexture(
+	ID3D11ShaderResourceView* texture,
+	Vector2 position,
+	Vector2 halfSize)
+{
+	// Profiler 패널 자체의 Draw Call은 측정 카운터에 넣지 않는다.
+	if (texture == nullptr) return;
+	DrawSprite(texture, position, halfSize, {}, { 1.0f, 1.0f }, false, {}, false);
 }
 
 void Renderer::DrawSprite(
@@ -155,10 +174,10 @@ bool Renderer::CreateGeometry()
 	// 사각형 vertex 데이터
 	Vertex vertices[] =
 	{
-		{ -0.5f, -0.5f, 0.0f, u0, 1.0f },
-		{ 0.5f, -0.5f, 0.0f, u1, 1.0f },
-		{ 0.5f,  0.5f, 0.0f, u1, 0.0f },
-		{ -0.5f,  0.5f, 0.0f, u0, 0.0f }
+		{ -0.5f, -0.5f, 0.0f, u0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f },
+		{ 0.5f, -0.5f, 0.0f, u1, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f },
+		{ 0.5f,  0.5f, 0.0f, u1, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f },
+		{ -0.5f,  0.5f, 0.0f, u0, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f }
 	};
 
 	// vertex 버퍼 생성
@@ -192,6 +211,33 @@ bool Renderer::CreateGeometry()
 	hr = device_->CreateBuffer(&bufferDesc, &initData, indexBuffer_.GetAddressOf());
 
 	return SUCCEEDED(hr);
+}
+
+bool Renderer::CreateWhiteTexture()
+{
+	// UI 단색 사각형을 기존 텍스처 셰이더 경로로 그릴 1픽셀 흰색 텍스처다.
+	const unsigned int whitePixel = 0xFFFFFFFF;
+	D3D11_TEXTURE2D_DESC textureDesc{};
+	textureDesc.Width = 1;
+	textureDesc.Height = 1;
+	textureDesc.MipLevels = 1;
+	textureDesc.ArraySize = 1;
+	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+	D3D11_SUBRESOURCE_DATA initialData{};
+	initialData.pSysMem = &whitePixel;
+	initialData.SysMemPitch = sizeof(whitePixel);
+
+	ComPtr<ID3D11Texture2D> texture;
+	HRESULT hr = device_->CreateTexture2D(
+		&textureDesc, &initialData, texture.GetAddressOf());
+	if (FAILED(hr)) return false;
+
+	return SUCCEEDED(device_->CreateShaderResourceView(
+		texture.Get(), nullptr, whiteTextureView_.GetAddressOf()));
 }
 
 bool Renderer::CreateShaders()
@@ -253,12 +299,13 @@ bool Renderer::CreateShaders()
 	D3D11_INPUT_ELEMENT_DESC inputElements[] =
 	{
 		{"POSITION",0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0}
 	};
 
 	hr = device_->CreateInputLayout(
 		inputElements,
-		2,
+		3,
 		vertexShaderBlob->GetBufferPointer(),
 		vertexShaderBlob->GetBufferSize(),
 		inputLayout_.GetAddressOf()

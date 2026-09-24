@@ -145,6 +145,7 @@
   <ItemGroup>
     <ClCompile Include="Engine\Core\Application.cpp" />
     <ClCompile Include="Engine\Core\Profiler.cpp" />
+    <ClCompile Include="Engine\Core\UIManager.cpp" />
     <ClCompile Include="Engine\Graphics\Renderer.cpp" />
     <ClCompile Include="Engine\Graphics\ResourceManager.cpp" />
     <ClCompile Include="Engine\ThirdParty\stb\StbImage.cpp" />
@@ -161,6 +162,7 @@
   <ItemGroup>
     <ClInclude Include="Engine\Core\Application.h" />
     <ClInclude Include="Engine\Core\Profiler.h" />
+    <ClInclude Include="Engine\Core\UIManager.h" />
     <ClInclude Include="Engine\Graphics\Renderer.h" />
     <ClInclude Include="Engine\Graphics\RenderInfo.h" />
     <ClInclude Include="Engine\Graphics\ResourceManager.h" />

@@ -87,6 +87,9 @@
     <ClCompile Include="Engine\Core\Profiler.cpp">
       <Filter>소스 파일\Engine\Core</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\Core\UIManager.cpp">
+      <Filter>소스 파일\Engine\Core</Filter>
+    </ClCompile>
     <ClCompile Include="Engine\ThirdParty\stb\StbImage.cpp">
       <Filter>소스 파일\Engine\ThirdParty\stb</Filter>
     </ClCompile>
@@ -126,6 +129,9 @@
       <Filter>헤더 파일\Engine\Core</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Core\Profiler.h">
+      <Filter>헤더 파일\Engine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Core\UIManager.h">
       <Filter>헤더 파일\Engine\Core</Filter>
     </ClInclude>
     <ClInclude Include="Engine\ThirdParty\stb\stb_image.h">

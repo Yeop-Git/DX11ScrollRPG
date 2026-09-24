@@ -3,6 +3,8 @@
 #include <memory>
 #include <vector>
 #include <queue>
+#include <cstddef>
+#include <unordered_set>
 
 #include "../../Engine/Core/Profiler.h"
 #include "../Entity/Entity.h"
@@ -21,6 +23,10 @@ public :
 	// Application 소유 Profiler를 빌려 Update 하위 구간을 측정한다.
 	void Update(float deltaTime, Profiler& profiler);
 	void Reset();
+
+	// 지정한 수의 고정 배치 스트레스 Monster를 만들며 0은 테스트 종료다.
+	void SetStressTestMonsterCount(std::size_t count);
+	std::size_t GetStressTestMonsterCount() const { return stressMonsters_.size(); }
 
 	// const reference로 push_back, clear 등으로 수정할 수 없도록
 	const std::vector<std::unique_ptr<GameObject>>& GetGameObjects() const
@@ -44,6 +50,8 @@ private:
 	void CreateMonsters();
 	void CreateGrounds();
 	void CreateItems();
+	void CreateStressTestMonsters(std::size_t count);
+	void ClearStressTestMonsters();
 
 	void UpdateEntities(float deltaTime, Profiler& profiler);
 	void UpdatePhysics(float deltaTime, Profiler& profiler);
@@ -69,6 +77,10 @@ private:
 	std::vector<std::unique_ptr<GameObject>> gameObjects_;
 	std::vector<Entity*> entities_;
 	std::vector<Monster*> monsters_;
+	// 일반 Monster의 Unlock / Respawn 풀과 분리한 비소유 스트레스 참조.
+	std::vector<Monster*> stressMonsters_;
+	// Ground AABB 검사 뒤 스트레스 개체의 위치 보정을 건너뛰기 위한 빠른 참조 집합.
+	std::unordered_set<const Entity*> stressMonsterLookup_;
 	std::vector<Ground*> grounds_;
 	std::vector<WorldItem*> items_;
 
