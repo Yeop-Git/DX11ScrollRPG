@@ -3,15 +3,10 @@
 // HLSL 컴파일러
 #include <d3dcompiler.h>
 
-#pragma comment(lib, "d3dcompiler.lib")
+#include <cstdint>
+#include <cstring>
 
-// 정점 structure
-struct Vertex
-{
-    float x, y, z;
-    float u, v;
-    float r, g, b, a;
-};
+#pragma comment(lib, "d3dcompiler.lib")
 
 bool Renderer::Initialize(
 	ID3D11Device* device,
@@ -98,35 +93,72 @@ void Renderer::DrawSprite(
 		{ position.x - halfSize.x, position.y + halfSize.y, 0.0f, leftU, uvMin.y, color.r, color.g, color.b, color.a }
 	};
 
-	// vertex buffer를 CPU가 접근 가능한 메모리 영역으로 매핑
-	D3D11_MAPPED_SUBRESOURCE mappedResource{};
+	// 텍스처와 계측 정책이 달라지거나 용량이 차면 순서를 유지한 채 현재 묶음을 제출한다.
+	if (batchSpriteCount_ > 0
+		&& (batchTexture_ != textureView
+			|| batchCountForProfiler_ != countForProfiler
+			|| batchSpriteCount_ >= kMaxSpritesPerBatch))
+	{
+		Flush();
+	}
 
-	HRESULT hr = context_->Map(
+	if (batchSpriteCount_ == 0)
+	{
+		batchTexture_ = textureView;
+		batchCountForProfiler_ = countForProfiler;
+	}
+
+	batchVertices_.insert(batchVertices_.end(), vertices, vertices + 4);
+	++batchSpriteCount_;
+}
+
+void Renderer::Flush()
+{
+	if (batchSpriteCount_ == 0)
+	{
+		return;
+	}
+
+	D3D11_MAPPED_SUBRESOURCE mappedResource{};
+	const HRESULT hr = context_->Map(
 		vertexBuffer_.Get(),
 		0,
 		D3D11_MAP_WRITE_DISCARD,
 		0,
-		&mappedResource
-	);
+		&mappedResource);
 
-	if (FAILED(hr)) return;
+	if (FAILED(hr))
+	{
+		// 실패한 묶음은 재사용하지 않고 버려 뒤의 다른 상태 Sprite와 섞이지 않게 한다.
+		ClearBatch();
+		return;
+	}
 
-	// 새 vertex 데이터 넣기
-	memcpy(mappedResource.pData, vertices, sizeof(vertices));
-
-	// CPU 작업 끝, GPU가 Resource 사용
+	const std::size_t vertexBytes = batchVertices_.size() * sizeof(Vertex);
+	std::memcpy(mappedResource.pData, batchVertices_.data(), vertexBytes);
 	context_->Unmap(vertexBuffer_.Get(), 0);
 
-	// 이번 Draw에서 사용할 Texture
-	context_->PSSetShaderResources(0, 1, &textureView);
-	context_->DrawIndexed(6, 0, 0);
-	// 실제 Draw 명령을 제출한 뒤 세어 실패하거나 생략된 Sprite는 제외한다.
-	if (countForProfiler && profiler_ != nullptr)
+	context_->PSSetShaderResources(0, 1, &batchTexture_);
+	context_->DrawIndexed(static_cast<UINT>(batchSpriteCount_ * 6), 0, 0);
+
+	// 카운터는 실제 제출 단위로 기록한다. Profiler 전용 UI Batch는 계속 제외한다.
+	if (batchCountForProfiler_ && profiler_ != nullptr)
 	{
-		// 현 Renderer에서는 스프라이트 한 장마다 Draw Call 하나가 발생한다.
-		profiler_->Increment(ProfileCounter::SpriteDraws);
+		profiler_->Increment(
+			ProfileCounter::SpriteDraws,
+			static_cast<std::uint64_t>(batchSpriteCount_));
 		profiler_->Increment(ProfileCounter::DrawCalls);
 	}
+
+	ClearBatch();
+}
+
+void Renderer::ClearBatch()
+{
+	batchVertices_.clear();
+	batchTexture_ = nullptr;
+	batchSpriteCount_ = 0;
+	batchCountForProfiler_ = true;
 }
 
 void Renderer::DrawUIRect(Vector2 position, Vector2 halfSize, RendererColor color)
@@ -168,47 +200,47 @@ void Renderer::DrawSprite(
 
 bool Renderer::CreateGeometry()
 {
-	float u0 = 0.0f;
-	float u1 = 0.25f;
+	batchVertices_.reserve(kMaxSpritesPerBatch * 4);
 
-	// 사각형 vertex 데이터
-	Vertex vertices[] =
-	{
-		{ -0.5f, -0.5f, 0.0f, u0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f },
-		{ 0.5f, -0.5f, 0.0f, u1, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f },
-		{ 0.5f,  0.5f, 0.0f, u1, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f },
-		{ -0.5f,  0.5f, 0.0f, u0, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f }
-	};
+	// CPU가 프레임마다 갱신하는 정점 버퍼는 최대 2,048 사각형을 수용한다.
+	D3D11_BUFFER_DESC vertexBufferDesc{};
+	vertexBufferDesc.ByteWidth = static_cast<UINT>(
+		sizeof(Vertex) * kMaxSpritesPerBatch * 4);
+	vertexBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertexBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-	// vertex 버퍼 생성
-	D3D11_BUFFER_DESC bufferDesc{};
-	bufferDesc.ByteWidth = sizeof(vertices);
-
-	// vertex 퍼버 Default -> Dynamic으로 변경
-	// Default : 일반적인 정적 Geometry에 적합
-	// Dynamic : CPU가 자주 내용을 갱신하는 Resource
-	bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	// 매 애니메이션 프레임마다 UV 변경 -> vertex buffer 수정
-
-	D3D11_SUBRESOURCE_DATA initData{};
-	initData.pSysMem = vertices;
-
-	// Device에 vertex buffer 리소스 생성 요청
-	HRESULT hr = device_->CreateBuffer(&bufferDesc, &initData, vertexBuffer_.GetAddressOf());
-
+	HRESULT hr = device_->CreateBuffer(
+		&vertexBufferDesc,
+		nullptr,
+		vertexBuffer_.GetAddressOf());
 	if (FAILED(hr)) return false;
 
-	// 사각형 index 데이터, 삼각형 2개로 구성
-	unsigned int indices[] = { 0, 2, 1, 0, 3, 2 }; // index를 사용하여 중복되는 vertex를 재사용.
+	// 사각형마다 기존 winding을 유지하는 6개 인덱스를 만들어 모든 Batch에서 재사용한다.
+	std::vector<unsigned int> indices(kMaxSpritesPerBatch * 6);
+	for (std::size_t spriteIndex = 0; spriteIndex < kMaxSpritesPerBatch; ++spriteIndex)
+	{
+		const unsigned int vertexBase = static_cast<unsigned int>(spriteIndex * 4);
+		const std::size_t indexBase = spriteIndex * 6;
+		indices[indexBase] = vertexBase;
+		indices[indexBase + 1] = vertexBase + 2;
+		indices[indexBase + 2] = vertexBase + 1;
+		indices[indexBase + 3] = vertexBase;
+		indices[indexBase + 4] = vertexBase + 3;
+		indices[indexBase + 5] = vertexBase + 2;
+	}
 
-	bufferDesc.ByteWidth = sizeof(indices);
-	bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	D3D11_BUFFER_DESC indexBufferDesc{};
+	indexBufferDesc.ByteWidth = static_cast<UINT>(indices.size() * sizeof(unsigned int));
+	indexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 
-	initData.pSysMem = indices;
-
-	hr = device_->CreateBuffer(&bufferDesc, &initData, indexBuffer_.GetAddressOf());
+	D3D11_SUBRESOURCE_DATA indexData{};
+	indexData.pSysMem = indices.data();
+	hr = device_->CreateBuffer(
+		&indexBufferDesc,
+		&indexData,
+		indexBuffer_.GetAddressOf());
 
 	return SUCCEEDED(hr);
 }

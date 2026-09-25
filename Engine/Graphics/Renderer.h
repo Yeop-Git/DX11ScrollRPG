@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <vector>
+
 #include <d3d11.h>
 #include <wrl/client.h>
 
@@ -33,6 +36,8 @@ public:
 
 	void Draw(const RenderInfo& info);
 	void Begin();
+	// 현재 모인 Sprite 정점을 GPU에 제출하고 CPU 측 Batch 저장소를 재사용한다.
+	void Flush();
 	// UI 전용 그리기는 게임 Sprite/Draw Call 카운터에서 제외한다.
 	void DrawUIRect(Vector2 position, Vector2 halfSize, RendererColor color);
 	void DrawUITexture(ID3D11ShaderResourceView* texture, Vector2 position, Vector2 halfSize);
@@ -43,6 +48,15 @@ public:
 		Vector2 halfSize);
 
 private:
+	struct Vertex
+	{
+		float x, y, z;
+		float u, v;
+		float r, g, b, a;
+	};
+
+	static constexpr std::size_t kMaxSpritesPerBatch = 2048;
+
 	void DrawSprite(
 		ID3D11ShaderResourceView* textureView,
 		Vector2 position,
@@ -53,6 +67,7 @@ private:
 		RendererColor color = {},
 		bool countForProfiler = true
 	);
+	void ClearBatch();
 	bool CreateGeometry();
 	bool CreateWhiteTexture();
 	bool CreateShaders();
@@ -74,6 +89,13 @@ private:
 	ComPtr<ID3D11Buffer> vertexBuffer_;
 	ComPtr<ID3D11Buffer> indexBuffer_;
 	ComPtr<ID3D11ShaderResourceView> whiteTextureView_;
+
+	// 정점은 CPU에서 연속 메모리로 모은 뒤 Flush 시 Dynamic Vertex Buffer로 복사한다.
+	std::vector<Vertex> batchVertices_;
+	// ResourceManager 또는 Renderer 소유 텍스처를 빌려 참조하며 소유권은 갖지 않는다.
+	ID3D11ShaderResourceView* batchTexture_ = nullptr;
+	std::size_t batchSpriteCount_ = 0;
+	bool batchCountForProfiler_ = true;
 
 	//Shader
 	ComPtr<ID3D11VertexShader> vertexShader_;

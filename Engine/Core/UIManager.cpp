@@ -27,26 +27,26 @@ namespace
 	{
 		{
 			{ kProfilerX + 16, kProfilerY + 198, 72, 30 },
-			100,
-			L"100",
-			{ 0.12f, 0.27f, 0.43f, 1.0f }
-		},
-		{
-			{ kProfilerX + 96, kProfilerY + 198, 72, 30 },
-			500,
-			L"500",
-			{ 0.12f, 0.27f, 0.43f, 1.0f }
-		},
-		{
-			{ kProfilerX + 176, kProfilerY + 198, 72, 30 },
 			1000,
 			L"1000",
 			{ 0.12f, 0.27f, 0.43f, 1.0f }
 		},
 		{
-			{ kProfilerX + 256, kProfilerY + 198, 72, 30 },
+			{ kProfilerX + 96, kProfilerY + 198, 72, 30 },
 			5000,
 			L"5000",
+			{ 0.12f, 0.27f, 0.43f, 1.0f }
+		},
+		{
+			{ kProfilerX + 176, kProfilerY + 198, 72, 30 },
+			10000,
+			L"10000",
+			{ 0.12f, 0.27f, 0.43f, 1.0f }
+		},
+		{
+			{ kProfilerX + 256, kProfilerY + 198, 72, 30 },
+			50000,
+			L"50000",
 			{ 0.12f, 0.27f, 0.43f, 1.0f }
 		},
 		{

@@ -14,7 +14,8 @@ C++와 DirectX 11로 만든 2D 액션 게임 프로토타입입니다. 기반 �
   5. [Active 상태 기반 객체 재사용](#object-reuse)
 - [AI Sprint: AI와 함께 분석·설계·구현](#ai-sprint)
   1. [Profiler / Stress Test](#profiler-stress-test)
-  2. [다음 Sprint 작업](#upcoming-sprint-work)
+  2. [Sprite Batch 연구와 구현](#sprite-batch)
+  3. [다음 Sprint 작업](#upcoming-sprint-work)
 - [빌드 및 실행](#build-and-run)
 - [프로젝트 구조](#project-structure)
 - [에셋 크레딧](#asset-credits)
@@ -281,23 +282,70 @@ Item Pool Queue       → 즉시 사용할 수 있는 비활성 Item 관리
 <a id="profiler-stress-test"></a>
 ### 1. Profiler / Stress Test — 2026.09.24 ~ 09.25
 
-최적화 전 성능을 비교할 수 있도록 최근 프레임 평균 Profiler와 Monster 스트레스 테스트 환경을 추가하고 있습니다.
+최적화 전 성능을 비교할 수 있도록 최근 프레임 평균 Profiler와 Monster 스트레스 테스트 환경을 추가했습니다.
 
 - `Application`이 Profiler를 소유하고 `ProfileScope`가 측정 구간 종료 시 시간을 기록합니다.
 - 최근 최대 120프레임의 평균을 `ProfileSnapshot`으로 전달합니다.
 - `UIManager`가 기존 하트 / Game Over HUD와 F1 Profiler 패널 상태 및 버튼 입력을 관리합니다. 실제 UI 그리기는 기존 `Renderer`를 사용합니다.
-- 100 / 500 / 1000 / 5000 스트레스 Monster를 생성하며, 기존 `gameObjects_`가 실제 수명을 소유하고 테스트 목록은 비소유 참조로 관리합니다.
+- 1000 / 5000 / 10000 / 50000 스트레스 Monster를 생성하며, 기존 `gameObjects_`가 실제 수명을 소유하고 테스트 목록은 비소유 참조로 관리합니다.
 - 스트레스 Monster의 Collider와 Physics를 활성화해 AABB 검사를 수행합니다. 테스트 중 피해 처리와 이동은 비활성화합니다.
 - `UIRender` 시간을 Scene Render와 분리하고, Profiler 패널 자체의 Draw Call은 게임 Sprite / Draw Call 카운터에서 제외합니다.
 
-**현재 상태:** Profiler 패널이 표시되는 것을 확인했습니다. 스트레스 개체 수별 동작 검증과 Release x64 Baseline 실측값 기록은 남아 있습니다. 측정 조건 및 결과 표는 [Docs/ProfilerBaseline.md](Docs/ProfilerBaseline.md)에 있습니다.
+**현재 상태:** Profiler 패널 및 100 / 500 / 1000 / 5000 / 10000 / 50000 스트레스 구간을 확인했고, 기존 및 고부하 Baseline 측정값과 스크린샷을 기록했습니다. 캡처 당시 빌드 구성과 PC 사양은 확인되지 않았습니다. 측정 조건 및 결과 표는 [Docs/ProfilerBaseline.md](Docs/ProfilerBaseline.md)에 있습니다.
+
+Sprite Batch 전후 측정표는 [Docs/ProfilerBaseline.md](Docs/ProfilerBaseline.md)에, 기준선 및 적용 후 원본 스크린샷은 각각 [Docs/Profiler/Baseline](Docs/Profiler/Baseline/)과 [Docs/Profiler/SpriteBatchAfter](Docs/Profiler/SpriteBatchAfter/)에 보관합니다.
+
+<a id="sprite-batch"></a>
+### 2-1. Sprite Batch 연구와 구현 — 2026.09.25
+
+#### 연구 내용
+
+기존 경로는 Sprite마다 정점을 GPU 버퍼에 기록하고 `DrawIndexed`를 호출합니다. Sprite가 50,000개면 게임 Sprite 제출도 대략 50,000회가 되어 CPU가 GPU에 명령을 전달하는 비용이 커집니다. Sprite Batch는 렌더 요청 순서를 유지하면서 연속된 호환 Sprite의 정점을 모아 하나의 Draw Call로 제출합니다.
+
+```text
+RenderInfo
+   ↓
+DrawSprite: 사각형 정점 4개를 CPU 임시 목록에 추가
+   ↓
+텍스처 / Profiler 계측 상태가 바뀌거나 Batch 용량에 도달
+   ↓
+Flush: Dynamic Vertex Buffer에 누적 정점을 기록
+   ↓
+누적 Sprite 수 × 6 인덱스로 DrawIndexed
+```
+
+- **Batch 경계:** 현재 렌더러는 셰이더와 렌더 상태가 고정되어 있어 텍스처, Profiler 계측 여부, 최대 용량을 경계로 삼습니다. 경계가 바뀌면 앞서 모은 정점을 먼저 제출합니다.
+- **순서 보존:** 요청을 전체 프레임 단위로 모아 재정렬하지 않습니다. 기존 투명 Sprite의 그리기 순서를 지키고, 인접한 호환 요청만 묶습니다.
+- **Dynamic Vertex Buffer:** CPU에서 만든 정점들을 한 번에 Map(`WRITE_DISCARD`)하여 GPU 버퍼에 복사합니다. `WRITE_DISCARD`는 이전 버퍼 내용을 보존할 필요가 없는 전체 교체 방식입니다. GPU가 이전 프레임 데이터를 읽는 중이어도 드라이버가 새 저장 공간을 제공할 수 있어 덮어쓰기 동기화를 줄이는 데 도움을 줍니다.
+- **용량 제한:** Batch 하나는 최대 2,048 Sprite, 8,192 Vertex를 보유합니다. 현재 `Vertex` 크기 기준 정점 버퍼 용량은 약 288 KiB입니다. 용량이 꽉 차면 Flush하고 다음 Batch를 시작합니다.
+- **Index Buffer 재사용:** 사각형마다 정점 4개와 인덱스 6개를 사용합니다. 최대 용량에 맞춘 인덱스를 한 번 생성해 재사용하며, Draw 시 현재 Sprite 수에 해당하는 인덱스만 소비합니다.
+- **Profiler 기준:** Sprite 수와 Draw Call 수는 큐에 넣은 시점이 아니라 실제 Batch 제출에 성공한 시점에 집계합니다. UI 패널의 자체 그리기는 게임 카운터에서 제외합니다.
+- **프레임 경계:** Scene 순회 직후와 UI 렌더링 직후에 각각 Flush하여 해당 렌더 시간 구간에 제출 비용이 포함되게 합니다.
+
+#### Render Queue와의 차이
+
+현재 Sprite Batch는 렌더 요청이 들어오는 순서대로 누적하고, 상태가 달라질 때 제출합니다. Render Queue를 추가하면 프레임의 요청을 먼저 모은 뒤 정렬해 같은 텍스처를 더 오래 묶을 수 있습니다. 다만 투명 Sprite는 앞뒤 순서에 따라 결과가 달라지므로 임의 재정렬이 화면을 바꿀 수 있습니다. 이후 달팽이와 플레이어를 번갈아 배치하는 테스트에서 텍스처 전환이 자주 일어나면, 순서를 지키는 현재 방식의 Batch 분할 한계를 측정한 뒤 안전한 정렬 조건을 따로 설계할 수 있습니다.
+
+#### 현재 측정 결과
+
+아래 비교판은 기존 Baseline과 Batch 적용 후를 같은 Sprite 수 기준으로 4행에 배치했습니다. 각 칸에서 Profiler 옆에 같은 캡처의 게임 화면 일부를 두어 측정값과 실제 렌더 장면을 함께 볼 수 있습니다. 수치는 스크린샷에서 옮겼으며, 기기 사양과 두 캡처의 빌드 조건은 확인되지 않았습니다. 상세 측정표와 원본은 [Profiler Baseline 문서](Docs/ProfilerBaseline.md)를 참고하세요.
+
+![1,000·5,000·10,000·50,000 Sprite의 Baseline 및 Sprite Batch Profiler 비교](Docs/Profiler/SpriteBatchComparison.png)
+
+| Sprite 수 | Draw Call 전 → 후 | Scene Render 전 → 후 | 관찰 |
+| ---: | ---: | ---: | --- |
+| 1,000 | 1,022 → 6 | 1.00 → 1.85 ms | 호출 수는 크게 줄었지만 Render 시간은 증가 |
+| 5,000 | 5,022 → 8 | 4.98 → 6.60 ms | 호출 수는 크게 줄었지만 Render 시간은 증가 |
+| 10,000 | 10,022 → 10 | 8.44 → 13.57 ms | FPS 36.1 → 30.0, Frame 27.73 → 33.35 ms |
+| 50,000 | 50,022 → 30 | 41.04 → 66.97 ms | FPS 7.1 → 6.0, Frame 140.21 → 166.11 ms |
+
+Draw Call은 약 99.4~99.9% 줄었지만 Scene Render는 네 구간 모두 증가했습니다. 따라서 이번 결과는 Draw Call 감소만으로 렌더링 전체 비용이 줄어드는 것은 아님을 보여줍니다. CPU 정점 생성·목록 추가·복사 경로, Flush 횟수 및 측정 환경 차이를 후속 조사 항목으로 남깁니다. VSync가 걸리는 구간에서는 FPS가 상한에 묶일 수 있으므로 Scene Render 시간과 Draw Call을 함께 비교해야 합니다.
 
 <a id="upcoming-sprint-work"></a>
-### 2. 다음 Sprint 작업
+### 3. 다음 Sprint 작업
 
 | 예정 작업 | 학습 및 검증 목표 | 상태 |
 | --- | --- | --- |
-| 09.25 Sprite Batch | Sprite별 Draw Call과 Batch 적용 후 비용 비교 | 예정 |
 | 09.26 Offscreen Render Target / Post Processing | RTV·SRV 흐름과 Fullscreen Pass 이해 | 예정 |
 | 09.27 HP Vignette | Gameplay 값을 Constant Buffer와 Pixel Shader로 전달 | 예정 |
 | 09.28 Thread Pool / Job Queue | mutex, condition_variable, Worker 종료 흐름 검증 | 예정 |

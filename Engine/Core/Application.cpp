@@ -320,12 +320,17 @@ void Application::Render()
 			renderer_.Draw(info);
 		}
 
+		// Scene의 마지막 묶음 제출도 Scene Render 측정에 포함한다.
+		renderer_.Flush();
+
 	}
 	{
 		// HUD와 Profiler는 같은 Renderer를 사용하되 Scene 비용과 별도로 잰다.
 		ProfileScope uiScope(profiler_, ProfileCategory::UIRender);
 		renderer_.Begin();
 		uiManager_.Render(renderer_);
+		// HUD와 Profiler의 마지막 묶음을 UI Render 구간 안에서 제출한다.
+		renderer_.Flush();
 	}
 
 	// BackBuffer 출력

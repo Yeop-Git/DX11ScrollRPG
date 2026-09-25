@@ -90,8 +90,9 @@ void GameWorld::CreateMonsters()
 
 void GameWorld::SetStressTestMonsterCount(std::size_t count)
 {
-	// UI 버튼에서 오는 고정 입력만 허용해 실수로 대량 생성되지 않게 한다.
-	if (count != 0 && count != 100 && count != 500 && count != 1000 && count != 5000)
+	// UI 버튼에서 사용하는 네 단계만 허용해 의도하지 않은 대량 생성을 막는다.
+	if (count != 0 && count != 1000 && count != 5000
+		&& count != 10000 && count != 50000)
 	{
 		return;
 	}
