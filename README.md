@@ -24,6 +24,7 @@ C++20과 DirectX 11로 개발한 2D 액션 게임 프로토타입. Win32 게임 
   1. [Profiler와 스트레스 테스트](#profiler-stress-test)
   2. [Sprite Batch](#sprite-batch)
   3. [Depth Test와 픽셀 처리량](#depth-test)
+  4. [Render Queue](#render-queue)
 - [빌드 및 실행](#build-and-run)
 - [프로젝트 구조](#project-structure)
 - [에셋 크레딧](#asset-credits)
@@ -240,6 +241,38 @@ Sprite별 Draw Call에서 발생하는 CPU 제출 비용을 줄이면서 기존 
 
 - 50,000 구간에서 Depth Test ON의 GPU 시간 약 85% 감소, Pixel Shader 호출 수 약 92% 감소
 - Render CPU 병목은 남아 있어 추가 최적화 필요
+
+<a id="render-queue"></a>
+### 4. Render Queue
+
+#### 개발 배경
+
+Player와 Monster 스프라이트 요청이 번갈아 들어오는 조건에서 연속 Batch만 사용할 때와 Queue로 텍스처별 요청을 모을 때의 Draw Call 및 CPU Render 비용을 비교.
+
+#### 구현 내용
+
+- 렌더 요청을 레이어와 텍스처 기준으로 모은 뒤, 레이어 순서에 따라 Queue를 제출
+- 같은 텍스처 묶음 안의 Sprite 순서는 유지하고, 깊이 테스트가 켜진 Cutout 요청만 같은 레이어 안에서 텍스처별로 모음
+- Queue 제출 시 기존 Sprite Batch를 사용하고, 투명 Sprite는 Queue 대상에서 제외
+- Player와 Monster Sprite를 교차 배치한 렌더 전용 스트레스 테스트 추가
+- Batch, Queue, Depth Test 및 테스트 패턴을 Profiler에서 전환
+- Profiler에 CPU와 GPU 측정값을 구분해 표시
+
+![Render Queue 적용 전후 비교. 왼쪽은 Queue OFF, 오른쪽은 Queue ON이며 노란 테두리는 Render, Queue, Draw Calls, GPU Time, PS 값을 표시한다. Profiler 화면은 원본 캡처에서 가져왔다.](Docs/Profiler/RenderQueue/RenderQueueComparison.png)
+
+| Sprite 수 | Draw Calls (OFF → ON) | Render / Queue CPU (ms, OFF → ON) | GPU Time (ms, OFF → ON) | PS Invocations (OFF → ON) |
+| ---: | ---: | ---: | ---: | ---: |
+| 1,000 | 1,002 → 4 | 16.64 / 0.00 → 2.53 / 2.51 | 0.49 → 0.13 | 168,860 → 168,860 |
+| 5,000 | 5,002 → 6 | 16.77 / 0.00 → 8.75 / 8.73 | 7.69 → 0.31 | 169,540 → 169,540 |
+| 10,000 | 10,002 → 8 | 32.84 / 0.00 → 16.73 / 16.71 | 17.46 → 0.12 | 1,695,120 → 1,695,120 |
+| 50,000 | 50,002 → 28 | 105.80 / 0.00 → 85.71 / 85.69 | 93.48 → 0.61 | 1,708,896 → 1,708,896 |
+
+#### 한계 및 개선점
+
+- Draw Calls는 크게 줄었지만, 50,000 Sprite에서 Render CPU 시간은 85.71 ms로 남음. Queue는 텍스처 상태 변경과 제출 횟수를 줄이며, Sprite별 정점 준비 비용은 여전히 발생.
+- Queue 시간은 요청 수집부터 Queue 제출까지의 구간으로 Render 시간에 포함. 두 값을 더해 전체 비용으로 해석하지 않음.
+- 측정에서 PS Invocations는 Queue 전후 동일. GPU Time 감소만으로 픽셀 처리량 감소를 판단할 수 없음.
+- 투명 Sprite는 순서 보존을 위해 Queue에서 제외. Depth Test를 끄면 요청 재정렬을 허용하지 않아 Queue 효과가 적용되지 않음.
 
 <a id="build-and-run"></a>
 ## 빌드 및 실행

@@ -12,13 +12,28 @@
 
 using namespace Microsoft::WRL;
 
+enum class StressTestMode
+{
+	MonsterEntities,
+	AlternatingSprites
+};
+
+struct StressTestRequest
+{
+	std::size_t count = 0;
+	StressTestMode mode = StressTestMode::MonsterEntities;
+};
+
 // Application이 매 프레임 UI에 전달하는 읽기 전용 화면 데이터다.
 struct UIFrameData
 {
 	int playerHp = 0;
 	bool playerDead = false;
-	std::size_t stressMonsterCount = 0;
+	std::size_t stressTestCount = 0;
+	StressTestMode selectedStressMode = StressTestMode::MonsterEntities;
 	bool depthTestEnabled = true;
+	bool batchingEnabled = true;
+	bool renderQueueEnabled = false;
 	bool gpuMetricsAvailable = false;
 	ProfileSnapshot profiler{};
 };
@@ -42,8 +57,11 @@ public:
 	void ToggleProfilerPanel();
 	bool IsProfilerVisible() const { return profilerVisible_; }
 	bool HandleMouseDown(int x, int y);
-	std::optional<std::size_t> TakeRequestedStressMonsterCount();
+	std::optional<StressTestRequest> TakeRequestedStressTest();
 	std::optional<bool> TakeRequestedDepthTestEnabled();
+	std::optional<bool> TakeRequestedBatchingEnabled();
+	std::optional<bool> TakeRequestedRenderQueueEnabled();
+	std::optional<StressTestMode> TakeRequestedStressMode();
 
 	// 프레임 상태를 저장하고 Profiler 표시 텍스처는 열린 동안만 0.5초마다 갱신한다.
 	void Update(float deltaTime, const UIFrameData& frameData);
@@ -71,8 +89,11 @@ private:
 	ComPtr<ID3D11ShaderResourceView> textTextureView_;
 
 	UIFrameData frameData_{};
-	std::optional<std::size_t> requestedStressMonsterCount_;
+	std::optional<StressTestRequest> requestedStressTest_;
 	std::optional<bool> requestedDepthTestEnabled_;
+	std::optional<bool> requestedBatchingEnabled_;
+	std::optional<bool> requestedRenderQueueEnabled_;
+	std::optional<StressTestMode> requestedStressMode_;
 	float profilerRefreshTimer_ = 0.0f;
 	bool profilerVisible_ = false;
 };

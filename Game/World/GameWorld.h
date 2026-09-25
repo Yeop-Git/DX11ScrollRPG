@@ -44,6 +44,8 @@ public :
 	// 지정한 수의 고정 배치 스트레스 Monster를 만들며 0은 테스트 종료다.
 	void SetStressTestMonsterCount(std::size_t count);
 	std::size_t GetStressTestMonsterCount() const { return stressMonsters_.size(); }
+	// 성능 테스트 중에는 충돌 측정은 유지하되 전투 피해와 피격 상태 변경을 막는다.
+	void SetCombatDamageEnabled(bool enabled) { combatDamageEnabled_ = enabled; }
 
 	// const reference로 push_back, clear 등으로 수정할 수 없도록
 	const std::vector<std::unique_ptr<GameObject>>& GetGameObjects() const
@@ -110,6 +112,7 @@ private:
 
 	// Player는 월드에 하나뿐인 객체임으로 특별 관리.
 	Player* player_ = nullptr;
+	bool combatDamageEnabled_ = true;
 
 	// Monster Pool
 	std::queue<Monster*> respawnQueue_;

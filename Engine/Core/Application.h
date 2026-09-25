@@ -5,6 +5,7 @@
 #include <wrl/client.h>
 #include <array>
 #include <chrono>
+#include <vector>
 
 #include "Profiler.h"
 #include "UIManager.h"
@@ -43,6 +44,9 @@ private:
 	void BeginGpuProfilerSample();
 	void EndGpuProfilerSample();
 	void UpdateUI(float deltaTime);
+	void RebuildRenderStressSprites(std::size_t spriteCount);
+	std::size_t GetActiveStressTestCount() const;
+	StressTestMode GetActiveStressTestMode() const;
 	float GetDeltaTime();
 
 private:
@@ -82,13 +86,20 @@ private:
 		ComPtr<ID3D11Query> pipelineStatistics;
 		bool pending = false;
 		bool depthTestEnabled = true;
+		bool batchingEnabled = true;
+		bool renderQueueEnabled = false;
 		std::size_t stressMonsterCount = 0;
+		std::size_t renderStressSpriteCount = 0;
+		StressTestMode stressTestMode = StressTestMode::MonsterEntities;
 	};
 	static constexpr std::size_t kGpuProfilerQueryCount = 4;
 	std::array<GpuProfilerQuerySet, kGpuProfilerQueryCount> gpuProfilerQueries_{};
 	std::size_t nextGpuProfilerQuery_ = 0;
 	GpuProfilerQuerySet* activeGpuProfilerQuery_ = nullptr;
 	bool gpuProfilerQueriesAvailable_ = false;
+	StressTestMode selectedStressMode_ = StressTestMode::MonsterEntities;
+	std::vector<RenderInfo> renderStressSprites_;
+	std::size_t renderStressSpriteCount_ = 0;
 
 	// GPU에 저장되는 geometry 데이터
 	ComPtr<ID3D11Buffer> vertexBuffer_;

@@ -17,6 +17,7 @@ enum class ProfileCategory : std::size_t
 	CombatCollision,
 	ItemCollision,
 	Render,
+	RenderQueue,
 	// 게임 HUD와 Profiler UI 렌더 시간을 Scene Render와 분리한다.
 	UIRender,
 	Present,

@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <chrono>
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -35,6 +36,14 @@ bool Renderer::Initialize(
 void Renderer::Draw(
 	const RenderInfo& info)
 {
+	Draw(info, 0, false);
+}
+
+void Renderer::Draw(
+	const RenderInfo& info,
+	std::size_t renderLayer,
+	bool reorderSafe)
+{
 	if (!info.visible)
 		return;
 
@@ -63,9 +72,44 @@ void Renderer::Draw(
 		halfSize.x = halfSize.y * spriteAspect * viewportSize_.y / viewportSize_.x;
 	}
 
+	const Vector2 position = info.position + info.offset;
+	if (collectQueue_
+		&& reorderSafe
+		&& renderQueueEnabled_
+		&& info.renderMode == SpriteRenderMode::Cutout)
+	{
+		const QueueKey key{ renderLayer, texture, info.renderMode, true };
+		auto bucket = queueLookup_.find(key);
+		if (bucket == queueLookup_.end())
+		{
+			const std::size_t bucketIndex = activeQueueBucketCount_++;
+			if (bucketIndex == queueBuckets_.size())
+			{
+				queueBuckets_.emplace_back();
+			}
+
+			QueueBucket& newBucket = queueBuckets_[bucketIndex];
+			newBucket.key = key;
+			newBucket.sprites.clear();
+			bucket = queueLookup_.emplace(key, bucketIndex).first;
+		}
+
+		QueuedSprite queued{};
+		queued.texture = texture;
+		queued.position = position;
+		queued.halfSize = halfSize;
+		queued.uvMin = { u0, 0.0f };
+		queued.uvMax = { u1, 1.0f };
+		queued.flipX = info.flipX;
+		queued.depth = info.depth;
+		queued.renderMode = info.renderMode;
+		queueBuckets_[bucket->second].sprites.push_back(queued);
+		return;
+	}
+
 	DrawSprite(
 		texture,
-		info.position + info.offset,
+		position,
 		halfSize,
 		{ u0, 0.0f },
 		{ u1, 1.0f },
@@ -119,6 +163,63 @@ void Renderer::DrawSprite(
 
 	batchVertices_.insert(batchVertices_.end(), vertices, vertices + 4);
 	++batchSpriteCount_;
+	if (!batchingEnabled_)
+	{
+		Flush();
+	}
+}
+
+void Renderer::FlushRenderQueue()
+{
+	if (activeQueueBucketCount_ == 0)
+	{
+		return;
+	}
+
+	// Bucket는 최초 등장 순서로 drain한다. 레이어 입력 순서와 버킷 내부 순서를 보존한다.
+	for (std::size_t bucketIndex = 0;
+		bucketIndex < activeQueueBucketCount_;
+		++bucketIndex)
+	{
+		const QueueBucket& bucket = queueBuckets_[bucketIndex];
+		for (const QueuedSprite& sprite : bucket.sprites)
+		{
+			DrawSprite(
+				sprite.texture,
+				sprite.position,
+				sprite.halfSize,
+				sprite.uvMin,
+				sprite.uvMax,
+				sprite.flipX,
+				sprite.color,
+				sprite.countForProfiler,
+				sprite.depth,
+				sprite.renderMode);
+		}
+	}
+	Flush();
+	if (profiler_ != nullptr)
+	{
+		profiler_->AddTime(
+			ProfileCategory::RenderQueue,
+			std::chrono::duration<double, std::milli>(
+				std::chrono::steady_clock::now() - queueStartTime_).count());
+	}
+	ClearRenderQueue();
+	if (collectQueue_)
+	{
+		queueStartTime_ = std::chrono::steady_clock::now();
+	}
+}
+
+void Renderer::ClearRenderQueue()
+{
+	queueLookup_.clear();
+	for (QueueBucket& bucket : queueBuckets_)
+	{
+		bucket.sprites.clear();
+	}
+	activeQueueBucketCount_ = 0;
 }
 
 void Renderer::Flush()
@@ -235,6 +336,8 @@ void Renderer::DrawSprite(
 bool Renderer::CreateGeometry()
 {
 	batchVertices_.reserve(kMaxSpritesPerBatch * 4);
+	queueBuckets_.reserve(16);
+	queueLookup_.reserve(16);
 
 	// CPU가 프레임마다 갱신하는 정점 버퍼는 최대 2,048 사각형을 수용한다.
 	D3D11_BUFFER_DESC vertexBufferDesc{};
@@ -479,12 +582,23 @@ bool Renderer::CreateSamplerState()
 
 void Renderer::Begin()
 {
-	Begin(depthBufferEnabled_);
+	Begin(depthBufferEnabled_, renderQueueEnabled_);
 }
 
 void Renderer::Begin(bool useDepthBuffer)
 {
+	Begin(useDepthBuffer, false);
+}
+
+void Renderer::Begin(bool useDepthBuffer, bool collectQueue)
+{
 	useDepthBuffer_ = useDepthBuffer;
+	collectQueue_ = collectQueue && renderQueueEnabled_;
+	if (collectQueue_)
+	{
+		ClearRenderQueue();
+		queueStartTime_ = std::chrono::steady_clock::now();
+	}
 	// Input Assembler 설정
 
 	UINT stride = sizeof(Vertex); // 다음 vertex 값을 읽기 위해서 이동하는 byte 수, 즉 sizeof(Vertex)

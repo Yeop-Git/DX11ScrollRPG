@@ -1,5 +1,6 @@
 #include "Application.h"
 #include <algorithm>
+#include <cmath>
 #include <cwchar>
 #include <windowsx.h>
 
@@ -125,10 +126,28 @@ int Application::Run()
 		Render();
 		profiler_.EndFrame();
 
-		if (const auto requestedCount = uiManager_.TakeRequestedStressMonsterCount())
+		if (const auto requestedTest = uiManager_.TakeRequestedStressTest())
 		{
-			// 버튼 요청은 프레임 완료 후 적용해 월드 재구성 시간을 샘플에서 제외한다.
-			gameWorld_.SetStressTestMonsterCount(*requestedCount);
+			// 버튼 요청은 프레임 완료 후 적용해 생성 비용이 측정값에 섞이지 않게 한다.
+			selectedStressMode_ = requestedTest->mode;
+			if (requestedTest->count == 0)
+			{
+				gameWorld_.SetStressTestMonsterCount(0);
+				renderStressSprites_.clear();
+				renderStressSpriteCount_ = 0;
+			}
+			else if (selectedStressMode_ == StressTestMode::MonsterEntities)
+			{
+				renderStressSprites_.clear();
+				renderStressSpriteCount_ = 0;
+				gameWorld_.SetStressTestMonsterCount(requestedTest->count);
+			}
+			else
+			{
+				gameWorld_.SetStressTestMonsterCount(0);
+				RebuildRenderStressSprites(requestedTest->count);
+			}
+			gameWorld_.SetCombatDamageEnabled(GetActiveStressTestCount() == 0);
 			profiler_.ResetHistory();
 		}
 		if (const auto requestedDepthTest = uiManager_.TakeRequestedDepthTestEnabled())
@@ -136,6 +155,20 @@ int Application::Run()
 			// 깊이 ON/OFF 측정 구간을 섞지 않도록 적용과 함께 Profiler 평균을 초기화한다.
 			renderer_.SetDepthBufferEnabled(*requestedDepthTest);
 			profiler_.ResetHistory();
+		}
+		if (const auto requestedBatching = uiManager_.TakeRequestedBatchingEnabled())
+		{
+			renderer_.SetBatchingEnabled(*requestedBatching);
+			profiler_.ResetHistory();
+		}
+		if (const auto requestedQueue = uiManager_.TakeRequestedRenderQueueEnabled())
+		{
+			renderer_.SetRenderQueueEnabled(*requestedQueue);
+			profiler_.ResetHistory();
+		}
+		if (const auto requestedMode = uiManager_.TakeRequestedStressMode())
+		{
+			selectedStressMode_ = *requestedMode;
 		}
 
 		UpdateUI(deltaTime);
@@ -342,19 +375,23 @@ void Application::Render()
 		{
 			BeginGpuProfilerSample();
 		}
-		renderer_.Begin();
+		renderer_.Begin(renderer_.IsDepthBufferEnabled(), renderer_.IsRenderQueueEnabled());
 
 		const auto& renderLayers = gameWorld_.GetRenderLayers();
-		const auto drawLayer = [this](const auto& layer, bool reverse)
+		const auto drawLayer = [this](
+			const auto& layer,
+			bool reverse,
+			std::size_t layerIndex,
+			bool reorderSafe)
 		{
-			auto drawObject = [this](const RenderObject& renderObject)
+			auto drawObject = [this, layerIndex, reorderSafe](const RenderObject& renderObject)
 			{
 				if (renderObject.object == nullptr || !renderObject.object->IsActive()) return;
 
 				RenderInfo info = renderObject.object->GetRenderInfo();
 				if (!info.visible) return;
 				info.depth = renderObject.depth;
-				renderer_.Draw(info);
+				renderer_.Draw(info, layerIndex, reorderSafe);
 			};
 
 			if (reverse)
@@ -373,23 +410,49 @@ void Application::Render()
 			}
 		};
 
-		if (renderer_.IsDepthBufferEnabled())
+		if (renderStressSpriteCount_ > 0)
+		{
+			const std::size_t backgroundLayer = static_cast<std::size_t>(RenderLayer::Background);
+			drawLayer(renderLayers[backgroundLayer], false, backgroundLayer,
+				renderer_.IsDepthBufferEnabled());
+			const std::size_t stressLayer = static_cast<std::size_t>(RenderLayer::Count);
+			for (const RenderInfo& sprite : renderStressSprites_)
+			{
+				renderer_.Draw(sprite, stressLayer, true);
+			}
+		}
+		else if (renderer_.IsDepthBufferEnabled())
 		{
 			// 깊이 테스트를 쓸 때는 가까운 우선순위부터 그려 불필요한 픽셀 작업을 막는다.
-			for (const auto& layer : renderLayers)
+			for (std::size_t layerIndex = 0; layerIndex < renderLayers.size(); ++layerIndex)
 			{
-				drawLayer(layer, false);
+				if (layerIndex == static_cast<std::size_t>(RenderLayer::TransparentItem))
+				{
+					// 투명 요청은 고정 순서가 필요하므로 불투명 Queue를 먼저 제출한다.
+					renderer_.FlushRenderQueue();
+					drawLayer(renderLayers[layerIndex], false, layerIndex, false);
+				}
+				else
+				{
+					drawLayer(renderLayers[layerIndex], false, layerIndex, true);
+				}
 			}
 		}
 		else
 		{
 			// 깊이 테스트가 없을 때는 같은 깊이 우선순위가 되도록 먼 항목부터 덮어 그린다.
-			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Background)], false);
-			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Environment)], true);
-			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::TransparentItem)], false);
-			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Monster)], true);
-			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Player)], true);
+			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Background)], false,
+				static_cast<std::size_t>(RenderLayer::Background), false);
+			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Environment)], true,
+				static_cast<std::size_t>(RenderLayer::Environment), false);
+			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::TransparentItem)], false,
+				static_cast<std::size_t>(RenderLayer::TransparentItem), false);
+			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Monster)], true,
+				static_cast<std::size_t>(RenderLayer::Monster), false);
+			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Player)], true,
+				static_cast<std::size_t>(RenderLayer::Player), false);
 		}
+		renderer_.FlushRenderQueue();
 
 		// Scene의 마지막 묶음 제출도 Scene Render 측정에 포함한다.
 		renderer_.Flush();
@@ -531,7 +594,11 @@ void Application::CollectGpuProfilerSamples()
 
 		// 설정 변경 직전에 제출된 샘플은 새 평균에 섞지 않는다.
 		if (querySet.depthTestEnabled != renderer_.IsDepthBufferEnabled()
-			|| querySet.stressMonsterCount != gameWorld_.GetStressTestMonsterCount())
+			|| querySet.batchingEnabled != renderer_.IsBatchingEnabled()
+			|| querySet.renderQueueEnabled != renderer_.IsRenderQueueEnabled()
+			|| querySet.stressMonsterCount != gameWorld_.GetStressTestMonsterCount()
+			|| querySet.renderStressSpriteCount != renderStressSpriteCount_
+			|| querySet.stressTestMode != GetActiveStressTestMode())
 		{
 			continue;
 		}
@@ -563,7 +630,11 @@ void Application::BeginGpuProfilerSample()
 
 		querySet.pending = true;
 		querySet.depthTestEnabled = renderer_.IsDepthBufferEnabled();
+		querySet.batchingEnabled = renderer_.IsBatchingEnabled();
+		querySet.renderQueueEnabled = renderer_.IsRenderQueueEnabled();
 		querySet.stressMonsterCount = gameWorld_.GetStressTestMonsterCount();
+		querySet.renderStressSpriteCount = renderStressSpriteCount_;
+		querySet.stressTestMode = GetActiveStressTestMode();
 		activeGpuProfilerQuery_ = &querySet;
 		nextGpuProfilerQuery_ = (index + 1) % gpuProfilerQueries_.size();
 		context_->Begin(querySet.disjoint.Get());
@@ -600,9 +671,62 @@ void Application::UpdateUI(float deltaTime)
 		frameData.playerHp = player->GetHP();
 		frameData.playerDead = player->IsDead();
 	}
-	frameData.stressMonsterCount = gameWorld_.GetStressTestMonsterCount();
+	frameData.stressTestCount = GetActiveStressTestCount();
+	frameData.selectedStressMode = selectedStressMode_;
 	frameData.depthTestEnabled = renderer_.IsDepthBufferEnabled();
+	frameData.batchingEnabled = renderer_.IsBatchingEnabled();
+	frameData.renderQueueEnabled = renderer_.IsRenderQueueEnabled();
 	frameData.gpuMetricsAvailable = gpuProfilerQueriesAvailable_;
 	frameData.profiler = profiler_.GetAverage();
 	uiManager_.Update(deltaTime, frameData);
+}
+
+void Application::RebuildRenderStressSprites(std::size_t spriteCount)
+{
+	renderStressSprites_.clear();
+	renderStressSprites_.reserve(spriteCount);
+	renderStressSpriteCount_ = spriteCount;
+	if (spriteCount == 0)
+	{
+		return;
+	}
+
+	// 균일한 비중첩 Grid로 Update/Collision을 거치지 않는 렌더 전용 부하를 만든다.
+	const float aspect = kWindowSize.x / kWindowSize.y;
+	const std::size_t columns = static_cast<std::size_t>(std::ceil(
+		std::sqrt(static_cast<double>(spriteCount) * aspect)));
+	const std::size_t rows = (spriteCount + columns - 1) / columns;
+	const float cellWidth = 2.0f / static_cast<float>(columns);
+	const float cellHeight = 2.0f / static_cast<float>(rows);
+	for (std::size_t index = 0; index < spriteCount; ++index)
+	{
+		RenderInfo info{};
+		info.spriteId = index % 2 == 0 ? SpriteId::PlayerIdle : SpriteId::MonsterIdle;
+		info.position = {
+			-1.0f + (static_cast<float>(index % columns) + 0.5f) * cellWidth,
+			1.0f - (static_cast<float>(index / columns) + 0.5f) * cellHeight
+		};
+		info.renderHalfSize = { cellWidth * 0.46f, cellHeight * 0.46f };
+		info.frameCount = 4;
+		info.frameSizePixels = index % 2 == 0
+			? Vector2{ 64.0f, 80.0f }
+			: Vector2{ 48.0f, 32.0f };
+		info.depth = 0.5f;
+		info.renderMode = SpriteRenderMode::Cutout;
+		renderStressSprites_.push_back(info);
+	}
+}
+
+std::size_t Application::GetActiveStressTestCount() const
+{
+	return renderStressSpriteCount_ > 0
+		? renderStressSpriteCount_
+		: gameWorld_.GetStressTestMonsterCount();
+}
+
+StressTestMode Application::GetActiveStressTestMode() const
+{
+	return renderStressSpriteCount_ > 0
+		? StressTestMode::AlternatingSprites
+		: StressTestMode::MonsterEntities;
 }

@@ -385,7 +385,7 @@ void GameWorld::UpdateCombat(Profiler& profiler)
 		const AABB monsterBody = monster->collider.GetBounds(monster->transform);
 
 		// Player -> Monster
-		if (player_->CanRegisterAttackHit())
+		if (combatDamageEnabled_ && player_->CanRegisterAttackHit())
 		{
 			// 공격 HitBox가 실제 검사 대상이 된 경우에만 검사 수를 올린다.
 			profiler.Increment(ProfileCounter::CollisionChecks);
@@ -400,7 +400,7 @@ void GameWorld::UpdateCombat(Profiler& profiler)
 		// Monster -> Player
 		// 활성 Monster의 몸체와 Player 몸체 간 실제 검사 횟수다.
 		profiler.Increment(ProfileCounter::CollisionChecks);
-		if (Intersects(playerBody, monsterBody))
+		if (Intersects(playerBody, monsterBody) && combatDamageEnabled_)
 		{
 			player_->TakeDamage(1, monster->transform.position.x);
 		}

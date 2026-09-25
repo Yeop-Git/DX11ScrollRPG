@@ -11,20 +11,18 @@ namespace
 	constexpr int kProfilerX = 20;
 	constexpr int kProfilerY = 20;
 	constexpr int kProfilerWidth = 500;
-	constexpr int kProfilerHeight = 250;
+	constexpr int kProfilerHeight = 350;
 	constexpr float kProfilerRefreshSeconds = 0.5f;
-	constexpr UIPixelRect kDepthTestCheckbox
-	{
-		kProfilerX + 16,
-		kProfilerY + 130,
-		150,
-		22
-	};
+	constexpr UIPixelRect kBatchCheckbox{ kProfilerX + 16, kProfilerY + 226, 96, 22 };
+	constexpr UIPixelRect kQueueCheckbox{ kProfilerX + 112, kProfilerY + 226, 106, 22 };
+	constexpr UIPixelRect kDepthTestCheckbox{ kProfilerX + 218, kProfilerY + 226, 150, 22 };
+	constexpr UIPixelRect kMonsterModeButton{ kProfilerX + 16, kProfilerY + 254, 210, 26 };
+	constexpr UIPixelRect kRenderModeButton{ kProfilerX + 236, kProfilerY + 254, 226, 26 };
 
 	struct ProfilerButton
 	{
 		UIPixelRect bounds;
-		std::size_t stressMonsterCount;
+		std::size_t stressTestCount;
 		const wchar_t* label;
 		RendererColor color;
 	};
@@ -33,31 +31,31 @@ namespace
 	constexpr ProfilerButton kProfilerButtons[] =
 	{
 		{
-			{ kProfilerX + 16, kProfilerY + 198, 72, 30 },
+			{ kProfilerX + 16, kProfilerY + 290, 72, 30 },
 			1000,
 			L"1000",
 			{ 0.12f, 0.27f, 0.43f, 1.0f }
 		},
 		{
-			{ kProfilerX + 96, kProfilerY + 198, 72, 30 },
+			{ kProfilerX + 96, kProfilerY + 290, 72, 30 },
 			5000,
 			L"5000",
 			{ 0.12f, 0.27f, 0.43f, 1.0f }
 		},
 		{
-			{ kProfilerX + 176, kProfilerY + 198, 72, 30 },
+			{ kProfilerX + 176, kProfilerY + 290, 72, 30 },
 			10000,
 			L"10000",
 			{ 0.12f, 0.27f, 0.43f, 1.0f }
 		},
 		{
-			{ kProfilerX + 256, kProfilerY + 198, 72, 30 },
+			{ kProfilerX + 256, kProfilerY + 290, 72, 30 },
 			50000,
 			L"50000",
 			{ 0.12f, 0.27f, 0.43f, 1.0f }
 		},
 		{
-			{ kProfilerX + 342, kProfilerY + 198, 120, 30 },
+			{ kProfilerX + 342, kProfilerY + 290, 120, 30 },
 			0,
 			L"Stop Test",
 			{ 0.48f, 0.16f, 0.17f, 1.0f }
@@ -146,7 +144,10 @@ bool UIManager::HandleMouseDown(int x, int y)
 		}
 
 		// Application이 프레임 측정을 마친 뒤 이 요청을 한 번 소비한다.
-		requestedStressMonsterCount_ = button.stressMonsterCount;
+		requestedStressTest_ = StressTestRequest{
+			button.stressTestCount,
+			frameData_.selectedStressMode
+		};
 		return true;
 	}
 
@@ -158,15 +159,57 @@ bool UIManager::HandleMouseDown(int x, int y)
 		requestedDepthTestEnabled_ = !currentValue;
 		return true;
 	}
+	if (Contains(kBatchCheckbox, x, y))
+	{
+		requestedBatchingEnabled_ = !requestedBatchingEnabled_.value_or(
+			frameData_.batchingEnabled);
+		return true;
+	}
+	if (Contains(kQueueCheckbox, x, y))
+	{
+		requestedRenderQueueEnabled_ = !requestedRenderQueueEnabled_.value_or(
+			frameData_.renderQueueEnabled);
+		return true;
+	}
+	if (Contains(kMonsterModeButton, x, y))
+	{
+		requestedStressMode_ = StressTestMode::MonsterEntities;
+		return true;
+	}
+	if (Contains(kRenderModeButton, x, y))
+	{
+		requestedStressMode_ = StressTestMode::AlternatingSprites;
+		return true;
+	}
 
 	return false;
 }
 
-std::optional<std::size_t> UIManager::TakeRequestedStressMonsterCount()
+std::optional<StressTestRequest> UIManager::TakeRequestedStressTest()
 {
-	// 요청을 한 번만 소비해 같은 버튼 조작이 여러 프레임 실행되지 않게 한다.
-	const auto request = requestedStressMonsterCount_;
-	requestedStressMonsterCount_.reset();
+	const auto request = requestedStressTest_;
+	requestedStressTest_.reset();
+	return request;
+}
+
+std::optional<bool> UIManager::TakeRequestedBatchingEnabled()
+{
+	const auto request = requestedBatchingEnabled_;
+	requestedBatchingEnabled_.reset();
+	return request;
+}
+
+std::optional<bool> UIManager::TakeRequestedRenderQueueEnabled()
+{
+	const auto request = requestedRenderQueueEnabled_;
+	requestedRenderQueueEnabled_.reset();
+	return request;
+}
+
+std::optional<StressTestMode> UIManager::TakeRequestedStressMode()
+{
+	const auto request = requestedStressMode_;
+	requestedStressMode_.reset();
 	return request;
 }
 
@@ -180,9 +223,13 @@ std::optional<bool> UIManager::TakeRequestedDepthTestEnabled()
 void UIManager::Update(float deltaTime, const UIFrameData& frameData)
 {
 	const bool stressCountChanged =
-		frameData_.stressMonsterCount != frameData.stressMonsterCount;
+		frameData_.stressTestCount != frameData.stressTestCount;
 	const bool depthStateChanged =
 		frameData_.depthTestEnabled != frameData.depthTestEnabled;
+	const bool rendererStateChanged =
+		frameData_.batchingEnabled != frameData.batchingEnabled
+		|| frameData_.renderQueueEnabled != frameData.renderQueueEnabled;
+	const bool modeChanged = frameData_.selectedStressMode != frameData.selectedStressMode;
 	frameData_ = frameData;
 
 	if (!profilerVisible_)
@@ -192,7 +239,7 @@ void UIManager::Update(float deltaTime, const UIFrameData& frameData)
 	}
 
 	profilerRefreshTimer_ += deltaTime;
-	if (!stressCountChanged
+	if (!stressCountChanged && !rendererStateChanged && !modeChanged
 		&& !depthStateChanged
 		&& profilerRefreshTimer_ < kProfilerRefreshSeconds)
 	{
@@ -334,7 +381,6 @@ bool UIManager::DrawProfilerText(HDC memoryDc) const
 		{
 			DeleteObject(titleFont);
 		}
-
 		return false;
 	}
 
@@ -370,6 +416,13 @@ bool UIManager::DrawProfilerText(HDC memoryDc) const
 			DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 	}
 
+	RECT monsterModeRect{ 16, 254, 226, 280 };
+	DrawTextW(memoryDc, L"Monster Entity Test", -1, &monsterModeRect,
+		DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+	RECT renderModeRect{ 236, 254, 462, 280 };
+	DrawTextW(memoryDc, L"Player-Monster Render Test", -1, &renderModeRect,
+		DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+
 	SelectObject(memoryDc, previousFont);
 	DeleteObject(bodyFont);
 	DeleteObject(titleFont);
@@ -387,7 +440,7 @@ void UIManager::DrawProfilerStats(HDC memoryDc) const
 	{
 		swprintf_s(
 			gpuStats,
-			L"GPU %6.2f ms  PS %9.0f",
+			L"Time %6.2f ms  PS %9.0f",
 			frameData_.profiler.averageGpuMilliseconds,
 			frameData_.profiler.averagePixelShaderInvocations);
 	}
@@ -400,15 +453,33 @@ void UIManager::DrawProfilerStats(HDC memoryDc) const
 				: L"GPU queries unavailable");
 	}
 
-	wchar_t stats[640]{};
+	// 측정 단위가 다른 값은 CPU/GPU 제목과 별도 영역으로 나누어 표시한다.
+	HFONT sectionFont = CreateProfilerFont(13, FW_BOLD, L"Segoe UI");
+	if (sectionFont != nullptr)
+	{
+		HGDIOBJ previousFont = SelectObject(memoryDc, sectionFont);
+		SetTextColor(memoryDc, RGB(123, 190, 255));
+		RECT cpuHeader{ 16, 39, kProfilerWidth - 16, 57 };
+		DrawTextW(memoryDc, L"CPU", -1, &cpuHeader,
+			DT_LEFT | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
+
+		SetTextColor(memoryDc, RGB(133, 224, 180));
+		RECT gpuHeader{ 16, 151, kProfilerWidth - 16, 169 };
+		DrawTextW(memoryDc, L"GPU", -1, &gpuHeader,
+			DT_LEFT | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
+		SelectObject(memoryDc, previousFont);
+		DeleteObject(sectionFont);
+	}
+
+	SetTextColor(memoryDc, RGB(255, 255, 255));
+	wchar_t cpuStats[640]{};
 	swprintf_s(
-		stats,
+		cpuStats,
 		L"FPS %5.1f  Frame %6.2f ms  Present %6.2f ms\n"
 		L"Update %6.2f ms  Physics %6.2f ms  Collision %6.2f ms\n"
-		L"Render %6.2f ms  UI %6.2f ms\n"
+		L"Render %6.2f ms  Queue %5.2f ms  UI %5.2f ms\n"
 		L"Entities %5.0f  Sprites %5.0f  Draw Calls %5.0f\n"
-		L"AABB Checks %7.0f  Stress Overlaps %5.0f\n"
-		L"Depth Test [%ls]  %ls",
+		L"AABB Checks %7.0f  Stress Overlaps %5.0f",
 		frameData_.profiler.GetAverageFPS(),
 		frameData_.profiler.GetMilliseconds(ProfileCategory::Frame),
 		frameData_.profiler.GetMilliseconds(ProfileCategory::Present),
@@ -416,22 +487,42 @@ void UIManager::DrawProfilerStats(HDC memoryDc) const
 		frameData_.profiler.GetMilliseconds(ProfileCategory::Physics),
 		collisionMilliseconds,
 		frameData_.profiler.GetMilliseconds(ProfileCategory::Render),
+		frameData_.profiler.GetMilliseconds(ProfileCategory::RenderQueue),
 		frameData_.profiler.GetMilliseconds(ProfileCategory::UIRender),
 		frameData_.profiler.GetCounter(ProfileCounter::ActiveEntities),
 		frameData_.profiler.GetCounter(ProfileCounter::SpriteDraws),
 		frameData_.profiler.GetCounter(ProfileCounter::DrawCalls),
 		frameData_.profiler.GetCounter(ProfileCounter::CollisionChecks),
-		frameData_.profiler.GetCounter(ProfileCounter::StressCollisionOverlaps),
-		frameData_.depthTestEnabled ? L"X" : L" ",
-		gpuStats);
+		frameData_.profiler.GetCounter(ProfileCounter::StressCollisionOverlaps));
 
-	RECT statsRect{ 16, 42, kProfilerWidth - 16, 180 };
+	RECT statsRect{ 16, 58, kProfilerWidth - 16, 148 };
 	DrawTextW(
 		memoryDc,
-		stats,
+		cpuStats,
 		-1,
 		&statsRect,
 		DT_LEFT | DT_TOP | DT_NOPREFIX);
+
+	RECT gpuStatsRect{ 16, 171, kProfilerWidth - 16, 193 };
+	DrawTextW(
+		memoryDc,
+		gpuStats,
+		-1,
+		&gpuStatsRect,
+		DT_LEFT | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
+
+	wchar_t rendererToggleText[160]{};
+	swprintf_s(rendererToggleText, L"Batch [%ls]   Queue [%ls]   Depth [%ls]",
+		frameData_.batchingEnabled ? L"X" : L" ",
+		frameData_.renderQueueEnabled ? L"X" : L" ",
+		frameData_.depthTestEnabled ? L"X" : L" ");
+	RECT depthTestRect{ 16, 226, 462, 248 };
+	DrawTextW(
+		memoryDc,
+		rendererToggleText,
+		-1,
+		&depthTestRect,
+		DT_LEFT | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
 }
 
 bool UIManager::UploadTextPixels(const void* pixels)
@@ -523,6 +614,24 @@ void UIManager::DrawProfilerPanel(Renderer& renderer) const
 		ToClipHalfSize(panel),
 		{ 0.035f, 0.045f, 0.07f, 0.94f });
 
+	// 구분색과 낮은 대비의 배경으로 CPU/GPU 측정 영역을 나눈다.
+	const UIPixelRect cpuSection{ kProfilerX + 10, kProfilerY + 36, 480, 112 };
+	const UIPixelRect gpuSection{ kProfilerX + 10, kProfilerY + 148, 480, 78 };
+	const UIPixelRect cpuAccent{ cpuSection.x, cpuSection.y, 3, cpuSection.height };
+	const UIPixelRect gpuAccent{ gpuSection.x, gpuSection.y, 3, gpuSection.height };
+	renderer.DrawUIRect(
+		ToClipCenter(cpuSection), ToClipHalfSize(cpuSection),
+		{ 0.055f, 0.075f, 0.11f, 0.92f });
+	renderer.DrawUIRect(
+		ToClipCenter(gpuSection), ToClipHalfSize(gpuSection),
+		{ 0.055f, 0.09f, 0.085f, 0.92f });
+	renderer.DrawUIRect(
+		ToClipCenter(cpuAccent), ToClipHalfSize(cpuAccent),
+		{ 0.28f, 0.58f, 0.95f, 1.0f });
+	renderer.DrawUIRect(
+		ToClipCenter(gpuAccent), ToClipHalfSize(gpuAccent),
+		{ 0.30f, 0.78f, 0.56f, 1.0f });
+
 	for (const ProfilerButton& button : kProfilerButtons)
 	{
 		renderer.DrawUIRect(
@@ -530,6 +639,19 @@ void UIManager::DrawProfilerPanel(Renderer& renderer) const
 			ToClipHalfSize(button.bounds),
 			button.color);
 	}
+	const auto drawModeButton = [this, &renderer](
+		const UIPixelRect& modeButton,
+		StressTestMode mode)
+	{
+		const RendererColor selectedColor{ 0.16f, 0.38f, 0.56f, 1.0f };
+		const RendererColor idleColor{ 0.10f, 0.20f, 0.30f, 1.0f };
+		const bool selected = frameData_.selectedStressMode == mode;
+		renderer.DrawUIRect(
+			ToClipCenter(modeButton), ToClipHalfSize(modeButton),
+			selected ? selectedColor : idleColor);
+	};
+	drawModeButton(kMonsterModeButton, StressTestMode::MonsterEntities);
+	drawModeButton(kRenderModeButton, StressTestMode::AlternatingSprites);
 
 	// 글자 텍스처 출력도 Renderer 경로를 사용한다.
 	renderer.DrawUITexture(
