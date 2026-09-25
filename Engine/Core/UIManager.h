@@ -18,6 +18,8 @@ struct UIFrameData
 	int playerHp = 0;
 	bool playerDead = false;
 	std::size_t stressMonsterCount = 0;
+	bool depthTestEnabled = true;
+	bool gpuMetricsAvailable = false;
 	ProfileSnapshot profiler{};
 };
 
@@ -38,8 +40,10 @@ public:
 
 	// WindowProc에서 전달받아 패널을 토글하거나 Profiler 버튼 요청을 저장한다.
 	void ToggleProfilerPanel();
+	bool IsProfilerVisible() const { return profilerVisible_; }
 	bool HandleMouseDown(int x, int y);
 	std::optional<std::size_t> TakeRequestedStressMonsterCount();
+	std::optional<bool> TakeRequestedDepthTestEnabled();
 
 	// 프레임 상태를 저장하고 Profiler 표시 텍스처는 열린 동안만 0.5초마다 갱신한다.
 	void Update(float deltaTime, const UIFrameData& frameData);
@@ -68,6 +72,7 @@ private:
 
 	UIFrameData frameData_{};
 	std::optional<std::size_t> requestedStressMonsterCount_;
+	std::optional<bool> requestedDepthTestEnabled_;
 	float profilerRefreshTimer_ = 0.0f;
 	bool profilerVisible_ = false;
 };

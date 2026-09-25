@@ -16,6 +16,7 @@ void WorldItem::Spawn(Vector2 position)
 RenderInfo WorldItem::GetRenderInfo() const
 {
 	RenderInfo info;
+	info.renderMode = SpriteRenderMode::AlphaBlend;
 
 	info.position = transform.position;
 	info.renderHalfSize = { 0.0f,0.1f };

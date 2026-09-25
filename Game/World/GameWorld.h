@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <array>
 #include <queue>
 #include <cstddef>
 #include <unordered_set>
@@ -14,6 +15,22 @@ class Player;
 class Monster;
 class Ground;
 class WorldItem;
+
+enum class RenderLayer : std::size_t
+{
+	Player,
+	Monster,
+	Environment,
+	Background,
+	TransparentItem,
+	Count
+};
+
+struct RenderObject
+{
+	GameObject* object = nullptr;
+	float depth = 1.0f;
+};
 
 class GameWorld
 {
@@ -34,6 +51,9 @@ public :
 		return gameObjects_;
 	}
 
+	const std::array<std::vector<RenderObject>, static_cast<std::size_t>(RenderLayer::Count)>&
+	GetRenderLayers() const { return renderLayers_; }
+
 	const std::vector<Entity*>& GetEntities() const
 	{
 		return entities_;
@@ -52,6 +72,8 @@ private:
 	void CreateItems();
 	void CreateStressTestMonsters(std::size_t count);
 	void ClearStressTestMonsters();
+	GameObject* AddGameObject(std::unique_ptr<GameObject> object, RenderLayer layer);
+	void RemoveRenderObjects(const std::unordered_set<const GameObject*>& objects);
 
 	void UpdateEntities(float deltaTime, Profiler& profiler);
 	void UpdatePhysics(float deltaTime, Profiler& profiler);
@@ -75,6 +97,8 @@ private:
 
 private:
 	std::vector<std::unique_ptr<GameObject>> gameObjects_;
+	// 비소유 렌더 목록은 고정 레이어 순으로 나뉘며 프레임마다 정렬하지 않는다.
+	std::array<std::vector<RenderObject>, static_cast<std::size_t>(RenderLayer::Count)> renderLayers_;
 	std::vector<Entity*> entities_;
 	std::vector<Monster*> monsters_;
 	// 일반 Monster의 Unlock / Respawn 풀과 분리한 비소유 스트레스 참조.

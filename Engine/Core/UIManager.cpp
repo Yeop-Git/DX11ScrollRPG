@@ -13,6 +13,13 @@ namespace
 	constexpr int kProfilerWidth = 500;
 	constexpr int kProfilerHeight = 250;
 	constexpr float kProfilerRefreshSeconds = 0.5f;
+	constexpr UIPixelRect kDepthTestCheckbox
+	{
+		kProfilerX + 16,
+		kProfilerY + 130,
+		150,
+		22
+	};
 
 	struct ProfilerButton
 	{
@@ -143,6 +150,15 @@ bool UIManager::HandleMouseDown(int x, int y)
 		return true;
 	}
 
+	if (Contains(kDepthTestCheckbox, x, y))
+	{
+		// 설정 적용은 현재 렌더 패스가 끝난 뒤 Application이 수행한다.
+		const bool currentValue = requestedDepthTestEnabled_.value_or(
+			frameData_.depthTestEnabled);
+		requestedDepthTestEnabled_ = !currentValue;
+		return true;
+	}
+
 	return false;
 }
 
@@ -154,10 +170,19 @@ std::optional<std::size_t> UIManager::TakeRequestedStressMonsterCount()
 	return request;
 }
 
+std::optional<bool> UIManager::TakeRequestedDepthTestEnabled()
+{
+	const auto request = requestedDepthTestEnabled_;
+	requestedDepthTestEnabled_.reset();
+	return request;
+}
+
 void UIManager::Update(float deltaTime, const UIFrameData& frameData)
 {
 	const bool stressCountChanged =
 		frameData_.stressMonsterCount != frameData.stressMonsterCount;
+	const bool depthStateChanged =
+		frameData_.depthTestEnabled != frameData.depthTestEnabled;
 	frameData_ = frameData;
 
 	if (!profilerVisible_)
@@ -167,7 +192,9 @@ void UIManager::Update(float deltaTime, const UIFrameData& frameData)
 	}
 
 	profilerRefreshTimer_ += deltaTime;
-	if (!stressCountChanged && profilerRefreshTimer_ < kProfilerRefreshSeconds)
+	if (!stressCountChanged
+		&& !depthStateChanged
+		&& profilerRefreshTimer_ < kProfilerRefreshSeconds)
 	{
 		return;
 	}
@@ -183,6 +210,7 @@ void UIManager::Render(Renderer& renderer) const
 	{
 		RenderInfo heart;
 		heart.spriteId = SpriteId::Heart;
+		heart.renderMode = SpriteRenderMode::AlphaBlend;
 		heart.position = { -0.9f + heartIndex * 0.1f, 0.88f };
 		heart.frameSizePixels = { 1254.0f, 1254.0f };
 		heart.renderHalfSize = { 0.0f, 0.08f };
@@ -193,6 +221,7 @@ void UIManager::Render(Renderer& renderer) const
 	{
 		RenderInfo gameOver;
 		gameOver.spriteId = SpriteId::GameOver;
+		gameOver.renderMode = SpriteRenderMode::AlphaBlend;
 		gameOver.position = { 0.0f, 0.1f };
 		gameOver.frameSizePixels = { 1921.0f, 819.0f };
 		gameOver.renderHalfSize = { 0.0f, 0.2f };
@@ -353,15 +382,33 @@ void UIManager::DrawProfilerStats(HDC memoryDc) const
 		frameData_.profiler.GetMilliseconds(ProfileCategory::GroundCollision)
 		+ frameData_.profiler.GetMilliseconds(ProfileCategory::CombatCollision)
 		+ frameData_.profiler.GetMilliseconds(ProfileCategory::ItemCollision);
+	wchar_t gpuStats[128]{};
+	if (frameData_.profiler.hasGpuSamples)
+	{
+		swprintf_s(
+			gpuStats,
+			L"GPU %6.2f ms  PS %9.0f",
+			frameData_.profiler.averageGpuMilliseconds,
+			frameData_.profiler.averagePixelShaderInvocations);
+	}
+	else
+	{
+		wcscpy_s(
+			gpuStats,
+			frameData_.gpuMetricsAvailable
+				? L"GPU waiting for samples..."
+				: L"GPU queries unavailable");
+	}
 
-	wchar_t stats[512]{};
+	wchar_t stats[640]{};
 	swprintf_s(
 		stats,
 		L"FPS %5.1f  Frame %6.2f ms  Present %6.2f ms\n"
 		L"Update %6.2f ms  Physics %6.2f ms  Collision %6.2f ms\n"
 		L"Render %6.2f ms  UI %6.2f ms\n"
 		L"Entities %5.0f  Sprites %5.0f  Draw Calls %5.0f\n"
-		L"AABB Checks %7.0f  Stress Overlaps %5.0f",
+		L"AABB Checks %7.0f  Stress Overlaps %5.0f\n"
+		L"Depth Test [%ls]  %ls",
 		frameData_.profiler.GetAverageFPS(),
 		frameData_.profiler.GetMilliseconds(ProfileCategory::Frame),
 		frameData_.profiler.GetMilliseconds(ProfileCategory::Present),
@@ -374,9 +421,11 @@ void UIManager::DrawProfilerStats(HDC memoryDc) const
 		frameData_.profiler.GetCounter(ProfileCounter::SpriteDraws),
 		frameData_.profiler.GetCounter(ProfileCounter::DrawCalls),
 		frameData_.profiler.GetCounter(ProfileCounter::CollisionChecks),
-		frameData_.profiler.GetCounter(ProfileCounter::StressCollisionOverlaps));
+		frameData_.profiler.GetCounter(ProfileCounter::StressCollisionOverlaps),
+		frameData_.depthTestEnabled ? L"X" : L" ",
+		gpuStats);
 
-	RECT statsRect{ 16, 42, kProfilerWidth - 16, 158 };
+	RECT statsRect{ 16, 42, kProfilerWidth - 16, 180 };
 	DrawTextW(
 		memoryDc,
 		stats,

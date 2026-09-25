@@ -36,6 +36,9 @@ public:
 
 	void Draw(const RenderInfo& info);
 	void Begin();
+	void Begin(bool useDepthBuffer);
+	void SetDepthBufferEnabled(bool enabled) { depthBufferEnabled_ = enabled; }
+	bool IsDepthBufferEnabled() const { return depthBufferEnabled_; }
 	// 현재 모인 Sprite 정점을 GPU에 제출하고 CPU 측 Batch 저장소를 재사용한다.
 	void Flush();
 	// UI 전용 그리기는 게임 Sprite/Draw Call 카운터에서 제외한다.
@@ -65,13 +68,16 @@ private:
 		Vector2 uvMax = { 1.0f, 1.0f },
 		bool flipX = false,
 		RendererColor color = {},
-		bool countForProfiler = true
+		bool countForProfiler = true,
+		float depth = 0.5f,
+		SpriteRenderMode renderMode = SpriteRenderMode::Cutout
 	);
 	void ClearBatch();
 	bool CreateGeometry();
 	bool CreateWhiteTexture();
 	bool CreateShaders();
 	bool CreateBlendState();
+	bool CreateDepthStencilStates();
 	bool CreateSamplerState();
 
 private:
@@ -100,10 +106,18 @@ private:
 	//Shader
 	ComPtr<ID3D11VertexShader> vertexShader_;
 	ComPtr<ID3D11PixelShader> pixelShader_;
+	ComPtr<ID3D11PixelShader> cutoutPixelShader_;
 	ComPtr<ID3D11InputLayout> inputLayout_;
 
-	//Blend State
+	// 알파 블렌딩과 불투명 컷아웃 렌더링은 별도 상태를 사용한다.
 	ComPtr<ID3D11BlendState> blendState_;
+	ComPtr<ID3D11BlendState> opaqueBlendState_;
+	ComPtr<ID3D11DepthStencilState> depthWriteState_;
+	ComPtr<ID3D11DepthStencilState> depthReadOnlyState_;
+	ComPtr<ID3D11DepthStencilState> depthDisabledState_;
+	bool depthBufferEnabled_ = true;
+	bool useDepthBuffer_ = true;
+	SpriteRenderMode batchRenderMode_ = SpriteRenderMode::Cutout;
 
 	//Sampler State
 	ComPtr<ID3D11SamplerState> samplerState_;

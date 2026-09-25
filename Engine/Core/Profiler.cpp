@@ -28,6 +28,8 @@ void Profiler::ResetHistory()
 	// 월드 재구성 비용과 이전 구성의 측정값이 새 평균에 포함되지 않게 한다.
 	historyWriteIndex_ = 0;
 	historyCount_ = 0;
+	gpuHistoryWriteIndex_ = 0;
+	gpuHistoryCount_ = 0;
 	currentFrame_ = {};
 	frameStart_ = Clock::now();
 }
@@ -40,6 +42,17 @@ void Profiler::AddTime(ProfileCategory category, double milliseconds)
 void Profiler::Increment(ProfileCounter counter, std::uint64_t amount)
 {
 	currentFrame_.counters[static_cast<std::size_t>(counter)] += amount;
+}
+
+void Profiler::AddGpuSample(double milliseconds, std::uint64_t pixelShaderInvocations)
+{
+	// GPU 결과 도착 시점과 제출 프레임이 다르므로 CPU 프레임 배열과 별도로 평균 낸다.
+	gpuHistory_[gpuHistoryWriteIndex_] = { milliseconds, pixelShaderInvocations };
+	gpuHistoryWriteIndex_ = (gpuHistoryWriteIndex_ + 1) % kHistorySize;
+	if (gpuHistoryCount_ < kHistorySize)
+	{
+		++gpuHistoryCount_;
+	}
 }
 
 ProfileSnapshot Profiler::GetAverage() const
@@ -78,6 +91,21 @@ ProfileSnapshot Profiler::GetAverage() const
 	for (double& value : result.averageCounters)
 	{
 		value /= sampleCount;
+	}
+
+	if (gpuHistoryCount_ > 0)
+	{
+		result.hasGpuSamples = true;
+		for (std::size_t i = 0; i < gpuHistoryCount_; ++i)
+		{
+			result.averageGpuMilliseconds += gpuHistory_[i].milliseconds;
+			result.averagePixelShaderInvocations +=
+				static_cast<double>(gpuHistory_[i].pixelShaderInvocations);
+		}
+
+		const double gpuSampleCount = static_cast<double>(gpuHistoryCount_);
+		result.averageGpuMilliseconds /= gpuSampleCount;
+		result.averagePixelShaderInvocations /= gpuSampleCount;
 	}
 
 	return result;

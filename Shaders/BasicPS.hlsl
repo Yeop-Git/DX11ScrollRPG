@@ -10,11 +10,12 @@ struct PSInput
 
 float4 main(PSInput input) : SV_Target
 {
-    // texture에서 직접 색을 읽음
     return spriteTexture.Sample(spriteSampler, input.uv) * input.color;
-    
-    //return input.color; // input color를 그대로 출력
-    // Vertex Shadder : 정점 위치 + 색
-    // -> Rasterizer : 정점 사이 색상 보간
-    // -> Pixel Shader : 보간된 색상 출력
+}
+
+float4 mainCutout(PSInput input) : SV_Target
+{
+    float4 color = spriteTexture.Sample(spriteSampler, input.uv) * input.color;
+    clip(color.a - 0.5f);
+    return color;
 }

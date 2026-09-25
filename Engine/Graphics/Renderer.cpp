@@ -27,6 +27,7 @@ bool Renderer::Initialize(
 	if (!CreateShaders()) return false;
 	if (!CreateSamplerState()) return false;
 	if (!CreateBlendState()) return false;
+	if (!CreateDepthStencilStates()) return false;
 
     return true;
 }
@@ -68,7 +69,11 @@ void Renderer::Draw(
 		halfSize,
 		{ u0, 0.0f },
 		{ u1, 1.0f },
-		info.flipX
+		info.flipX,
+		{},
+		true,
+		info.depth,
+		info.renderMode
 	);
 }
 
@@ -80,22 +85,25 @@ void Renderer::DrawSprite(
 	Vector2 uvMax,
 	bool flipX,
 	RendererColor color,
-	bool countForProfiler)
+	bool countForProfiler,
+	float depth,
+	SpriteRenderMode renderMode)
 {
 	float leftU = flipX ? uvMax.x : uvMin.x;
 	float rightU = flipX ? uvMin.x : uvMax.x;
 
 	const Vertex vertices[] =
 	{
-		{ position.x - halfSize.x, position.y - halfSize.y, 0.0f, leftU, uvMax.y, color.r, color.g, color.b, color.a },
-		{ position.x + halfSize.x, position.y - halfSize.y, 0.0f, rightU, uvMax.y, color.r, color.g, color.b, color.a },
-		{ position.x + halfSize.x, position.y + halfSize.y, 0.0f, rightU, uvMin.y, color.r, color.g, color.b, color.a },
-		{ position.x - halfSize.x, position.y + halfSize.y, 0.0f, leftU, uvMin.y, color.r, color.g, color.b, color.a }
+		{ position.x - halfSize.x, position.y - halfSize.y, depth, leftU, uvMax.y, color.r, color.g, color.b, color.a },
+		{ position.x + halfSize.x, position.y - halfSize.y, depth, rightU, uvMax.y, color.r, color.g, color.b, color.a },
+		{ position.x + halfSize.x, position.y + halfSize.y, depth, rightU, uvMin.y, color.r, color.g, color.b, color.a },
+		{ position.x - halfSize.x, position.y + halfSize.y, depth, leftU, uvMin.y, color.r, color.g, color.b, color.a }
 	};
 
 	// 텍스처와 계측 정책이 달라지거나 용량이 차면 순서를 유지한 채 현재 묶음을 제출한다.
 	if (batchSpriteCount_ > 0
 		&& (batchTexture_ != textureView
+			|| batchRenderMode_ != renderMode
 			|| batchCountForProfiler_ != countForProfiler
 			|| batchSpriteCount_ >= kMaxSpritesPerBatch))
 	{
@@ -105,6 +113,7 @@ void Renderer::DrawSprite(
 	if (batchSpriteCount_ == 0)
 	{
 		batchTexture_ = textureView;
+		batchRenderMode_ = renderMode;
 		batchCountForProfiler_ = countForProfiler;
 	}
 
@@ -139,6 +148,26 @@ void Renderer::Flush()
 	context_->Unmap(vertexBuffer_.Get(), 0);
 
 	context_->PSSetShaderResources(0, 1, &batchTexture_);
+	context_->PSSetShader(
+		batchRenderMode_ == SpriteRenderMode::Cutout
+			? cutoutPixelShader_.Get()
+			: pixelShader_.Get(),
+		nullptr,
+		0);
+	context_->OMSetBlendState(
+		batchRenderMode_ == SpriteRenderMode::Cutout
+			? opaqueBlendState_.Get()
+			: blendState_.Get(),
+		nullptr,
+		0xFFFFFFFF);
+	ID3D11DepthStencilState* depthState = depthDisabledState_.Get();
+	if (useDepthBuffer_)
+	{
+		depthState = batchRenderMode_ == SpriteRenderMode::Cutout
+			? depthWriteState_.Get()
+			: depthReadOnlyState_.Get();
+	}
+	context_->OMSetDepthStencilState(depthState, 0);
 	context_->DrawIndexed(static_cast<UINT>(batchSpriteCount_ * 6), 0, 0);
 
 	// 카운터는 실제 제출 단위로 기록한다. Profiler 전용 UI Batch는 계속 제외한다.
@@ -159,12 +188,13 @@ void Renderer::ClearBatch()
 	batchTexture_ = nullptr;
 	batchSpriteCount_ = 0;
 	batchCountForProfiler_ = true;
+	batchRenderMode_ = SpriteRenderMode::Cutout;
 }
 
 void Renderer::DrawUIRect(Vector2 position, Vector2 halfSize, RendererColor color)
 {
 	// 흰색 1x1 텍스처에 정점 색상을 곱해 UI 배경 사각형을 그린다.
-	DrawSprite(whiteTextureView_.Get(), position, halfSize, {}, { 1.0f, 1.0f }, false, color, false);
+	DrawSprite(whiteTextureView_.Get(), position, halfSize, {}, { 1.0f, 1.0f }, false, color, false, 0.0f, SpriteRenderMode::AlphaBlend);
 }
 
 void Renderer::DrawUITexture(
@@ -174,7 +204,7 @@ void Renderer::DrawUITexture(
 {
 	// Profiler 패널 자체의 Draw Call은 측정 카운터에 넣지 않는다.
 	if (texture == nullptr) return;
-	DrawSprite(texture, position, halfSize, {}, { 1.0f, 1.0f }, false, {}, false);
+	DrawSprite(texture, position, halfSize, {}, { 1.0f, 1.0f }, false, {}, false, 0.0f, SpriteRenderMode::AlphaBlend);
 }
 
 void Renderer::DrawSprite(
@@ -194,7 +224,11 @@ void Renderer::DrawSprite(
 		halfSize,
 		{ 0.0f, 0.0f },
 		{ 1.0f, 1.0f },
-		false
+		false,
+		{},
+		true,
+		0.5f,
+		SpriteRenderMode::Cutout
 	);
 }
 
@@ -276,6 +310,7 @@ bool Renderer::CreateShaders()
 {
 	ComPtr<ID3DBlob> vertexShaderBlob; // 컴파일 결과는 ID3DBlob라는 바이너리 덩어리로 나옴
 	ComPtr<ID3DBlob> pixelShaderBlob; // hlsl -> compile -> Shader Bytecode -> ID3DBlob
+	ComPtr<ID3DBlob> cutoutPixelShaderBlob;
 
 	// Vertex Shader 컴파일
 	HRESULT hr = D3DCompileFromFile(
@@ -292,6 +327,18 @@ bool Renderer::CreateShaders()
 
 	if (FAILED(hr)) return false;
 
+	hr = D3DCompileFromFile(
+		L"Shaders/BasicPS.hlsl",
+		nullptr,
+		nullptr,
+		"mainCutout",
+		"ps_5_0",
+		0,
+		0,
+		cutoutPixelShaderBlob.GetAddressOf(),
+		nullptr);
+	if (FAILED(hr)) return false;
+
 	// Pixel Shader 컴파일
 	hr = D3DCompileFromFile(
 		L"Shaders/BasicPS.hlsl",
@@ -305,6 +352,13 @@ bool Renderer::CreateShaders()
 		nullptr
 	);
 
+	if (FAILED(hr)) return false;
+
+	hr = device_->CreatePixelShader(
+		cutoutPixelShaderBlob->GetBufferPointer(),
+		cutoutPixelShaderBlob->GetBufferSize(),
+		nullptr,
+		cutoutPixelShader_.GetAddressOf());
 	if (FAILED(hr)) return false;
 
 	// Device에 VertexShader 생성 요청 (Context)
@@ -368,8 +422,31 @@ bool Renderer::CreateBlendState()
 		D3D11_COLOR_WRITE_ENABLE_ALL;
 
 	HRESULT hr = device_->CreateBlendState(&blendDesc, blendState_.GetAddressOf());
+	if (FAILED(hr)) return false;
 
-	return SUCCEEDED(hr);
+	blendDesc.RenderTarget[0].BlendEnable = FALSE;
+	return SUCCEEDED(device_->CreateBlendState(
+		&blendDesc, opaqueBlendState_.GetAddressOf()));
+}
+
+bool Renderer::CreateDepthStencilStates()
+{
+	D3D11_DEPTH_STENCIL_DESC desc{};
+	desc.DepthEnable = TRUE;
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	desc.DepthFunc = D3D11_COMPARISON_LESS;
+	HRESULT hr = device_->CreateDepthStencilState(
+		&desc, depthWriteState_.GetAddressOf());
+	if (FAILED(hr)) return false;
+
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	hr = device_->CreateDepthStencilState(
+		&desc, depthReadOnlyState_.GetAddressOf());
+	if (FAILED(hr)) return false;
+
+	desc.DepthEnable = FALSE;
+	return SUCCEEDED(device_->CreateDepthStencilState(
+		&desc, depthDisabledState_.GetAddressOf()));
 }
 
 bool Renderer::CreateSamplerState()
@@ -402,6 +479,12 @@ bool Renderer::CreateSamplerState()
 
 void Renderer::Begin()
 {
+	Begin(depthBufferEnabled_);
+}
+
+void Renderer::Begin(bool useDepthBuffer)
+{
+	useDepthBuffer_ = useDepthBuffer;
 	// Input Assembler 설정
 
 	UINT stride = sizeof(Vertex); // 다음 vertex 값을 읽기 위해서 이동하는 byte 수, 즉 sizeof(Vertex)
@@ -429,6 +512,4 @@ void Renderer::Begin()
 	// Pixel Shader Texture slot 0에 Sampler 연결
 	context_->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
 
-	// Blend State 적용
-	context_->OMSetBlendState(blendState_.Get(), nullptr, 0xFFFFFFFF);
 }

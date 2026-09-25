@@ -41,6 +41,9 @@ struct ProfileSnapshot
 	// 최근 기록의 프레임당 평균 시간(ms)과 평균 발생 횟수를 보관한다.
 	std::array<double, static_cast<std::size_t>(ProfileCategory::Count)> averageMilliseconds{};
 	std::array<double, static_cast<std::size_t>(ProfileCounter::Count)> averageCounters{};
+	double averageGpuMilliseconds = 0.0;
+	double averagePixelShaderInvocations = 0.0;
+	bool hasGpuSamples = false;
 
 	// 항목별 시간 및 평균 카운터 값을 읽는다.
 	double GetMilliseconds(ProfileCategory category) const
@@ -76,6 +79,8 @@ public:
 	// 측정 구간의 시간과 발생 횟수를 현재 프레임에 누적한다.
 	void AddTime(ProfileCategory category, double milliseconds);
 	void Increment(ProfileCounter counter, std::uint64_t amount = 1);
+	// GPU 쿼리는 비동기로 돌아오므로 완료된 월드 패스 샘플만 별도 평균에 기록한다.
+	void AddGpuSample(double milliseconds, std::uint64_t pixelShaderInvocations);
 	// 저장된 최근 프레임의 평균을 UI에 전달할 복사본으로 만든다.
 	ProfileSnapshot GetAverage() const;
 
@@ -91,11 +96,20 @@ private:
 		std::array<std::uint64_t, static_cast<std::size_t>(ProfileCounter::Count)> counters{};
 	};
 
+	struct GpuSample
+	{
+		double milliseconds = 0.0;
+		std::uint64_t pixelShaderInvocations = 0;
+	};
+
 	// currentFrame_은 진행 중인 프레임, history_는 최근 완료 프레임을 보관한다.
 	FrameData currentFrame_{};
 	std::array<FrameData, kHistorySize> history_{};
+	std::array<GpuSample, kHistorySize> gpuHistory_{};
 	std::size_t historyWriteIndex_ = 0;
 	std::size_t historyCount_ = 0;
+	std::size_t gpuHistoryWriteIndex_ = 0;
+	std::size_t gpuHistoryCount_ = 0;
 	Clock::time_point frameStart_{};
 };
 

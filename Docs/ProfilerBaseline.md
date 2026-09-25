@@ -40,6 +40,21 @@
 
 기준선 캡처는 [Profiler/Baseline](Profiler/Baseline/)에, Batch 적용 후 캡처는 [Profiler/SpriteBatchAfter](Profiler/SpriteBatchAfter/)에 원본 PNG로 보관합니다: [After 1000](Profiler/SpriteBatchAfter/Stress_1000.png), [After 5000](Profiler/SpriteBatchAfter/Stress_5000.png), [After 10000](Profiler/SpriteBatchAfter/Stress_10000.png), [After 50000](Profiler/SpriteBatchAfter/Stress_50000.png).
 
+## Depth Test ON/OFF 비교
+
+동일한 Batch 및 화면 구성에서 Profiler 체크박스로 Depth Test만 전환해 캡처했습니다. 노란 테두리는 Render 시간, Draw Call 수, GPU 시간, PS 호출 수를 표시합니다. 편집된 비교판은 [DepthTestComparison.png](Profiler/DepthTest/DepthTestComparison.png), 원본은 [ON 캡처](Profiler/DepthTest/On/) 및 [OFF 캡처](Profiler/DepthTest/Off/)에 둡니다.
+
+| Stress Monster | GPU ms (Depth ON → OFF) | PS Invocations (ON → OFF) | Scene Render ms (ON → OFF) | Frame ms (ON → OFF) | Draw Calls (ON → OFF) |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1,000 | 0.36 → 0.28 | 761,804 → 8,902,340 | 1.39 → 2.16 | 16.60 → 16.59 | 6 → 6 |
+| 5,000 버튼 선택 (실제 Stress 500) | 0.58 → 1.25 | 1,675,407 → 38,882,099 | 6.93 → 8.97 | 16.83 → 18.62 | 8 → 8 |
+| 10,000 | 0.74 → 2.27 | 2,063,266 → 78,192,054 | 13.74 → 18.00 | 33.68 → 37.52 | 10 → 10 |
+| 50,000 | 1.67 → 11.46 | 29,449,766 → 376,943,225 | 67.88 → 89.77 | 167.68 → 189.64 | 30 → 30 |
+
+50,000 구간에서는 Depth Test ON 시 GPU 측정값이 약 85% 낮고 PS invocation 수는 약 92% 감소했습니다. Scene Render도 OFF의 89.77ms에서 ON의 67.88ms로 낮게 측정됐습니다. Draw Call 수는 두 상태에서 같아, 이 비교에서 관찰된 변화는 제출 횟수가 아닌 깊이 검사에 따른 픽셀 셰이더 실행량 차이에 부합합니다. PS invocation은 overdraw 픽셀을 직접 센 값이 아니며, 1,000개 GPU 수치는 sub-ms 영역이라 프레임 간 변동에 민감합니다. 동일한 빌드와 기기에서 안정된 구간을 다시 측정해 교차 확인할 필요가 있습니다.
+
+**측정 조건 주의:** 두 번째 ON/OFF 캡처는 버튼에 `5000`이 표시되어 있지만 Profiler에는 `Entities 501`, `Sprites 522`로 나타납니다. 따라서 화면상 실제 Stress Sprite 수를 500개로 기록했으며, 이 자료는 의도한 5,000개 측정을 대표하지 않습니다. 원본 이미지 이름도 선택 버튼과 실제 개체 수가 혼동되지 않도록 구분했습니다.
+
 ## 측정 메모
 
 - 버튼을 누르면 게임 월드를 초기 상태로 되돌린 뒤 지정한 개수만큼 Monster를 만듭니다.

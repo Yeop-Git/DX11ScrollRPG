@@ -11,6 +11,7 @@
 
 void GameWorld::Initialize()
 {
+	for (auto& layer : renderLayers_) layer.clear();
 	gameObjects_.clear();
 	entities_.clear();
 	grounds_.clear();
@@ -20,6 +21,41 @@ void GameWorld::Initialize()
 	CreatePlayer();
 	CreateMonsters();
 	CreateItems();
+}
+
+GameObject* GameWorld::AddGameObject(std::unique_ptr<GameObject> object, RenderLayer layer)
+{
+	GameObject* objectReference = object.get();
+	gameObjects_.push_back(std::move(object));
+
+	// 각 레이어에 고정 깊이 구간을 나눠 등록 순서가 안정적인 깊이 우선순위가 되게 한다.
+	constexpr float kDepthStart[] = { 0.05f, 0.20f, 0.50f, 0.90f, 0.40f };
+	constexpr float kDepthEnd[] = { 0.15f, 0.35f, 0.70f, 0.90f, 0.45f };
+	constexpr std::size_t kLayerCapacity[] = { 1, 50003, 32, 1, 8 };
+
+	auto& layerObjects = renderLayers_[static_cast<std::size_t>(layer)];
+	const std::size_t layerIndex = layerObjects.size();
+	const std::size_t capacity = kLayerCapacity[static_cast<std::size_t>(layer)];
+	const float interpolation = capacity <= 1
+		? 0.0f
+		: static_cast<float>(layerIndex) / static_cast<float>(capacity - 1);
+	const float depth = kDepthStart[static_cast<std::size_t>(layer)]
+		+ (kDepthEnd[static_cast<std::size_t>(layer)]
+			- kDepthStart[static_cast<std::size_t>(layer)]) * interpolation;
+
+	layerObjects.push_back({ objectReference, depth });
+	return objectReference;
+}
+
+void GameWorld::RemoveRenderObjects(const std::unordered_set<const GameObject*>& objects)
+{
+	for (auto& layer : renderLayers_)
+	{
+		std::erase_if(layer, [&objects](const RenderObject& renderObject)
+		{
+			return objects.contains(renderObject.object);
+		});
+	}
 }
 
 void GameWorld::Update(float deltaTime, Profiler& profiler)
@@ -45,20 +81,20 @@ void GameWorld::Update(float deltaTime, Profiler& profiler)
 
 void GameWorld::CreateEnvironment()
 {
-	gameObjects_.push_back(std::make_unique<GameObject>(
+	AddGameObject(std::make_unique<GameObject>(
 		SpriteId::Background,
 		Vector2{ 0.0f, 0.0f },
-		Vector2{ 1.0f, 1.0f }));
+		Vector2{ 1.0f, 1.0f }), RenderLayer::Background);
 
-	gameObjects_.push_back(std::make_unique<GameObject>(
+	AddGameObject(std::make_unique<GameObject>(
 		SpriteId::Tree,
 		Vector2{ -0.65f, treeCenterY },
-		treeHalfSize));
+		treeHalfSize), RenderLayer::Environment);
 
-	gameObjects_.push_back(std::make_unique<GameObject>(
+	AddGameObject(std::make_unique<GameObject>(
 		SpriteId::Tree,
 		Vector2{ 0.6f, treeCenterY },
-		treeHalfSize));
+		treeHalfSize), RenderLayer::Environment);
 }
 
 void GameWorld::CreatePlayer()
@@ -67,7 +103,7 @@ void GameWorld::CreatePlayer()
 	auto player = std::make_unique<Player>();
 	player_ = player.get();
 	entities_.push_back(player.get());
-	gameObjects_.push_back(std::move(player));
+	AddGameObject(std::move(player), RenderLayer::Player);
 }
 
 void GameWorld::CreateMonsters()
@@ -81,7 +117,7 @@ void GameWorld::CreateMonsters()
 
 		monsters_.push_back(monsterPtr);
 		entities_.push_back(monsterPtr);
-		gameObjects_.push_back(std::move(monster));
+		AddGameObject(std::move(monster), RenderLayer::Monster);
 
 		// 첫번째 몬스터만 Active하여 스폰
 		monsterPtr->SetActive(i==0);
@@ -161,7 +197,7 @@ void GameWorld::CreateStressTestMonsters(std::size_t count)
 		stressMonsters_.push_back(monsterPtr);
 		stressMonsterLookup_.insert(monsterPtr);
 		entities_.push_back(monsterPtr);
-		gameObjects_.push_back(std::move(monster));
+		AddGameObject(std::move(monster), RenderLayer::Monster);
 	}
 }
 
@@ -185,6 +221,7 @@ void GameWorld::ClearStressTestMonsters()
 	{
 		return stressObjects.contains(entity);
 	});
+	RemoveRenderObjects(stressObjects);
 	std::erase_if(gameObjects_, [&stressObjects](const std::unique_ptr<GameObject>& object)
 	{
 		return stressObjects.contains(object.get());
@@ -207,7 +244,7 @@ void GameWorld::CreateItems()
 		coinPool_.push(ptr);
 		items_.push_back(ptr);
 		entities_.push_back(ptr);
-		gameObjects_.push_back(std::move(item));
+		AddGameObject(std::move(item), RenderLayer::TransparentItem);
 	}
 
 	// Potion
@@ -222,7 +259,7 @@ void GameWorld::CreateItems()
 		potionPool_.push(ptr);
 		items_.push_back(ptr);
 		entities_.push_back(ptr);
-		gameObjects_.push_back(std::move(item));
+		AddGameObject(std::move(item), RenderLayer::TransparentItem);
 	}
 }
 
@@ -235,7 +272,7 @@ void GameWorld::CreateGrounds()
 		position.x += static_cast<float>(i) * groundHalfSize.x * 1.5f;
 		auto ground = std::make_unique<Ground>(position, groundHalfSize);
 		grounds_.push_back(ground.get());
-		gameObjects_.push_back(std::move(ground));
+		AddGameObject(std::move(ground), RenderLayer::Environment);
 	}
 }
 

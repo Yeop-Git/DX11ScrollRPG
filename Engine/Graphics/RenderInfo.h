@@ -3,6 +3,12 @@
 #include "SpriteId.h"
 #include "../Math/Vector2.h"
 
+enum class SpriteRenderMode
+{
+	Cutout,
+	AlphaBlend
+};
+
 // 객체가 Renderer에게 전달하는 자료형
 struct RenderInfo
 {
@@ -19,6 +25,8 @@ struct RenderInfo
 	Vector2 renderHalfSize{ 0.0f, 0.18f };
 
 	Vector2 offset{ 0.0f, 0.0f };
+	float depth = 0.5f;
+	SpriteRenderMode renderMode = SpriteRenderMode::Cutout;
 
 	bool flipX = false;
 	bool visible = true;

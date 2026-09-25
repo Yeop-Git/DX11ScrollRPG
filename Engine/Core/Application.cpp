@@ -131,6 +131,12 @@ int Application::Run()
 			gameWorld_.SetStressTestMonsterCount(*requestedCount);
 			profiler_.ResetHistory();
 		}
+		if (const auto requestedDepthTest = uiManager_.TakeRequestedDepthTestEnabled())
+		{
+			// 깊이 ON/OFF 측정 구간을 섞지 않도록 적용과 함께 Profiler 평균을 초기화한다.
+			renderer_.SetDepthBufferEnabled(*requestedDepthTest);
+			profiler_.ResetHistory();
+		}
 
 		UpdateUI(deltaTime);
 	}
@@ -252,8 +258,25 @@ bool Application::InitializeDirectX()
 	hr = device_->CreateRenderTargetView(backBuffer.Get(), nullptr, renderTargetView_.GetAddressOf());
 	if (FAILED(hr)) return false;
 
+	// BackBuffer와 같은 크기의 깊이 버퍼가 픽셀별 앞뒤 관계를 보관한다.
+	D3D11_TEXTURE2D_DESC depthDesc{};
+	depthDesc.Width = static_cast<UINT>(kWindowSize.x);
+	depthDesc.Height = static_cast<UINT>(kWindowSize.y);
+	depthDesc.MipLevels = 1;
+	depthDesc.ArraySize = 1;
+	depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	depthDesc.SampleDesc.Count = 1;
+	depthDesc.Usage = D3D11_USAGE_DEFAULT;
+	depthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	hr = device_->CreateTexture2D(&depthDesc, nullptr, depthStencilTexture_.GetAddressOf());
+	if (FAILED(hr)) return false;
+	hr = device_->CreateDepthStencilView(
+		depthStencilTexture_.Get(), nullptr, depthStencilView_.GetAddressOf());
+	if (FAILED(hr)) return false;
+
 	// RenderTarget 연결
-	context_->OMSetRenderTargets(1, renderTargetView_.GetAddressOf(), nullptr);
+	context_->OMSetRenderTargets(
+		1, renderTargetView_.GetAddressOf(), depthStencilView_.Get());
 
 	// Viewport 생성
 	D3D11_VIEWPORT viewport{};
@@ -268,6 +291,9 @@ bool Application::InitializeDirectX()
 	viewport.MaxDepth = 1.0f;
 
 	context_->RSSetViewports(1, &viewport);
+
+	// GPU 쿼리는 진단 기능이므로 생성 실패가 게임 초기화를 막지는 않는다.
+	CreateGpuProfilerQueries();
 
 	return true;
 }
@@ -298,36 +324,83 @@ void Application::Update(float deltaTime)
 
 void Application::Render()
 {
+	// 완료된 이전 프레임 GPU 결과만 확인하고, 준비 전이면 CPU를 기다리지 않는다.
+	CollectGpuProfilerSamples();
 	{
 		// Scene Render CPU 시간을 UI 및 Present 대기와 분리해서 기록한다.
 		ProfileScope renderScope(profiler_, ProfileCategory::Render);
 
 		// BackBuffer를 남청색으로 초기화
-		context_->OMSetRenderTargets(1, renderTargetView_.GetAddressOf(), nullptr);
 		const float clearColor[4] = { 0.1f, 0.15f, 0.25f, 1.0f };
 		context_->ClearRenderTargetView(renderTargetView_.Get(), clearColor);
+		context_->OMSetRenderTargets(
+			1, renderTargetView_.GetAddressOf(), depthStencilView_.Get());
+		context_->ClearDepthStencilView(
+			depthStencilView_.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
+		if (uiManager_.IsProfilerVisible())
+		{
+			BeginGpuProfilerSample();
+		}
 		renderer_.Begin();
 
-		// 모든 GameObject를 생성 순서대로 렌더링
-		for (const auto& object : gameWorld_.GetGameObjects())
+		const auto& renderLayers = gameWorld_.GetRenderLayers();
+		const auto drawLayer = [this](const auto& layer, bool reverse)
 		{
-			if (!object->IsActive()) continue;
+			auto drawObject = [this](const RenderObject& renderObject)
+			{
+				if (renderObject.object == nullptr || !renderObject.object->IsActive()) return;
 
-			const RenderInfo info = object->GetRenderInfo();
-			if (!info.visible) continue;
+				RenderInfo info = renderObject.object->GetRenderInfo();
+				if (!info.visible) return;
+				info.depth = renderObject.depth;
+				renderer_.Draw(info);
+			};
 
-			renderer_.Draw(info);
+			if (reverse)
+			{
+				for (auto object = layer.rbegin(); object != layer.rend(); ++object)
+				{
+					drawObject(*object);
+				}
+			}
+			else
+			{
+				for (const RenderObject& renderObject : layer)
+				{
+					drawObject(renderObject);
+				}
+			}
+		};
+
+		if (renderer_.IsDepthBufferEnabled())
+		{
+			// 깊이 테스트를 쓸 때는 가까운 우선순위부터 그려 불필요한 픽셀 작업을 막는다.
+			for (const auto& layer : renderLayers)
+			{
+				drawLayer(layer, false);
+			}
+		}
+		else
+		{
+			// 깊이 테스트가 없을 때는 같은 깊이 우선순위가 되도록 먼 항목부터 덮어 그린다.
+			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Background)], false);
+			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Environment)], true);
+			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::TransparentItem)], false);
+			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Monster)], true);
+			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Player)], true);
 		}
 
 		// Scene의 마지막 묶음 제출도 Scene Render 측정에 포함한다.
 		renderer_.Flush();
+		EndGpuProfilerSample();
 
 	}
 	{
 		// HUD와 Profiler는 같은 Renderer를 사용하되 Scene 비용과 별도로 잰다.
 		ProfileScope uiScope(profiler_, ProfileCategory::UIRender);
-		renderer_.Begin();
+		context_->OMSetRenderTargets(1, renderTargetView_.GetAddressOf(), nullptr);
+		renderer_.Begin(false);
 		uiManager_.Render(renderer_);
 		// HUD와 Profiler의 마지막 묶음을 UI Render 구간 안에서 제출한다.
 		renderer_.Flush();
@@ -360,6 +433,160 @@ void Application::ToggleProfilerPanel()
 	uiManager_.ToggleProfilerPanel();
 }
 
+bool Application::CreateGpuProfilerQueries()
+{
+	D3D11_QUERY_DESC queryDesc{};
+	for (GpuProfilerQuerySet& querySet : gpuProfilerQueries_)
+	{
+		queryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
+		if (FAILED(device_->CreateQuery(&queryDesc, querySet.disjoint.GetAddressOf())))
+		{
+			return false;
+		}
+
+		queryDesc.Query = D3D11_QUERY_TIMESTAMP;
+		if (FAILED(device_->CreateQuery(&queryDesc, querySet.startTimestamp.GetAddressOf())))
+		{
+			return false;
+		}
+		if (FAILED(device_->CreateQuery(&queryDesc, querySet.endTimestamp.GetAddressOf())))
+		{
+			return false;
+		}
+
+		queryDesc.Query = D3D11_QUERY_PIPELINE_STATISTICS;
+		if (FAILED(device_->CreateQuery(
+			&queryDesc,
+			querySet.pipelineStatistics.GetAddressOf())))
+		{
+			return false;
+		}
+	}
+
+	gpuProfilerQueriesAvailable_ = true;
+	return true;
+}
+
+void Application::CollectGpuProfilerSamples()
+{
+	if (!gpuProfilerQueriesAvailable_)
+	{
+		return;
+	}
+
+	for (GpuProfilerQuerySet& querySet : gpuProfilerQueries_)
+	{
+		if (!querySet.pending)
+		{
+			continue;
+		}
+
+		D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint{};
+		D3D11_QUERY_DATA_PIPELINE_STATISTICS statistics{};
+		UINT64 startTimestamp = 0;
+		UINT64 endTimestamp = 0;
+		const UINT getDataFlags = D3D11_ASYNC_GETDATA_DONOTFLUSH;
+
+		const HRESULT disjointResult = context_->GetData(
+			querySet.disjoint.Get(), &disjoint, sizeof(disjoint), getDataFlags);
+		const HRESULT startResult = context_->GetData(
+			querySet.startTimestamp.Get(),
+			&startTimestamp,
+			sizeof(startTimestamp),
+			getDataFlags);
+		const HRESULT endResult = context_->GetData(
+			querySet.endTimestamp.Get(),
+			&endTimestamp,
+			sizeof(endTimestamp),
+			getDataFlags);
+		const HRESULT statisticsResult = context_->GetData(
+			querySet.pipelineStatistics.Get(),
+			&statistics,
+			sizeof(statistics),
+			getDataFlags);
+
+		if (FAILED(disjointResult)
+			|| FAILED(startResult)
+			|| FAILED(endResult)
+			|| FAILED(statisticsResult))
+		{
+			querySet.pending = false;
+			continue;
+		}
+		if (disjointResult == S_FALSE
+			|| startResult == S_FALSE
+			|| endResult == S_FALSE
+			|| statisticsResult == S_FALSE)
+		{
+			continue;
+		}
+
+		querySet.pending = false;
+		if (disjoint.Disjoint
+			|| disjoint.Frequency == 0
+			|| endTimestamp < startTimestamp)
+		{
+			continue;
+		}
+
+		// 설정 변경 직전에 제출된 샘플은 새 평균에 섞지 않는다.
+		if (querySet.depthTestEnabled != renderer_.IsDepthBufferEnabled()
+			|| querySet.stressMonsterCount != gameWorld_.GetStressTestMonsterCount())
+		{
+			continue;
+		}
+
+		const double gpuMilliseconds =
+			static_cast<double>(endTimestamp - startTimestamp)
+			* 1000.0 / static_cast<double>(disjoint.Frequency);
+		profiler_.AddGpuSample(gpuMilliseconds, statistics.PSInvocations);
+	}
+}
+
+void Application::BeginGpuProfilerSample()
+{
+	activeGpuProfilerQuery_ = nullptr;
+	if (!gpuProfilerQueriesAvailable_)
+	{
+		return;
+	}
+
+	for (std::size_t offset = 0; offset < gpuProfilerQueries_.size(); ++offset)
+	{
+		const std::size_t index = (nextGpuProfilerQuery_ + offset)
+			% gpuProfilerQueries_.size();
+		GpuProfilerQuerySet& querySet = gpuProfilerQueries_[index];
+		if (querySet.pending)
+		{
+			continue;
+		}
+
+		querySet.pending = true;
+		querySet.depthTestEnabled = renderer_.IsDepthBufferEnabled();
+		querySet.stressMonsterCount = gameWorld_.GetStressTestMonsterCount();
+		activeGpuProfilerQuery_ = &querySet;
+		nextGpuProfilerQuery_ = (index + 1) % gpuProfilerQueries_.size();
+		context_->Begin(querySet.disjoint.Get());
+		context_->Begin(querySet.pipelineStatistics.Get());
+		context_->End(querySet.startTimestamp.Get());
+		return;
+	}
+	// 네 프레임 분량의 쿼리가 모두 미완료면 해당 프레임 측정만 건너뛴다.
+}
+
+void Application::EndGpuProfilerSample()
+{
+	if (activeGpuProfilerQuery_ == nullptr)
+	{
+		return;
+	}
+
+	context_->End(activeGpuProfilerQuery_->endTimestamp.Get());
+	context_->End(activeGpuProfilerQuery_->pipelineStatistics.Get());
+	context_->End(activeGpuProfilerQuery_->disjoint.Get());
+	activeGpuProfilerQuery_ = nullptr;
+}
+
 bool Application::HandleUIMouseDown(int x, int y)
 {
 	return uiManager_.HandleMouseDown(x, y);
@@ -374,6 +601,8 @@ void Application::UpdateUI(float deltaTime)
 		frameData.playerDead = player->IsDead();
 	}
 	frameData.stressMonsterCount = gameWorld_.GetStressTestMonsterCount();
+	frameData.depthTestEnabled = renderer_.IsDepthBufferEnabled();
+	frameData.gpuMetricsAvailable = gpuProfilerQueriesAvailable_;
 	frameData.profiler = profiler_.GetAverage();
 	uiManager_.Update(deltaTime, frameData);
 }

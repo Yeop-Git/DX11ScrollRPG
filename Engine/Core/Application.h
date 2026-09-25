@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <d3d11.h>
 #include <wrl/client.h>
+#include <array>
 #include <chrono>
 
 #include "Profiler.h"
@@ -37,6 +38,10 @@ private:
 
 	void Update(float deltaTime);
 	void Render();
+	bool CreateGpuProfilerQueries();
+	void CollectGpuProfilerSamples();
+	void BeginGpuProfilerSample();
+	void EndGpuProfilerSample();
 	void UpdateUI(float deltaTime);
 	float GetDeltaTime();
 
@@ -65,6 +70,25 @@ private:
 	ComPtr<ID3D11DeviceContext> context_;
 	ComPtr<IDXGISwapChain> swapChain_;
 	ComPtr<ID3D11RenderTargetView> renderTargetView_;
+	ComPtr<ID3D11Texture2D> depthStencilTexture_;
+	ComPtr<ID3D11DepthStencilView> depthStencilView_;
+
+	// GPU query 결과는 몇 프레임 뒤 준비될 수 있어 고정 슬롯을 순환해 비동기로 읽는다.
+	struct GpuProfilerQuerySet
+	{
+		ComPtr<ID3D11Query> disjoint;
+		ComPtr<ID3D11Query> startTimestamp;
+		ComPtr<ID3D11Query> endTimestamp;
+		ComPtr<ID3D11Query> pipelineStatistics;
+		bool pending = false;
+		bool depthTestEnabled = true;
+		std::size_t stressMonsterCount = 0;
+	};
+	static constexpr std::size_t kGpuProfilerQueryCount = 4;
+	std::array<GpuProfilerQuerySet, kGpuProfilerQueryCount> gpuProfilerQueries_{};
+	std::size_t nextGpuProfilerQuery_ = 0;
+	GpuProfilerQuerySet* activeGpuProfilerQuery_ = nullptr;
+	bool gpuProfilerQueriesAvailable_ = false;
 
 	// GPU에 저장되는 geometry 데이터
 	ComPtr<ID3D11Buffer> vertexBuffer_;
