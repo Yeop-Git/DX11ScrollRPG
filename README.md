@@ -25,6 +25,9 @@ C++20과 DirectX 11로 개발한 2D 액션 게임 프로토타입. Win32 게임 
   2. [Sprite Batch](#sprite-batch)
   3. [Depth Test와 픽셀 처리량](#depth-test)
   4. [Render Queue](#render-queue)
+- [Thread Pool / Job Queue](#thread-pool)
+- [JSON 설정과 비동기 로딩](#json-loading)
+- [Sprint 진행 일정](#sprint-schedule)
 - [빌드 및 실행](#build-and-run)
 - [프로젝트 구조](#project-structure)
 - [에셋 크레딧](#asset-credits)
@@ -38,7 +41,7 @@ C++20과 DirectX 11로 개발한 2D 액션 게임 프로토타입. Win32 게임 
 | 장르 | 2D 액션 게임 |
 | 개발 인원 | 1명 |
 | 개발 기간 | 2026.08 ~ 2026.10 |
-| 기술 | C++20, Win32 API, DirectX 11, HLSL, stb_image |
+| 기술 | C++20, Win32 API, DirectX 11, HLSL, stb_image, nlohmann/json |
 
 <a id="controls"></a>
 ## 조작법
@@ -274,6 +277,67 @@ Player와 Monster 스프라이트 요청이 번갈아 들어오는 조건에서 
 - 측정에서 PS Invocations는 Queue 전후 동일. GPU Time 감소만으로 픽셀 처리량 감소를 판단할 수 없음.
 - 투명 Sprite는 순서 보존을 위해 Queue에서 제외. Depth Test를 끄면 요청 재정렬을 허용하지 않아 Queue 효과가 적용되지 않음.
 
+<a id="thread-pool"></a>
+## Thread Pool / Job Queue
+
+인자 없는 `std::function<void()>` 작업을 받는 최소 JobSystem. 고정 Worker들이 단일 Queue에서 작업을 꺼내며, `mutex`와 `condition_variable`로 접수·대기·종료를 제어합니다. Stop은 새 작업을 거부하고 이미 접수한 작업을 모두 처리한 뒤 Worker를 join합니다.
+
+Application이 JobSystem Worker 하나를 시작하고 실제 JSON 파일 읽기·파싱·검증을 제출합니다. 기존 JobSystemTests 콘솔 프로젝트는 제거했습니다. 공통 작업은 계속 `std::function<void()>`이며, 로더의 `promise/future`가 결과와 오류를 메인 스레드에 전달합니다. [Thread Pool 계약](Docs/ThreadPool.md), [JSON 로딩 구조와 검증](Docs/GameData.md)을 참고합니다.
+
+<a id="json-loading"></a>
+## JSON 설정과 비동기 로딩
+
+Player / Monster 생성자에 있던 정적 정의를 [GameData.json](Assets/Data/GameData.json)으로 분리했습니다. JSON을 수정하고 게임을 다시 실행하면 재컴파일 없이 설정을 적용합니다.
+
+| 분리한 데이터 | 내용 |
+| --- | --- |
+| AnimationClip 10개 | 프레임 수·재생 간격·반복 여부·프레임 크기·렌더 크기·offset |
+| Player / Monster 설정 | 초기 HP·시작 위치·충돌 크기·이동 및 피격 수치·공격 유효 프레임과 범위 |
+| 텍스처 경로 17개 | SpriteId별 이미지 파일 경로 |
+
+```text
+Application → JobSystem.Submit
+    → Worker: 파일 읽기 → JSON 파싱·검증 → promise에 결과 또는 예외 저장
+    → Main: future 완료 확인 → 리소스 생성 → GameWorld 초기화
+```
+
+Application이 불변 GameData를 소유하며 Player와 Monster는 이를 읽기 전용으로 참조합니다. 현재 HP, FSM, Animator의 현재 프레임과 시간은 객체별 실행 상태로 유지합니다. 설정은 GameWorld보다 오래 생존하며 종료 시 Worker를 먼저 join합니다.
+
+로딩 중에도 창 메시지를 처리합니다. 필수 키·타입·수치·클립 반복 규칙 등이 잘못되면 오류를 표시하고 게임 시작을 중단합니다. 파서는 MIT 라이선스의 nlohmann/json 3.12.0을 사용하며 [라이선스](Engine/ThirdParty/nlohmann/LICENSE.MIT)를 함께 포함합니다.
+
+검증 결과:
+
+- Debug / Release x64 게임 빌드 성공.
+- 기존 10개 클립의 모든 값 보존과 JSON 수정값의 캐릭터·Animator 반영 확인.
+- 실제 로더·캐릭터 초기화·공격 프레임·풀 재활성화 및 오류 18건 검증 통과.
+- 실제 JobSystem의 결과·예외 전달과 종료 처리 확인. Debug 게임 기동 및 정상 종료 확인.
+
+현재는 시작 시 한 번 로딩하며 핫 리로드는 지원하지 않습니다. PNG 디코딩과 D3D 리소스 생성, 입력·게임 갱신·렌더링은 메인 스레드에서 수행합니다. 화면 육안 회귀 검증과 성능 개선 측정은 미실행입니다. 파일별 역할·소유권·스키마·검증 범위는 [개발 로그](Docs/GameData.md)에 정리했습니다.
+
+<a id="sprint-schedule"></a>
+## Sprint 진행 일정
+
+2026.09.26 기준, 하루 4~6시간의 목표 일정입니다. 상세한 의존 관계·이월 기준은 [작업 계획](Docs/SprintWorkPlan.md), 기능별 계약·검증 기준은 [요구사항 명세](Docs/Requirements.md)를 참고합니다. 날짜는 완료 기록이 아닙니다.
+
+| 날짜 / 상태 | 작업 | 완료 목표 |
+| --- | --- | --- |
+| 기존 구현·측정 자료 기록 | Profiler / Stress Test, Sprite Batch, Depth Test, Render Queue | 기존 결과와 한계 보존 |
+| 09.26 · 구현·자동 검증 | Thread Pool / Job Queue | 시작 시 JSON 로딩에 사용. 사용자 육안 검토는 별도 |
+| 09.26 · 구현·자동 검증 | AnimationClip JSON·비동기 로딩 | 클립·캐릭터 설정·텍스처 경로를 외부화, Worker 로딩 후 메인 스레드 초기화 |
+| 09.27 목표 | 공격 구조·Projectile Pool·Q | Ctrl 공격 유지, Q 투사체와 3초 쿨타임 |
+| 09.28 목표 | W/E/R·Effect Pool·Handle / Lookup | 5/7/30초 쿨타임, 명중 효과, Pool 반환·재사용 시 이전 Handle 무효화 |
+| 09.29 목표 | IOCP Echo Server | Session·비동기 Receive/Send·Disconnect·안전한 종료 |
+| 09.30 목표 | Packet Framing·2 Client | 부분/병합 패킷, Spawn/Despawn·기본 이동 동기화 |
+| 10.01 목표 | Interpolation·서버 권위 이동 | 원격 이동 보간, 서버가 입력으로 위치 계산 |
+| 10.02 목표 | 통합 검증·기록, 여유 시 Spatial Hash | 검증·기록 시간을 우선 확보하고 Broad Phase 전후 비교 |
+| 10.02 이후 후순위 | Offscreen·Post Processing·HP Vignette | 네트워크·충돌 후속 작업 이후 진행 |
+
+Q/W/E/R 에셋·동작 추천안은 Fire_Ball / Wind / Earth_Spike / Tornado이며 Q 명중에는 Explosion을 활용합니다. 쿨타임은 확정값이고, 공격 판정·피해량·수명 등은 구현 전 설계 선택이 필요합니다. 분석한 Foozle ZIP은 효과 64×64, 아이콘 32×32, CC0이며 게임에는 아직 등록하지 않았습니다.
+
+Projectile / HitEffect는 Pool로 처리합니다. Handle / Lookup / Generation은 실제 삭제를 억지로 도입하기 위한 것이 아니라, 재사용 시 참조 유효성을 구현·검증하는 포트폴리오 학습 목적입니다. 현재 입력·GameWorld 갱신·렌더링은 메인 스레드에서 유지합니다. JSON 로딩 결과는 메인 스레드에서 적용하며, 향후 네트워크 상태 반영도 같은 원칙을 따르고, IOCP와 일반 Job Queue는 구분합니다.
+
+Sprite Batch / Render Queue 경계 조건 검증 기록은 이번 일정에서 제외합니다. Depth 비교의 5,000 버튼 캡처는 실제 500개라는 기존 표기와 한계를 유지하며 재측정을 요구하지 않습니다. 일정이 밀리면 Spatial Hash를 먼저 이월하고 10.02 통합 검증 시간을 보존합니다. 맵 ID·배치·Spawn 정보 JSON은 장기 확장입니다.
+
 <a id="build-and-run"></a>
 ## 빌드 및 실행
 
@@ -296,22 +360,23 @@ Player와 Monster 스프라이트 요청이 번갈아 들어오는 조건에서 
 2. Visual Studio에서 `DX11ScrollRPG.slnx` 열기
 3. `x64`와 `Debug` 또는 `Release` 구성 선택 후 빌드 및 실행
 
-셰이더와 텍스처가 상대 경로를 사용하므로 작업 디렉터리는 저장소 루트로 설정.
+셰이더·텍스처·JSON이 상대 경로를 사용하므로 작업 디렉터리는 저장소 루트로 설정. `Assets/Data/GameData.json`은 실행에 필요한 필수 파일입니다.
 
 <a id="project-structure"></a>
 ## 프로젝트 구조
 
 ```text
 DX11ScrollRPG/
-├─ Assets/                 # 게임 텍스처
+├─ Assets/                 # Data/GameData.json, 게임 텍스처
 ├─ Engine/
-│  ├─ Core/                # Application, Window, Game Loop, Profiler, UI
+│  ├─ Core/                # Application, JobSystem, Game Loop, Profiler, UI
 │  ├─ Graphics/            # Renderer, ResourceManager, RenderInfo
 │  ├─ Math/                # Vector2
-│  └─ ThirdParty/          # stb_image
+│  └─ ThirdParty/          # stb_image, nlohmann/json 및 라이선스
 ├─ Game/
 │  ├─ Animation/           # AnimationClip, Animator
 │  ├─ Collision/           # AABB
+│  ├─ Data/                # GameData 정의와 JSON 로더
 │  ├─ Entity/              # GameObject, Entity, Character, Physics
 │  ├─ World/               # GameWorld, Ground, WorldItem
 │  ├─ Player.cpp

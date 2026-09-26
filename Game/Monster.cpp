@@ -1,49 +1,16 @@
 #include "Monster.h"
 #include <cmath>
 
-Monster::Monster()
+Monster::Monster(const MonsterDefinition& definition)
+	: definition_(definition)
 {
-	maxHp_ = 3;
+	// 검증된 공유 정의를 사용하고, 현재 HP와 Animator 재생 상태만 객체별로 가진다.
+	maxHp_ = definition_.maxHp;
 	hp_ = maxHp_;
-
-	collider.halfSize = { 0.08f, 0.07f };
-	transform.position = kStartPosition;
-
-	renderOffsetY = 0.02f;
-
-	idleClip_ = {
-		kIdleClipCount,      // frameCount
-		0.12f,  // frameDuration
-		true,   // loop
-		{ 48.0f, 32.0f },
-		{ 0.0f, 0.10f }
-	};
-
-	chaseClip_ = {
-		kChaseClipCount,
-		0.10f,
-		true,
-		{ 48.0f, 32.0f },
-		{ 0.0f, 0.10f }
-	};
-
-	hurtClip_ = {
-		kHurtClipCount,
-		0.10f,
-		false,
-		{ 48.0f, 32.0f },
-		{ 0.0f, 0.10f }
-	};
-
-	deadClip_ = {
-		kDeadClipCount,
-		0.12f,
-		false,
-		{ 48.0f, 32.0f },
-		{ 0.0f, 0.10f }
-	};
-
-	animator_.Play(idleClip_);
+	renderOffsetY = definition_.renderOffsetY;
+	collider.halfSize = definition_.colliderHalfSize;
+	transform.position = definition_.startPosition;
+	animator_.Play(definition_.idle);
 }
 
 void Monster::Update(float deltaTime)
@@ -75,12 +42,12 @@ void Monster::Update(float deltaTime)
 	{
 		if (target_->transform.position.x < transform.position.x)
 		{
-			physics.velocity.x = -kChaseSpeed;
+			physics.velocity.x = -definition_.chaseSpeed;
 			facingRight_ = false;
 		}
 		else
 		{
-			physics.velocity.x = kChaseSpeed;
+			physics.velocity.x = definition_.chaseSpeed;
 			facingRight_ = true;
 		}
 	}
@@ -101,7 +68,7 @@ void Monster::OnEnable()
 
 	facingRight_ = false;
 
-	transform.position = kStartPosition;
+	transform.position = definition_.startPosition;
 
 	ChangeState(MonsterState::Idle);
 }
@@ -149,7 +116,7 @@ void Monster::UpdateState()
 
 	const float distance = std::abs(target_->transform.position.x - transform.position.x);
 
-	if (distance <= kChaseRange && !target_->IsDead()) ChangeState(MonsterState::Chase);
+	if (distance <= definition_.chaseRange && !target_->IsDead()) ChangeState(MonsterState::Chase);
 	else ChangeState(MonsterState::Idle);
 }
 
@@ -162,16 +129,16 @@ void Monster::ChangeState(MonsterState newState)
 	switch (state_)
 	{
 	case MonsterState::Idle:
-		animator_.Play(idleClip_);
+		animator_.Play(definition_.idle);
 		break;
 	case MonsterState::Chase:
-		animator_.Play(chaseClip_);
+		animator_.Play(definition_.chase);
 		break;
 	case MonsterState::Hurt:
-		animator_.Play(hurtClip_);
+		animator_.Play(definition_.hurt);
 		break;
 	case MonsterState::Dead:
-		animator_.Play(deadClip_);
+		animator_.Play(definition_.dead);
 		break;
 	}
 }
@@ -183,7 +150,7 @@ void Monster::TakeDamage(int damage, float attackerX)
 
 	hp_ -= damage;
 
-	physics.velocity.x = transform.position.x > attackerX ? kKnockbackSpeed : -kKnockbackSpeed;
+	physics.velocity.x = transform.position.x > attackerX ? definition_.knockbackSpeed : -definition_.knockbackSpeed;
 
 	if (hp_ <= 0)
 	{
@@ -213,7 +180,7 @@ void Monster::FinishHit()
 
 void Monster::Reset()
 {
-	transform.position = kStartPosition;
+	transform.position = definition_.startPosition;
 	physics.velocity = {};
 	hp_ = maxHp_;
 	facingRight_ = false;

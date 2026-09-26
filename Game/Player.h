@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Entity/Character.h"
+#include "Data/GameData.h"
 
 enum class PlayerState
 {
@@ -16,7 +17,7 @@ class Player : public Character
 {
 public:
 	// 생성자
-	Player();
+	explicit Player(const PlayerDefinition& definition);
 
 	void Update(float deltaTime) override;
 	RenderInfo GetRenderInfo() const override;
@@ -50,13 +51,8 @@ private:
 private:
 	PlayerState state_ = PlayerState::Idle;
 
-	// Animation Clips
-	AnimationClip idleClip_;
-	AnimationClip runClip_;
-	AnimationClip jumpStartClip_;
-	AnimationClip jumpEndClip_;
-	AnimationClip attackClip_;
-	AnimationClip deadClip_;
+	// Application의 불변 설정을 빌린다. 설정은 이 객체보다 오래 살아야 한다.
+	const PlayerDefinition& definition_;
 
 	// Attack
 	bool attackHitRegistered_ = false;
@@ -66,21 +62,4 @@ private:
 	float invincibleTimer_ = 0.0f;
 	float knockbackTimer_ = 0.0f;
 
-	static constexpr float kInvincibleDuration = 1.5f;
-	static constexpr float kKnockbackDuration = 0.4f;
-	static constexpr Vector2 kKnockbackSpeed{ 1.8f, 1.0f };
-
-	// Run
-	static constexpr float kMoveSpeed = 0.8f;
-	static constexpr float kJumpSpeed = 1.5f;
-
-	static constexpr Vector2 kStartPosition{ 0.0f, -0.12f };
-
-	// Animation Clip
-	static constexpr int kIdleClipCount = 4;
-	static constexpr int kRunClipCount = 8;
-	static constexpr int kJumpStartClipCount = 4;
-	static constexpr int kJumpEndClipCount = 3;
-	static constexpr int kAttackClipCount = 8;
-	static constexpr int kDeadClipCount = 8;
 };

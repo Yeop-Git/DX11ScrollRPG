@@ -9,8 +9,9 @@
 #include "../World/Ground.h"
 #include "../Collision/AABB.h"
 
-void GameWorld::Initialize()
+void GameWorld::Initialize(const GameData& data)
 {
+	data_ = &data;
 	for (auto& layer : renderLayers_) layer.clear();
 	gameObjects_.clear();
 	entities_.clear();
@@ -100,7 +101,7 @@ void GameWorld::CreateEnvironment()
 void GameWorld::CreatePlayer()
 {
 	// Create Player
-	auto player = std::make_unique<Player>();
+	auto player = std::make_unique<Player>(data_->player);
 	player_ = player.get();
 	entities_.push_back(player.get());
 	AddGameObject(std::move(player), RenderLayer::Player);
@@ -110,7 +111,7 @@ void GameWorld::CreateMonsters()
 {
 	for (int i = 0; i < std::size(kMonsterUnlockKills); i++)
 	{
-		auto monster = std::make_unique<Monster>();
+		auto monster = std::make_unique<Monster>(data_->monster);
 		monster->SetTarget(player_);
 
 		Monster* monsterPtr = monster.get();
@@ -175,7 +176,7 @@ void GameWorld::CreateStressTestMonsters(std::size_t count)
 
 	for (std::size_t i = 0; i < count; ++i)
 	{
-		auto monster = std::make_unique<Monster>();
+		auto monster = std::make_unique<Monster>(data_->monster);
 		Monster* monsterPtr = monster.get();
 
 		// OnEnable이 기본 물리·Collider 값을 복원한 뒤 스트레스 설정을 덮어쓴다.

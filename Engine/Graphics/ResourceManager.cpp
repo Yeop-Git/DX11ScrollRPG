@@ -1,40 +1,21 @@
 #include "ResourceManager.h"
+#include <stdexcept>
 
 #include "../ThirdParty/stb/stb_image.h"
 
-// 모든 텍스쳐 로드하기
-bool ResourceManager::Initialize(ID3D11Device* device)
+// Worker가 읽은 경로 목록을 받아 메인 스레드에서 디코딩과 D3D 리소스 생성을 수행한다.
+bool ResourceManager::Initialize(ID3D11Device* device, const std::unordered_map<SpriteId, std::string>& textures)
 {
-	// Player
-	if (!LoadTextrue(device, SpriteId::PlayerIdle, "Assets/Textures/Player/Idle.png")) return false;
-	if (!LoadTextrue(device, SpriteId::PlayerRun, "Assets/Textures/Player/Run.png")) return false;
-	if (!LoadTextrue(device, SpriteId::PlayerJumpStart, "Assets/Textures/Player/JumpStart.png")) return false;
-	if (!LoadTextrue(device, SpriteId::PlayerJumpEnd, "Assets/Textures/Player/JumpEnd.png")) return false;
-	if (!LoadTextrue(device, SpriteId::PlayerAttack, "Assets/Textures/Player/Attack.png")) return false;
-	if (!LoadTextrue(device, SpriteId::PlayerDead, "Assets/Textures/Player/Dead.png")) return false;
-
-	// Monster
-	if (!LoadTextrue(device, SpriteId::MonsterIdle, "Assets/Textures/Monster/Idle.png")) return false;
-	if (!LoadTextrue(device, SpriteId::MonsterChase, "Assets/Textures/Monster/Chase.png")) return false;
-	if (!LoadTextrue(device, SpriteId::MonsterHurt, "Assets/Textures/Monster/Hurt.png")) return false;
-	if (!LoadTextrue(device, SpriteId::MonsterDead, "Assets/Textures/Monster/Dead.png")) return false;
-
-	// World
-	if (!LoadTextrue(device, SpriteId::Ground, "Assets/Textures/World/Ground.png")) return false;
-	if (!LoadTextrue(device, SpriteId::Tree, "Assets/Textures/World/Tree.png")) return false;
-	if (!LoadTextrue(device, SpriteId::Background, "Assets/Textures/World/Background.png")) return false;
-
-	//World Item
-	if (!LoadTextrue(device, SpriteId::Coin, "Assets/Textures/Item/Coin.png")) return false;
-	if (!LoadTextrue(device, SpriteId::Potion, "Assets/Textures/Item/Potion.png")) return false;
-
-	//UI
-	if (!LoadTextrue(device, SpriteId::Heart, "Assets/Textures/UI/Heart.png"))return false;
-	if (!LoadTextrue(device, SpriteId::GameOver, "Assets/Textures/UI/GameOver.png"))return false;
-
+	for (const auto& [id, path] : textures)
+	{
+		if (!LoadTextrue(device, id, path.c_str()))
+		{
+			Clear();
+			throw std::runtime_error("Cannot load texture: " + path);
+		}
+	}
 	return true;
 }
-
 // Application.cpp의 함수를 매개변수만 조금 바꿔서 사용
 bool ResourceManager::LoadTextrue(ID3D11Device* device, SpriteId id, const char* filePath)
 {

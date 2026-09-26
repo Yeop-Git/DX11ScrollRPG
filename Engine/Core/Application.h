@@ -6,7 +6,9 @@
 #include <array>
 #include <chrono>
 #include <vector>
+#include <future>
 
+#include "JobSystem.h"
 #include "Profiler.h"
 #include "UIManager.h"
 #include "../../Game/Player.h"
@@ -36,6 +38,10 @@ private:
 	bool InitializeDirectX();
 
 	bool ProcessMessages();
+	bool BeginGameDataLoading();
+	bool FinishGameDataLoading();
+	bool InitializeGame();
+	void RenderLoading();
 
 	void Update(float deltaTime);
 	void Render();
@@ -57,6 +63,10 @@ private:
 	std::chrono::steady_clock::time_point previousTime_;
 
 	// Components
+	// 월드보다 먼저 선언하므로 Player/Monster의 비소유 설정 참조보다 오래 산다.
+	std::unique_ptr<const GameData> gameData_;
+	std::future<GameData> gameDataResult_;
+	bool gameReady_ = false;
 	GameWorld gameWorld_;
 	ResourceManager resourceManager_;
 	// Renderer보다 먼저 선언해 Renderer의 비소유 참조보다 오래 살게 한다.
@@ -116,4 +126,7 @@ private:
 	
 	// Alpha Blending
 	ComPtr<ID3D11BlendState> blendState_;
+
+	// 마지막 멤버는 먼저 파괴된다. 다른 멤버가 사라지기 전에 Worker를 join한다.
+	JobSystem jobSystem_;
 };

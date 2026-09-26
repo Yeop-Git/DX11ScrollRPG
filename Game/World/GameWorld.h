@@ -11,6 +11,7 @@
 #include "../Entity/Entity.h"
 #include "WorldItem.h"
 
+struct GameData;
 class Player;
 class Monster;
 class Ground;
@@ -35,7 +36,7 @@ struct RenderObject
 class GameWorld
 {
 public :
-	void Initialize();
+	void Initialize(const GameData& data);
 
 	// Application 소유 Profiler를 빌려 Update 하위 구간을 측정한다.
 	void Update(float deltaTime, Profiler& profiler);
@@ -98,6 +99,8 @@ private:
 	void ResolveGroundCollision(Entity& entity, const Ground& ground);
 
 private:
+	// Application이 소유하며 모든 일반/풀/스트레스 객체보다 오래 살아 있는 설정.
+	const GameData* data_ = nullptr;
 	std::vector<std::unique_ptr<GameObject>> gameObjects_;
 	// 비소유 렌더 목록은 고정 레이어 순으로 나뉘며 프레임마다 정렬하지 않는다.
 	std::array<std::vector<RenderObject>, static_cast<std::size_t>(RenderLayer::Count)> renderLayers_;

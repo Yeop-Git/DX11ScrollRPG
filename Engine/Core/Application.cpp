@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cwchar>
+#include <stdexcept>
 #include <windowsx.h>
 
 // Image 디코더
@@ -80,7 +81,54 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 
 	if (!InitializeDirectX()) return false;
 
-	if (!resourceManager_.Initialize(device_.Get())) return false;
+	return BeginGameDataLoading();
+}
+
+bool Application::BeginGameDataLoading()
+{
+	// 현재 로딩은 한 묶음이므로 Worker 하나부터 사용한다. 공통 Job 인터페이스는 void()다.
+	if (!jobSystem_.Start(1)) return false;
+	auto result = std::make_shared<std::promise<GameData>>();
+	gameDataResult_ = result->get_future();
+	SetWindowTextW(hwnd_, L"DX11ScrollRPG - Loading JSON...");
+	return jobSystem_.Submit([result]()
+	{
+		// this/Player 포인터를 캡처하지 않는다. promise가 결과 또는 예외의 수명을 소유한다.
+		try
+		{
+			result->set_value(LoadGameData("Assets/Data/GameData.json"));
+		}
+		catch (...)
+		{
+			result->set_exception(std::current_exception());
+		}
+	});
+}
+
+bool Application::FinishGameDataLoading()
+{
+	// 완료 여부만 확인하므로 디스크를 기다리며 메시지 처리를 막지 않는다.
+	if (gameDataResult_.wait_for(milliseconds(0)) != std::future_status::ready) return true;
+	try
+	{
+		gameData_ = std::make_unique<const GameData>(gameDataResult_.get());
+		if (!InitializeGame()) throw std::runtime_error("Game resource initialization failed");
+		gameReady_ = true;
+		SetWindowTextW(hwnd_, L"DX11ScrollRPG");
+		previousTime_ = steady_clock::now();
+	}
+	catch (const std::exception& error)
+	{
+		// 필수 설정 실패는 기본값으로 숨기지 않는다. 부분 월드를 실행하지 않고 종료한다.
+		MessageBoxA(hwnd_, error.what(), "Game data load failed", MB_OK | MB_ICONERROR);
+		return false;
+	}
+	return true;
+}
+
+bool Application::InitializeGame()
+{
+	if (!resourceManager_.Initialize(device_.Get(), gameData_->textures)) return false;
 
 	if (!renderer_.Initialize(
 		device_.Get(),
@@ -95,11 +143,19 @@ bool Application::Initialize(HINSTANCE hInstance, int nCmdShow)
 	// UIManager는 Renderer가 사용할 Direct3D Device와 Context를 빌려 쓴다.
 	if (!uiManager_.Initialize(device_.Get(), context_.Get(), kWindowSize)) return false;
 
-	gameWorld_.Initialize();
+	gameWorld_.Initialize(*gameData_);
 
 	previousTime_ = steady_clock::now();
 
 	return true;
+}
+
+void Application::RenderLoading()
+{
+	// 로딩 화면은 아직 생성되지 않은 Renderer/텍스처를 사용하지 않는다.
+	const float color[] = { 0.03f, 0.04f, 0.07f, 1.0f };
+	context_->ClearRenderTargetView(renderTargetView_.Get(), color);
+	swapChain_->Present(1, 0);
 }
 
 // Game Loop
@@ -109,6 +165,13 @@ int Application::Run()
 
 	while (true)
 	{
+		if (!gameReady_)
+		{
+			if (!ProcessMessages()) break;
+			if (!FinishGameDataLoading()) return -1;
+			if (!gameReady_) RenderLoading();
+			continue;
+		}
 		// Message Pump부터 Present까지 한 프레임 바깥 구간을 측정한다.
 		profiler_.BeginFrame();
 		bool shouldContinue = false;
@@ -493,6 +556,7 @@ float Application::GetDeltaTime()
 
 void Application::ToggleProfilerPanel()
 {
+	if (!gameReady_) return;
 	uiManager_.ToggleProfilerPanel();
 }
 
@@ -660,7 +724,7 @@ void Application::EndGpuProfilerSample()
 
 bool Application::HandleUIMouseDown(int x, int y)
 {
-	return uiManager_.HandleMouseDown(x, y);
+	return gameReady_ && uiManager_.HandleMouseDown(x, y);
 }
 
 void Application::UpdateUI(float deltaTime)
@@ -707,10 +771,10 @@ void Application::RebuildRenderStressSprites(std::size_t spriteCount)
 			1.0f - (static_cast<float>(index / columns) + 0.5f) * cellHeight
 		};
 		info.renderHalfSize = { cellWidth * 0.46f, cellHeight * 0.46f };
-		info.frameCount = 4;
-		info.frameSizePixels = index % 2 == 0
-			? Vector2{ 64.0f, 80.0f }
-			: Vector2{ 48.0f, 32.0f };
+		// 렌더 전용 부하도 실제 캐릭터와 같은 JSON 클립 메타데이터를 사용한다.
+		const AnimationClip& clip = index % 2 == 0 ? gameData_->player.idle : gameData_->monster.idle;
+		info.frameCount = clip.frameCount;
+		info.frameSizePixels = clip.frameSizePixels;
 		info.depth = 0.5f;
 		info.renderMode = SpriteRenderMode::Cutout;
 		renderStressSprites_.push_back(info);

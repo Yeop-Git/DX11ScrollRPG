@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "player": {
+    "maxHp": 3,
+    "colliderHalfSize": [ 0.1, 0.18 ],
+    "startPosition": [ 0.0, -0.12 ],
+    "renderOffsetY": -0.06,
+    "moveSpeed": 0.8,
+    "jumpSpeed": 1.5,
+    "invincibleDuration": 1.5,
+    "knockbackDuration": 0.4,
+    "knockbackSpeed": [ 1.8, 1.0 ],
+    "blinkInterval": 0.1,
+    "attackFirstFrame": 2,
+    "attackLastFrame": 3,
+    "attackExtent": [ 0.18, 0.1 ],
+    "animations": {
+      "idle": {
+        "frameCount": 4,
+        "frameDuration": 0.12,
+        "loop": true,
+        "frameSizePixels": [ 64, 80 ],
+        "renderHalfSize": [ 0.0, 0.22 ],
+        "offset": [ 0.0, 0.0 ]
+      },
+      "run": {
+        "frameCount": 8,
+        "frameDuration": 0.1,
+        "loop": true,
+        "frameSizePixels": [ 80, 80 ],
+        "renderHalfSize": [ 0.0, 0.22 ],
+        "offset": [ 0.0, 0.0 ]
+      },
+      "jumpStart": {
+        "frameCount": 4,
+        "frameDuration": 0.1,
+        "loop": false,
+        "frameSizePixels": [ 64, 64 ],
+        "renderHalfSize": [ 0.0, 0.176 ],
+        "offset": [ 0.0, 0.0 ]
+      },
+      "jumpEnd": {
+        "frameCount": 3,
+        "frameDuration": 0.1,
+        "loop": false,
+        "frameSizePixels": [ 64, 64 ],
+        "renderHalfSize": [ 0.0, 0.176 ],
+        "offset": [ 0.0, 0.0 ]
+      },
+      "attack": {
+        "frameCount": 8,
+        "frameDuration": 0.08,
+        "loop": false,
+        "frameSizePixels": [ 96, 80 ],
+        "renderHalfSize": [ 0.0, 0.22 ],
+        "offset": [ 0.0, 0.0 ]
+      },
+      "dead": {
+        "frameCount": 8,
+        "frameDuration": 0.12,
+        "loop": false,
+        "frameSizePixels": [ 80, 64 ],
+        "renderHalfSize": [ 0.0, 0.176 ],
+        "offset": [ 0.0, -0.04 ]
+      }
+    }
+  },
+  "monster": {
+    "maxHp": 3,
+    "colliderHalfSize": [ 0.08, 0.07 ],
+    "startPosition": [ 0.6, -0.22 ],
+    "renderOffsetY": 0.02,
+    "chaseSpeed": 0.25,
+    "chaseRange": 0.6,
+    "knockbackSpeed": 0.45,
+    "animations": {
+      "idle": {
+        "frameCount": 4,
+        "frameDuration": 0.12,
+        "loop": true,
+        "frameSizePixels": [ 48, 32 ],
+        "renderHalfSize": [ 0.0, 0.1 ],
+        "offset": [ 0.0, 0.0 ]
+      },
+      "chase": {
+        "frameCount": 8,
+        "frameDuration": 0.1,
+        "loop": true,
+        "frameSizePixels": [ 48, 32 ],
+        "renderHalfSize": [ 0.0, 0.1 ],
+        "offset": [ 0.0, 0.0 ]
+      },
+      "hurt": {
+        "frameCount": 8,
+        "frameDuration": 0.1,
+        "loop": false,
+        "frameSizePixels": [ 48, 32 ],
+        "renderHalfSize": [ 0.0, 0.1 ],
+        "offset": [ 0.0, 0.0 ]
+      },
+      "dead": {
+        "frameCount": 8,
+        "frameDuration": 0.12,
+        "loop": false,
+        "frameSizePixels": [ 48, 32 ],
+        "renderHalfSize": [ 0.0, 0.1 ],
+        "offset": [ 0.0, 0.0 ]
+      }
+    }
+  },
+  "textures": {
+    "PlayerIdle": "Assets/Textures/Player/Idle.png",
+    "PlayerRun": "Assets/Textures/Player/Run.png",
+    "PlayerJumpStart": "Assets/Textures/Player/JumpStart.png",
+    "PlayerJumpEnd": "Assets/Textures/Player/JumpEnd.png",
+    "PlayerAttack": "Assets/Textures/Player/Attack.png",
+    "PlayerDead": "Assets/Textures/Player/Dead.png",
+    "MonsterIdle": "Assets/Textures/Monster/Idle.png",
+    "MonsterChase": "Assets/Textures/Monster/Chase.png",
+    "MonsterHurt": "Assets/Textures/Monster/Hurt.png",
+    "MonsterDead": "Assets/Textures/Monster/Dead.png",
+    "Ground": "Assets/Textures/World/Ground.png",
+    "Tree": "Assets/Textures/World/Tree.png",
+    "Background": "Assets/Textures/World/Background.png",
+    "Coin": "Assets/Textures/Item/Coin.png",
+    "Potion": "Assets/Textures/Item/Potion.png",
+    "Heart": "Assets/Textures/UI/Heart.png",
+    "GameOver": "Assets/Textures/UI/GameOver.png"
+  }
+}

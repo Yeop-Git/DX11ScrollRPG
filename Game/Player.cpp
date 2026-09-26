@@ -4,66 +4,16 @@
 #include <algorithm>
 #include <cmath>
 
-Player::Player()
+Player::Player(const PlayerDefinition& definition)
+	: definition_(definition)
 {
-	maxHp_ = 3;
+	// 검증된 공유 정의를 사용하고, 현재 HP와 Animator 재생 상태만 객체별로 가진다.
+	maxHp_ = definition_.maxHp;
 	hp_ = maxHp_;
-
-	renderOffsetY = -0.06f;
-
-	idleClip_ = {
-		kIdleClipCount,      // frameCount
-		0.12f,  // frameDuration
-		true,   // loop
-		{ 64.0f, 80.0f },
-		{ 0.0f, 0.22f }
-	};
-
-	runClip_ = {
-		kRunClipCount,
-		0.10f,
-		true,
-		{ 80.0f, 80.0f },
-		{ 0.0f, 0.22f }
-	};
-
-	jumpStartClip_ = {
-		kJumpStartClipCount,
-		0.10f,
-		false,
-		{ 64.0f, 64.0f },
-		{ 0.0f, 0.176f }
-	};
-
-	jumpEndClip_ = {
-		kJumpEndClipCount,
-		0.10f,
-		false,
-		{ 64.0f, 64.0f },
-		{ 0.0f, 0.176f }
-	};
-
-	attackClip_ = {
-		kAttackClipCount,
-		0.08f,
-		false,
-		{ 96.0f, 80.0f },
-		{ 0.0f, 0.22f }
-	};
-
-	deadClip_ = {
-		kDeadClipCount,
-		0.12f,
-		false,
-		{ 80.0f, 64.0f },
-		{ 0.0f, 0.176f },
-		{0.0f, -0.04f}
-	};
-
-	animator_.Play(idleClip_);
-
-	collider.halfSize = { 0.1f, 0.18f };
-	transform.position = kStartPosition;
+	renderOffsetY = definition_.renderOffsetY;
+	collider.halfSize = definition_.colliderHalfSize;
+	transform.position = definition_.startPosition;
+	animator_.Play(definition_.idle);
 	physics.isGrounded = true;
 }
 
@@ -147,13 +97,13 @@ void Player::HandleInput()
 	// 화살표 수평 이동 처리
 	if (GetAsyncKeyState(VK_LEFT) & 0x8000)
 	{
-		physics.velocity.x = -kMoveSpeed;
+		physics.velocity.x = -definition_.moveSpeed;
 		facingRight_ = false;
 	}
 
 	if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
 	{
-		physics.velocity.x = kMoveSpeed;
+		physics.velocity.x = definition_.moveSpeed;
 		facingRight_ = true;
 	}
 
@@ -161,7 +111,7 @@ void Player::HandleInput()
 	// Alt 점프 처리
 	if (physics.isGrounded && GetAsyncKeyState(VK_MENU) & 0x8000)
 	{
-		physics.velocity.y = kJumpSpeed;
+		physics.velocity.y = definition_.jumpSpeed;
 		physics.isGrounded = false;
 	}
 }
@@ -226,27 +176,27 @@ void Player::ChangeState(PlayerState newState)
 	switch (state_)
 	{
 	case PlayerState::Idle:
-		animator_.Play(idleClip_);
+		animator_.Play(definition_.idle);
 		break;
 
 	case PlayerState::Run:
-		animator_.Play(runClip_);
+		animator_.Play(definition_.run);
 		break;
 
 	case PlayerState::JumpStart:
-		animator_.Play(jumpStartClip_);
+		animator_.Play(definition_.jumpStart);
 		break;
 
 	case PlayerState::JumpEnd:
-		animator_.Play(jumpEndClip_);
+		animator_.Play(definition_.jumpEnd);
 		break;
 
 	case PlayerState::Attack:
-		animator_.Play(attackClip_);
+		animator_.Play(definition_.attack);
 		break;
 
 	case PlayerState::Dead:
-		animator_.Play(deadClip_);
+		animator_.Play(definition_.dead);
 		break;
 	}
 }
@@ -271,12 +221,12 @@ void Player::TakeDamage(int damage, float attackerX)
 
 	// 무적 시작
 	isInvincible_ = true;
-	invincibleTimer_ = kInvincibleDuration;
+	invincibleTimer_ = definition_.invincibleDuration;
 
 	// 넉백 시작
-	knockbackTimer_ = kKnockbackDuration;
+	knockbackTimer_ = definition_.knockbackDuration;
 
-	physics.velocity = kKnockbackSpeed;
+	physics.velocity = definition_.knockbackSpeed;
 	if (transform.position.x < attackerX) physics.velocity.x *= -1.0f;
 	physics.isGrounded = false;
 }
@@ -284,7 +234,7 @@ void Player::TakeDamage(int damage, float attackerX)
 bool Player::ShouldRender() const
 {
 	if (!isInvincible_) return true;
-	constexpr float blinkInterval = 0.1f;
+	const float blinkInterval = definition_.blinkInterval;
 
 	const int blinkPhase = static_cast<int>(invincibleTimer_ / blinkInterval);
 
@@ -309,7 +259,7 @@ void Player::FinishAttack()
 
 void Player::Reset()
 {
-	transform.position = kStartPosition;
+	transform.position = definition_.startPosition;
 	physics.velocity = {};
 
 	hp_ = maxHp_;
@@ -330,7 +280,7 @@ bool Player::IsAttackFrameActive() const
 	if (state_ != PlayerState::Attack) return false;
 
 	const int frame = animator_.GetCurrentFrame();
-	return frame >= 2 && frame <= 3;
+	return frame >= definition_.attackFirstFrame && frame <= definition_.attackLastFrame;
 }
 
 bool Player::CanRegisterAttackHit() const
@@ -345,7 +295,7 @@ void Player::RegisterAttackHit()
 
 AABB Player::GetAttackHitBox() const
 {
-	constexpr Vector2 attackExtent{ 0.18f, 0.10f };
+	const Vector2 attackExtent = definition_.attackExtent;
 
 	if (facingRight_)
 	{

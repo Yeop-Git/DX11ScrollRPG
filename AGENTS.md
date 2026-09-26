@@ -202,9 +202,25 @@ Edge Case 관점에서 다시 리뷰하라.
 
 ---
 
+## 2026.09.26 일정 및 요구사항 기준
+
+현재 실행 기준 문서는 [작업 계획](Docs/SprintWorkPlan.md)과 [요구사항 명세](Docs/Requirements.md)입니다. 아래 기능별 설명은 학습 범위이며, 일정과 상태는 이 두 문서를 함께 확인합니다. 이후 사용자 지시가 우선합니다.
+
+- Thread Pool / Job Queue를 실제 시작 시 JSON 로딩에 연결했습니다. 이전 독립 테스트 프로젝트는 사용자 요청으로 제거했습니다. 사용자 직접 검토·실행과 커밋은 별도 단계입니다.
+- 인자 없는 std::function<void()> 계약을 유지합니다. JSON 읽기·파싱·검증은 Worker에서 실행하고 로더의 promise/future로 결과·오류를 전달합니다. IOCP는 OS 완료 Queue와 별도 Worker로 설계합니다.
+- 현재 클라이언트의 입력·GameWorld 상태 변경·렌더링은 메인 스레드에서 수행합니다. 현재 시작 로딩 한 건은 future로 받아 메인 스레드에서 적용합니다. 반복 결과/명령 Queue는 필요해질 때 설계합니다.
+- Ctrl 일반 공격을 유지하고 Q/W/E/R을 추가합니다. 쿨타임은 3/5/7/30초입니다. 화염구·바람 칼날·대지 가시·회오리와 Q 명중 Explosion은 제안 에셋/동작이며, 구현 전 세부 정책을 선택합니다.
+- Projectile / HitEffect는 Pool로 처리합니다. 실제 삭제 사례를 만들기 위한 동적 생성·삭제 구현은 하지 않습니다. Handle / Lookup / Generation은 Pool 재사용의 논리적 수명 검증과 포트폴리오 학습 목적으로 유지합니다.
+- 09.27 공격 구조·Q → 09.28 W/E/R·Effect Pool·Handle → 09.29 IOCP Echo → 09.30 Framing·2 Client → 10.01 보간·서버 권위 이동 → 10.02 통합 검증·기록, 여유 시 Spatial Hash를 목표로 합니다. 날짜는 완료 보장이 아닙니다.
+- 사용자 요청으로 AnimationClip JSON 분리·비동기 로딩을 09.26 현재 작업으로 앞당겼습니다. Player/Monster 설정과 텍스처 경로도 함께 분리합니다. 맵 ID·배치·Spawn 정보 JSON은 장기 확장입니다.
+- Offscreen / Fullscreen Post Processing / HP Vignette는 10.02 이후 후순위입니다. 일정이 밀리면 Spatial Hash를 먼저 이월하고 안전성 검증 시간을 보존합니다.
+- Sprite Batch / Render Queue 경계 조건 검증 기록은 이번 일정에서 제외합니다. Depth 비교의 5,000 버튼 캡처 재측정은 요구하지 않으며, 기존 실제 500개 표기와 한계는 보존합니다.
+
+---
+
 # Sprint Goal
 
-스프린트 종료 시 다음 구조를 목표로 합니다.
+다음 구조를 단계적으로 목표로 합니다. 10.02까지의 목표와 이후로 미룬 항목은 작업 계획에서 구분합니다.
 
 ```text
 [Performance]
@@ -216,15 +232,21 @@ Baseline 측정
 Sprite Batch
 Draw Call Before / After 비교
 
-[Shader]
+[Shader - 10.02 이후]
 Offscreen Render Target
 Post Processing
 HP 기반 Vignette
+
+[Combat / Object Lifetime]
+QWER Skills / Projectile Pool / HitEffect Pool
+Entity Handle / Generation
+Lookup / Pool 반환·재사용 검증
 
 [Concurrency]
 Thread Pool
 Job Queue
 mutex / condition_variable
+AnimationClip JSON / 비동기 로딩 - 시작 경로에 적용
 
 [Network]
 IOCP Server
@@ -409,111 +431,11 @@ Frame Time
 
 ---
 
-# 09.26 - Sprite Batch 검증 / Post Processing 기반
-
-## 오전
-
-Sprite Batch 결과를 다시 검증합니다.
-
-- Batch가 잘못 합쳐지는 경우 확인
-- Texture 변경 시 Flush 확인
-- 비활성 Entity 처리
-- Sprite 0개 / 1개 처리
-- Buffer Capacity 초과 상황 검토
-
-측정 결과를 개발 로그에 기록합니다.
-
-## 오후
-
-Post Processing을 위한 Offscreen Rendering Pipeline을 구성합니다.
-
-```text
-Game Scene
-    ↓
-Offscreen Render Target
-    ↓
-Shader Resource View
-    ↓
-Fullscreen Pass
-    ↓
-BackBuffer
-```
-
-## 완료 기준
-
-- Scene을 BackBuffer가 아닌 별도 Render Target에 출력
-- 해당 결과를 Shader Resource로 사용
-- Fullscreen Pass를 통해 BackBuffer에 출력
-
-## 면접 방어 질문
-
-- RTV와 SRV의 차이는 무엇인가?
-- 왜 바로 BackBuffer에 렌더링하지 않는가?
-- Fullscreen Pass는 왜 필요한가?
-- Render Target을 Texture처럼 다시 사용할 수 있는 이유는 무엇인가?
-
----
-
-# 09.27 - HP Vignette Post Processing
+# 09.26 - Thread Pool / Job Queue
 
 ## 목표
 
-플레이어 체력에 따라 화면 가장자리가 어두워지거나 붉어지는 Vignette 효과를 적용합니다.
-
-```text
-Player HP
-   ↓
-Health Ratio
-   ↓
-PostProcess Settings
-   ↓
-Constant Buffer
-   ↓
-Pixel Shader
-```
-
-## 동작 예시
-
-```text
-HP 100%
-→ 효과 거의 없음
-
-HP 50%
-→ 약한 Vignette
-
-HP 20%
-→ 강한 Vignette
-
-HP 10% 이하
-→ 붉은 Vignette
-```
-
-시간이 허용되면 낮은 체력에서 Pulse 효과도 실험합니다.
-
-## Debug
-
-가능하면 Debug UI에서 다음 값을 조절합니다.
-
-```text
-Health Ratio
-Vignette Strength
-Vignette Radius
-Pulse Strength
-```
-
-## 완료 기준
-
-- Post Processing Shader 구현
-- HP와 Vignette 연결
-- Constant Buffer를 통한 Gameplay → Shader 데이터 전달
-
----
-
-# 09.28 - Thread Pool / Job Queue
-
-## 목표
-
-IOCP 학습에 앞서 C++ 멀티스레드와 Producer / Consumer 구조를 직접 구현합니다.
+IOCP 학습에 앞서 C++ 멀티스레드와 Producer / Consumer 구조를 직접 구현했습니다. 현재는 Application 시작 시 JSON 로딩에서 실행하며, 기존 독립 테스트 프로젝트는 제거했습니다. [Thread Pool 개발 로그](Docs/ThreadPool.md)를 참고합니다.
 
 ```text
 Main Thread
@@ -523,29 +445,16 @@ Thread-safe Job Queue
 Worker Thread Pool
 ```
 
-## 기본 구조
+## 현재 공개 인터페이스
 
 ```cpp
-class JobSystem
-{
-public:
-    void Start(size_t workerCount);
-    void Stop();
-
-    void Submit(std::function<void()> job);
-
-private:
-    void WorkerLoop();
-
-    std::vector<std::thread> workers_;
-    std::queue<std::function<void()>> jobs_;
-
-    std::mutex mutex_;
-    std::condition_variable cv_;
-
-    bool running_ = false;
-};
+bool Start(std::size_t workerCount);
+bool Submit(std::function<void()> job);
+void Stop();
+std::size_t GetFailedJobCount() const;
 ```
+
+Start / Stop / 파괴는 생성 스레드에서 수행합니다. Submit은 여러 스레드에서 가능하며, Stop은 새 접수를 막고 이미 받은 작업을 모두 처리한 뒤 join합니다. 이 코드는 기존 GameWorld를 병렬 갱신하지 않습니다.
 
 ## 학습 항목
 
@@ -597,7 +506,27 @@ Worker 4
 
 ---
 
-# 09.29 - IOCP Server
+# 09.27~09.28 - 공격 확장 / Pool / Handle 및 Lookup
+
+## 목적과 범위
+
+기존 Ctrl 공격을 유지하며 Q/W/E/R 4개 스킬을 추가합니다. 쿨타임은 3/5/7/30초입니다. PlayerAttack 상속과 Player의 composition을 비교·선택하고, 투사체와 이펙트의 실제 수명은 GameWorld가 관리합니다.
+
+추천 에셋은 Foozle Pixel Magic Effects의 Fire_Ball / Wind / Earth_Spike / Tornado이며, Q 명중에는 Explosion을 사용합니다. 원본 ZIP 분석상 애니메이션은 64×64, 아이콘은 32×32이고 동봉 라이선스는 CC0입니다. 공격 동작·피해량·유효 프레임은 구현 전 선택합니다.
+
+## 설계 및 검증
+
+- Projectile / HitEffect는 Pool에서 대여·반환합니다. 기존 Monster / Item Pool은 유지합니다.
+- Handle / Lookup / Generation은 포트폴리오 학습·확장 목적이며, 실제 객체 삭제 대신 반환·재사용 후 이전 Handle의 조회 실패를 검증합니다.
+- 실제 소유권은 GameWorld의 unique_ptr에 유지하고, Handle은 현재 사용 회차를 식별하는 비소유 값으로 사용합니다.
+- 반환 시 상태 초기화, 중복 반환, 잘못된 Handle, 슬롯 재사용, 월드 Reset, Generation 범위 초과 정책을 확인합니다.
+- R 다단 타격과 현재 Hurt 상태의 추가 피해 거부 정책, R 재시작 입력과의 충돌을 설계에서 해결합니다.
+- 장기 참조와 순회용 raw pointer의 사용 기간을 구분하며, 기존 참조 전체를 일괄 전환하지 않습니다.
+- 세부 요구사항과 완료 기준은 [Requirements.md](Docs/Requirements.md)의 ATK / LIFE / ASSET 항목을 따릅니다.
+
+---
+
+# 09.29 - IOCP Echo Server
 
 ## 목표
 
@@ -690,7 +619,7 @@ Worker가 처리
 
 ---
 
-# 09.30 - 2 Client Multiplayer
+# 09.30 - Packet Framing / 2 Client Multiplayer
 
 ## 목표
 
@@ -775,7 +704,7 @@ Client Disconnect
 
 ---
 
-# 10.01 - Snapshot Interpolation
+# 10.01 목표 1 - Snapshot Interpolation
 
 ## 문제
 
@@ -853,7 +782,7 @@ Target Position
 
 ---
 
-# 10.02 오전 - Server Authoritative Movement
+# 10.01 목표 2 - Server Authoritative Movement
 
 ## 문제
 
@@ -906,7 +835,7 @@ Local Player Prediction / Reconciliation은 이번 스프린트 범위에서 제
 
 ---
 
-# 10.02 오후 - Spatial Hash Broad Phase
+# 10.02 조건부 - Spatial Hash Broad Phase
 
 ## 목표
 
@@ -992,6 +921,104 @@ Sweep and Prune
 - Quadtree와 비교하면 어떤 장단점이 있는가?
 - Cell Size는 성능에 어떤 영향을 미치는가?
 - 중복 Candidate는 어떻게 제거하는가?
+
+---
+
+# 09.26 - AnimationClip JSON / 비동기 로딩
+
+Player / Monster의 정적 AnimationClip, 이동·피격 수치와 텍스처 경로를 Assets/Data/GameData.json으로 옮겼습니다. Animator 재생 상태와 FSM은 코드에 유지합니다. 독립 함수 LoadGameData가 읽기·파싱·검증하고, Application이 이를 JobSystem에 제출합니다. 구현과 검증은 [GameData.md](Docs/GameData.md)를 참고합니다.
+
+Worker는 promise로 완성 데이터 또는 예외를 전달하고 메인 스레드가 future로 받습니다. Application은 불변 설정을 World보다 오래 소유하며 JobSystem을 가장 먼저 파괴해 Worker를 join합니다. 파일마다 JobSystem을 종료하지 않습니다. 재요청·핫 리로드·월드 전환은 미지원이며 도입 시 요청 식별·취소 정책을 추가합니다. 세부 기준은 [Requirements.md](Docs/Requirements.md)의 DATA / ARCH 항목을 따릅니다. 맵 ID·맵 배치·Spawn 설정은 장기 확장으로 남깁니다.
+
+---
+
+# 후순위 1 - Offscreen Render Target / Post Processing 기반
+
+10.02 이후 후순위로 진행하며, 실행 날짜는 미정입니다.
+
+## 목표
+
+Post Processing을 위한 Offscreen Rendering Pipeline을 구성합니다.
+
+```text
+Game Scene
+    ↓
+Offscreen Render Target
+    ↓
+Shader Resource View
+    ↓
+Fullscreen Pass
+    ↓
+BackBuffer
+```
+
+## 완료 기준
+
+- Scene을 BackBuffer가 아닌 별도 Render Target에 출력
+- 해당 결과를 Shader Resource로 사용
+- Fullscreen Pass를 통해 BackBuffer에 출력
+
+## 면접 방어 질문
+
+- RTV와 SRV의 차이는 무엇인가?
+- 왜 바로 BackBuffer에 렌더링하지 않는가?
+- Fullscreen Pass는 왜 필요한가?
+- Render Target을 Texture처럼 다시 사용할 수 있는 이유는 무엇인가?
+
+---
+
+# 후순위 2 - HP Vignette Post Processing
+
+## 목표
+
+플레이어 체력에 따라 화면 가장자리가 어두워지거나 붉어지는 Vignette 효과를 적용합니다.
+
+```text
+Player HP
+   ↓
+Health Ratio
+   ↓
+PostProcess Settings
+   ↓
+Constant Buffer
+   ↓
+Pixel Shader
+```
+
+## 동작 예시
+
+```text
+HP 100%
+→ 효과 거의 없음
+
+HP 50%
+→ 약한 Vignette
+
+HP 20%
+→ 강한 Vignette
+
+HP 10% 이하
+→ 붉은 Vignette
+```
+
+시간이 허용되면 낮은 체력에서 Pulse 효과도 실험합니다.
+
+## Debug
+
+가능하면 Debug UI에서 다음 값을 조절합니다.
+
+```text
+Health Ratio
+Vignette Strength
+Vignette Radius
+Pulse Strength
+```
+
+## 완료 기준
+
+- Post Processing Shader 구현
+- HP와 Vignette 연결
+- Constant Buffer를 통한 Gameplay → Shader 데이터 전달
 
 ---
 
@@ -1125,14 +1152,18 @@ AI를 잘 사용하는 것뿐 아니라 **AI의 결과를 검증하고 책임질
 | 1일차 (09.24) | 1-2 | UIManager 분리 및 Stress Test |
 | 2일차 (09.25) | 2-1 | Sprite Batch |
 | 2일차 (09.25) | 2-2 | Depth Test 및 오버드로우 측정 |
-| 3일차 (09.26) | 3-1 | Offscreen Render Target 및 Post Processing 기반 |
-| 4일차 (09.27) | 4-1 | HP Vignette |
-| 5일차 (09.28) | 5-1 | Thread Pool 및 Job Queue |
-| 6일차 (09.29) | 6-1 | IOCP Server |
-| 7일차 (09.30) | 7-1 | 2 Client Multiplayer |
-| 8일차 (10.01) | 8-1 | Snapshot Interpolation |
-| 9일차 (10.02) | 9-1 | Server Authoritative Movement |
-| 9일차 (10.02) | 9-2 | Spatial Hash Broad Phase |
+| 2일차 (09.25) | 2-3 | Render Queue 및 성능 비교 |
+| 3일차 (09.26) | 3-1 | Thread Pool / Job Queue 및 JSON 비동기 로딩 |
+| 4~5일차 목표 (09.27~28) | 실행일 기준 확정 | 공격 구조·QWER·Projectile/Effect Pool·Handle / Lookup |
+| 6일차 목표 (09.29) | 실행일 기준 확정 | IOCP Echo Server |
+| 7일차 목표 (09.30) | 실행일 기준 확정 | Packet Framing / 2 Client Multiplayer |
+| 8일차 목표 (10.01) | 실행일 기준 확정 | Snapshot Interpolation |
+| 8일차 목표 (10.01) | 실행일 기준 확정 | Server Authoritative Movement |
+| 9일차 조건부 (10.02) | 실행일 기준 확정 | Spatial Hash Broad Phase / 통합 검증·기록 |
+| 후순위 · 날짜 미정 | 실행일 기준 확정 | Offscreen Render Target 및 Post Processing 기반 |
+| 후순위 · 날짜 미정 | 실행일 기준 확정 | HP Vignette |
+
+예정 번호는 완료 이력이 아닙니다. 후속 작업의 커밋 번호는 실제 작업 날짜와 당일 순서에 맞춰 확정하며, 기존 커밋과 태그는 변경하지 않습니다.
 
 - 제목은 `AI Sprint <일차>-<당일 작업 순번> <기능 요약>` 형식으로 작성합니다. 이 저장소의 기존 제목처럼 한국어로 변경 내용을 구체적으로 요약하며, 사용자가 별도 형식을 지정하지 않는 한 Conventional Commits 접두어(`feat:`, `fix:` 등)는 붙이지 않습니다.
 - 번호가 붙은 주요 구현 커밋을 만들 때는 커밋과 함께 로컬 Git 태그도 생성합니다. AI Sprint 작업은 `ai-Sprint#<일차>-<작업 순번>` 형식(예: `ai-Sprint#2-1`), 기존 직접 구현 이력은 `origin#<번호>` 형식(예: `origin#7-1`)을 사용합니다. 번호 없는 일반 커밋, 간단한 문서 수정, 오탈자 수정에는 태그를 만들지 않습니다. 태그는 해당 커밋을 정확히 가리키는지 확인하며, 커밋 제목이나 시각은 태그 작업 때문에 변경하지 않습니다.
@@ -1169,7 +1200,7 @@ AI 협업 및 판단: 제안 검토와 사용자가 선택한 방향
 - [ ] Draw Call Before / After
 - [ ] Render CPU Time 비교
 
-## Shader
+## Shader (후순위 · 날짜 미정)
 
 - [ ] Offscreen Render Target
 - [ ] Fullscreen Post Process
@@ -1177,10 +1208,29 @@ AI 협업 및 판단: 제안 검토와 사용자가 선택한 방향
 
 ## Concurrency
 
-- [ ] Thread Pool
-- [ ] Thread-safe Job Queue
-- [ ] condition_variable 기반 Worker 대기
-- [ ] 안전한 Shutdown
+- [x] Thread Pool
+- [x] Thread-safe Job Queue
+- [x] condition_variable 기반 Worker 대기
+- [x] 안전한 Shutdown
+
+Thread Pool은 시작 시 JSON 로딩에 연결됐습니다. 자동 검증과 사용자 화면 확인은 [로딩 로그](Docs/GameData.md)에서 구분합니다.
+
+## Combat
+
+- [ ] 일반 공격 유지 및 QWER 3/5/7/30초 쿨타임
+- [ ] 스킬별 충돌·피해·명중 이펙트 검증
+
+## Data Loading
+
+- [x] AnimationClip 동기 JSON 로더
+- [x] JobSystem 로딩 및 메인 스레드 결과 적용
+
+## Object Lifetime
+
+- [ ] Projectile / HitEffect Pool 대여·반환
+- [ ] Entity Handle / Generation 및 Lookup
+- [ ] Pool 관리 API 및 사용 회차의 Handle 무효화
+- [ ] 반환·슬롯 재사용·Reset 이후 오래된 Handle 검증
 
 ## Network
 
@@ -1221,7 +1271,6 @@ AI 협업 및 판단: 제안 검토와 사용자가 선택한 방향
 Texture Atlas
 Bloom
 Dissolve Shader
-Entity Handle / Generation
 Lock-free Queue
 Client Prediction
 Server Reconciliation

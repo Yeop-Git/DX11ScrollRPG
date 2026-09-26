@@ -144,11 +144,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Engine\Core\Application.cpp" />
+    <ClCompile Include="Engine\Core\JobSystem.cpp" />
     <ClCompile Include="Engine\Core\Profiler.cpp" />
     <ClCompile Include="Engine\Core\UIManager.cpp" />
     <ClCompile Include="Engine\Graphics\Renderer.cpp" />
     <ClCompile Include="Engine\Graphics\ResourceManager.cpp" />
     <ClCompile Include="Engine\ThirdParty\stb\StbImage.cpp" />
+    <ClCompile Include="Game\Data\GameData.cpp" />
     <ClCompile Include="Game\Animation\Animator.cpp" />
     <ClCompile Include="Game\Entity\Character.cpp" />
     <ClCompile Include="Game\Entity\GameObject.cpp" />
@@ -161,6 +163,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\Core\Application.h" />
+    <ClInclude Include="Engine\Core\JobSystem.h" />
     <ClInclude Include="Engine\Core\Profiler.h" />
     <ClInclude Include="Engine\Core\UIManager.h" />
     <ClInclude Include="Engine\Graphics\Renderer.h" />
@@ -169,6 +172,8 @@
     <ClInclude Include="Engine\Graphics\SpriteId.h" />
     <ClInclude Include="Engine\Math\Vector2.h" />
     <ClInclude Include="Engine\ThirdParty\stb\stb_image.h" />
+    <ClInclude Include="Game\Data\GameData.h" />
+    <ClInclude Include="Engine\ThirdParty\nlohmann\json.hpp" />
     <ClInclude Include="Game\Animation\AnimationClip.h" />
     <ClInclude Include="Game\Animation\Animator.h" />
     <ClInclude Include="Game\Collision\AABB.h" />
@@ -185,6 +190,8 @@
     <ClInclude Include="Game\World\WorldItem.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Assets\Data\GameData.json" />
+    <None Include="Engine\ThirdParty\nlohmann\LICENSE.MIT" />
     <None Include="Shaders\BasicPS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>

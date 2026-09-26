@@ -1,6 +1,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <string>
 
 #include <d3d11.h>
 #include <wrl/client.h>
@@ -12,7 +13,7 @@ using namespace Microsoft::WRL;
 class ResourceManager
 {
 public:
-	bool Initialize(ID3D11Device* device);
+	bool Initialize(ID3D11Device* device, const std::unordered_map<SpriteId, std::string>& textures);
 	bool LoadTextrue(ID3D11Device* device, SpriteId id, const char* filePath);
 
 	ID3D11ShaderResourceView* GetTexture(SpriteId id) const;
