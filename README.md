@@ -10,6 +10,8 @@ C++20과 DirectX 11로 개발한 2D 액션 게임 프로토타입. Win32 게임 
   </a>
 </p>
 
+`v0.1.0`: 아래 **기본: 직접 작성한 코드**의 렌더링·게임 시스템을 포함한 릴리스. AI Sprint는 해당 버전 이후의 확장 개발이며 `v0.1.0` 배포본에는 미포함.
+
 ## 목차
 
 - [프로젝트 정보](#project-information)
@@ -20,13 +22,13 @@ C++20과 DirectX 11로 개발한 2D 액션 게임 프로토타입. Win32 게임 
   3. [객체·물리·충돌](#entity-physics-collision)
   4. [FSM 기반 전투](#fsm-combat)
   5. [Active 상태 기반 재사용](#object-reuse)
-- [AI Sprint: 성능 분석과 렌더링 개선](#ai-sprint)
+- [AI Sprint: 성능 최적화·멀티스레드·데이터 분리](#ai-sprint)
   1. [Profiler와 스트레스 테스트](#profiler-stress-test)
   2. [Sprite Batch](#sprite-batch)
   3. [Depth Test와 픽셀 처리량](#depth-test)
   4. [Render Queue](#render-queue)
-- [Thread Pool / Job Queue](#thread-pool)
-- [JSON 설정과 비동기 로딩](#json-loading)
+  5. [Thread Pool / Job Queue](#thread-pool)
+  6. [JSON 설정과 비동기 로딩](#json-loading)
 - [Sprint 진행 일정](#sprint-schedule)
 - [빌드 및 실행](#build-and-run)
 - [프로젝트 구조](#project-structure)
@@ -57,6 +59,9 @@ C++20과 DirectX 11로 개발한 2D 액션 게임 프로토타입. Win32 게임 
 <a id="handwritten-foundation"></a>
 ## 기본: 직접 작성한 코드
 
+아래 1~5번 작업은 [v0.1.0 릴리스](https://github.com/Yeop-Git/DX11ScrollRPG/releases/tag/v0.1.0)에 포함. Win32 / DirectX 11 기반 렌더링, 객체·물리·충돌, FSM 전투, Monster / Item 재사용 구현.
+
+<a id="directx-rendering"></a>
 ### 1. DirectX 11 렌더링
 
 #### 개발 배경
@@ -94,8 +99,8 @@ C++20과 DirectX 11로 개발한 2D 액션 게임 프로토타입. Win32 게임 
 
 #### 한계 및 개선점
 
-- Character 코드에 정의된 애니메이션 데이터의 외부 파일 또는 Asset Table 분리 필요
-- `Application`에 남아 있는 UI 연결의 별도 책임 분리 필요
+- 당시 클래스 내부 애니메이션 정의 → AI Sprint에서 JSON 분리 적용
+- 당시 Application의 UI 책임 → AI Sprint에서 UIManager 분리 적용
 
 <a id="entity-physics-collision"></a>
 ### 3. 객체·물리·충돌
@@ -162,9 +167,13 @@ Monster와 Item의 반복적인 생성·삭제로 발생하는 메모리 할당�
 - 재사용 대상 증가 시 공통 `ObjectPool<T>` 구조 검토
 
 <a id="ai-sprint"></a>
-## AI Sprint: 성능 분석과 렌더링 개선
+## AI Sprint: 성능 최적화·멀티스레드·데이터 분리
 
-직접 작성한 게임 시스템을 바탕으로 Profiler와 렌더링 최적화를 분석하고 확장하는 AI Sprint 작업.
+직접 구현한 C++ / DirectX 11 게임을 기반으로 Codex와 설계 비교·구현·검증을 진행한 확장 개발.
+
+- 성능 분석·렌더링: Profiler, Stress Test, Sprite Batch, Depth Test, Render Queue
+- 멀티스레드·데이터 분리: Thread Pool, Job Queue, AnimationClip JSON, 비동기 파일 로딩
+- 후속 목표: QWER·Pool·Handle, IOCP·멀티플레이, Spatial Hash. Offscreen·Post Processing은 후순위
 
 <a id="profiler-stress-test"></a>
 ### 1. Profiler와 스트레스 테스트
@@ -202,12 +211,12 @@ Sprite별 Draw Call에서 발생하는 CPU 제출 비용을 줄이면서 기존 
 - 재사용 인덱스 버퍼로 누적 Sprite를 DrawIndexed 처리
 - 실제 Batch 제출 성공 시 Sprite 및 Draw Call 카운터 갱신
 
-| Stress Sprite | Draw Calls 전 → 후 | Scene Render 전 → 후 |
+| Stress Sprite | Draw Calls 전 → 후 | Render CPU (ms, 전 → 후) |
 | ---: | ---: | ---: |
-| 1,000 | 1,022 → 6 | 1.00 → 1.85 ms |
-| 5,000 | 5,022 → 8 | 4.98 → 6.60 ms |
-| 10,000 | 10,022 → 10 | 8.44 → 13.57 ms |
-| 50,000 | 50,022 → 30 | 41.04 → 66.97 ms |
+| 1,000 | 1,022 → 6 | 1.00 → 1.85 |
+| 5,000 | 5,022 → 8 | 4.98 → 6.60 |
+| 10,000 | 10,022 → 10 | 8.44 → 13.57 |
+| 50,000 | 50,022 → 30 | 41.04 → 66.97 |
 
 ![Sprite Batch 적용 전후 Profiler 비교. 테두리는 Draw Call 값을 표시한다.](Docs/Profiler/SpriteBatchComparison.png)
 
@@ -233,12 +242,12 @@ Sprite별 Draw Call에서 발생하는 CPU 제출 비용을 줄이면서 기존 
 
 ![Depth Test ON/OFF 비교. 테두리는 Render, Draw Calls, GPU 시간과 PS 호출 수를 표시한다. 두 번째 행은 5,000 버튼 선택 당시 실제 Stress Sprite가 500개로 측정되어 별도 표기했다.](Docs/Profiler/DepthTest/DepthTestComparison.png)
 
-| Stress Sprite | GPU ms (ON → OFF) | PS Invocations (ON → OFF) | Scene Render ms (ON → OFF) | Frame ms (ON → OFF) | Draw Calls |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 0.36 → 0.28 | 761,804 → 8,902,340 | 1.39 → 2.16 | 16.60 → 16.59 | 6 → 6 |
-| 5,000 버튼 선택 (실제 500) | 0.58 → 1.25 | 1,675,407 → 38,882,099 | 6.93 → 8.97 | 16.83 → 18.62 | 8 → 8 |
-| 10,000 | 0.74 → 2.27 | 2,063,266 → 78,192,054 | 13.74 → 18.00 | 33.68 → 37.52 | 10 → 10 |
-| 50,000 | 1.67 → 11.46 | 29,449,766 → 376,943,225 | 67.88 → 89.77 | 167.68 → 189.64 | 30 → 30 |
+| Stress Sprite | GPU Time (ms, ON → OFF) | PS Invocations (ON → OFF) | Render CPU (ms, ON → OFF) |
+| ---: | ---: | ---: | ---: |
+| 1,000 | 0.36 → 0.28 | 761,804 → 8,902,340 | 1.39 → 2.16 |
+| 5,000 버튼 선택 (실제 500) | 0.58 → 1.25 | 1,675,407 → 38,882,099 | 6.93 → 8.97 |
+| 10,000 | 0.74 → 2.27 | 2,063,266 → 78,192,054 | 13.74 → 18.00 |
+| 50,000 | 1.67 → 11.46 | 29,449,766 → 376,943,225 | 67.88 → 89.77 |
 
 #### 한계 및 개선점
 
@@ -263,31 +272,48 @@ Player와 Monster 스프라이트 요청이 번갈아 들어오는 조건에서 
 
 ![Render Queue 적용 전후 비교. 왼쪽은 Queue OFF, 오른쪽은 Queue ON이며 노란 테두리는 Render, Queue, Draw Calls, GPU Time, PS 값을 표시한다. Profiler 화면은 원본 캡처에서 가져왔다.](Docs/Profiler/RenderQueue/RenderQueueComparison.png)
 
-| Sprite 수 | Draw Calls (OFF → ON) | Render / Queue CPU (ms, OFF → ON) | GPU Time (ms, OFF → ON) | PS Invocations (OFF → ON) |
-| ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 1,002 → 4 | 16.64 / 0.00 → 2.53 / 2.51 | 0.49 → 0.13 | 168,860 → 168,860 |
-| 5,000 | 5,002 → 6 | 16.77 / 0.00 → 8.75 / 8.73 | 7.69 → 0.31 | 169,540 → 169,540 |
-| 10,000 | 10,002 → 8 | 32.84 / 0.00 → 16.73 / 16.71 | 17.46 → 0.12 | 1,695,120 → 1,695,120 |
-| 50,000 | 50,002 → 28 | 105.80 / 0.00 → 85.71 / 85.69 | 93.48 → 0.61 | 1,708,896 → 1,708,896 |
+| Sprite 수 | Draw Calls (OFF → ON) | Render CPU (ms, OFF → ON) | GPU Time (ms, OFF → ON) |
+| ---: | ---: | ---: | ---: |
+| 1,000 | 1,002 → 4 | 16.64 → 2.53 | 0.49 → 0.13 |
+| 5,000 | 5,002 → 6 | 16.77 → 8.75 | 7.69 → 0.31 |
+| 10,000 | 10,002 → 8 | 32.84 → 16.73 | 17.46 → 0.12 |
+| 50,000 | 50,002 → 28 | 105.80 → 85.71 | 93.48 → 0.61 |
 
 #### 한계 및 개선점
 
-- Draw Calls는 크게 줄었지만, 50,000 Sprite에서 Render CPU 시간은 85.71 ms로 남음. Queue는 텍스처 상태 변경과 제출 횟수를 줄이며, Sprite별 정점 준비 비용은 여전히 발생.
-- Queue 시간은 요청 수집부터 Queue 제출까지의 구간으로 Render 시간에 포함. 두 값을 더해 전체 비용으로 해석하지 않음.
-- 측정에서 PS Invocations는 Queue 전후 동일. GPU Time 감소만으로 픽셀 처리량 감소를 판단할 수 없음.
-- 투명 Sprite는 순서 보존을 위해 Queue에서 제외. Depth Test를 끄면 요청 재정렬을 허용하지 않아 Queue 효과가 적용되지 않음.
+- 50,000 Sprite에서 Draw Calls 50,002 → 28 감소. Render CPU는 85.71 ms로 남아 정점 준비 비용 개선 필요
+- GPU 시간 감소 확인. 픽셀 처리량 감소를 의미하지는 않음
+- 투명 Sprite와 Depth Test OFF에서는 순서 보존을 위해 요청 재정렬 제외
 
 <a id="thread-pool"></a>
-## Thread Pool / Job Queue
+### 5. Thread Pool / Job Queue
 
-인자 없는 `std::function<void()>` 작업을 받는 최소 JobSystem. 고정 Worker들이 단일 Queue에서 작업을 꺼내며, `mutex`와 `condition_variable`로 접수·대기·종료를 제어합니다. Stop은 새 작업을 거부하고 이미 접수한 작업을 모두 처리한 뒤 Worker를 join합니다.
+#### 개발 배경
 
-Application이 JobSystem Worker 하나를 시작하고 실제 JSON 파일 읽기·파싱·검증을 제출합니다. 기존 JobSystemTests 콘솔 프로젝트는 제거했습니다. 공통 작업은 계속 `std::function<void()>`이며, 로더의 `promise/future`가 결과와 오류를 메인 스레드에 전달합니다. [Thread Pool 계약](Docs/ThreadPool.md), [JSON 로딩 구조와 검증](Docs/GameData.md)을 참고합니다.
+Worker를 재사용해 작업 실행·대기·종료를 관리하고, 게임 시작 시 파일 로딩을 분리할 기반 마련.
+
+#### 구현 내용
+
+- `std::function<void()>` 작업을 보관하는 공통 Queue와 고정 Worker 구성
+- `mutex` 기반 Queue 보호, `condition_variable` 기반 Worker 대기
+- Queue 잠금 밖에서 작업 실행, 작업 예외 집계 후 후속 작업 처리
+- Stop 시 새 접수 차단, 접수된 작업 처리 후 Worker join
+- Application에서 Worker 하나를 시작해 JSON 읽기·파싱·검증에 사용
+
+#### 한계 및 개선점
+
+- 작업 강제 취소·우선순위·Queue 용량 제한 미지원
+- 게임 객체 갱신과 렌더링은 메인 스레드에서 유지
+- 함수 계약·수명·검증 기록은 [Thread Pool 개발 로그](Docs/ThreadPool.md) 참고
 
 <a id="json-loading"></a>
-## JSON 설정과 비동기 로딩
+### 6. JSON 설정과 비동기 로딩
 
-Player / Monster 생성자에 있던 정적 정의를 [GameData.json](Assets/Data/GameData.json)으로 분리했습니다. JSON을 수정하고 게임을 다시 실행하면 재컴파일 없이 설정을 적용합니다.
+#### 개발 배경
+
+Player / Monster 생성자의 정적 정의를 [GameData.json](Assets/Data/GameData.json)으로 분리. JSON 수정 후 재실행으로 재컴파일 없이 설정 적용.
+
+#### 구현 내용
 
 | 분리한 데이터 | 내용 |
 | --- | --- |
@@ -301,23 +327,29 @@ Application → JobSystem.Submit
     → Main: future 완료 확인 → 리소스 생성 → GameWorld 초기화
 ```
 
-Application이 불변 GameData를 소유하며 Player와 Monster는 이를 읽기 전용으로 참조합니다. 현재 HP, FSM, Animator의 현재 프레임과 시간은 객체별 실행 상태로 유지합니다. 설정은 GameWorld보다 오래 생존하며 종료 시 Worker를 먼저 join합니다.
+- Application 소유 불변 GameData를 Player / Monster가 읽기 전용으로 공유
+- 현재 HP·FSM·Animator 재생 상태는 객체별로 유지
+- 로딩 중 창 메시지 처리, 필수 설정 오류 시 메시지 표시 후 시작 중단
+- nlohmann/json 3.12.0 사용 및 [MIT 라이선스](Engine/ThirdParty/nlohmann/LICENSE.MIT) 포함
 
-로딩 중에도 창 메시지를 처리합니다. 필수 키·타입·수치·클립 반복 규칙 등이 잘못되면 오류를 표시하고 게임 시작을 중단합니다. 파서는 MIT 라이선스의 nlohmann/json 3.12.0을 사용하며 [라이선스](Engine/ThirdParty/nlohmann/LICENSE.MIT)를 함께 포함합니다.
+#### 검증 결과
 
-검증 결과:
+- Debug / Release x64 빌드 성공
+- 기존 10개 클립 값 보존 및 JSON 수정값의 캐릭터·Animator 반영 확인
+- 캐릭터 초기화·공격 프레임·풀 재활성화·오류 18건 검증 통과
+- Worker 결과·예외 전달·종료 처리 및 Debug 게임 기동·정상 종료 확인
 
-- Debug / Release x64 게임 빌드 성공.
-- 기존 10개 클립의 모든 값 보존과 JSON 수정값의 캐릭터·Animator 반영 확인.
-- 실제 로더·캐릭터 초기화·공격 프레임·풀 재활성화 및 오류 18건 검증 통과.
-- 실제 JobSystem의 결과·예외 전달과 종료 처리 확인. Debug 게임 기동 및 정상 종료 확인.
+#### 한계 및 개선점
 
-현재는 시작 시 한 번 로딩하며 핫 리로드는 지원하지 않습니다. PNG 디코딩과 D3D 리소스 생성, 입력·게임 갱신·렌더링은 메인 스레드에서 수행합니다. 화면 육안 회귀 검증과 성능 개선 측정은 미실행입니다. 파일별 역할·소유권·스키마·검증 범위는 [개발 로그](Docs/GameData.md)에 정리했습니다.
+- 시작 시 1회 로딩, 핫 리로드 미지원
+- PNG 디코딩·D3D 생성은 메인 스레드에서 수행
+- 화면 육안 회귀 검증·성능 개선 측정 미실행
+- 스키마·소유권·검증 범위는 [JSON 로딩 개발 로그](Docs/GameData.md) 참고
 
 <a id="sprint-schedule"></a>
 ## Sprint 진행 일정
 
-2026.09.26 기준, 하루 4~6시간의 목표 일정입니다. 상세한 의존 관계·이월 기준은 [작업 계획](Docs/SprintWorkPlan.md), 기능별 계약·검증 기준은 [요구사항 명세](Docs/Requirements.md)를 참고합니다. 날짜는 완료 기록이 아닙니다.
+2026.09.26 기준, 하루 4~6시간의 목표 일정. 의존 관계·이월 기준은 [작업 계획](Docs/SprintWorkPlan.md), 기능별 계약·검증 기준은 [요구사항 명세](Docs/Requirements.md) 참고.
 
 | 날짜 / 상태 | 작업 | 완료 목표 |
 | --- | --- | --- |
@@ -332,11 +364,12 @@ Application이 불변 GameData를 소유하며 Player와 Monster는 이를 읽�
 | 10.02 목표 | 통합 검증·기록, 여유 시 Spatial Hash | 검증·기록 시간을 우선 확보하고 Broad Phase 전후 비교 |
 | 10.02 이후 후순위 | Offscreen·Post Processing·HP Vignette | 네트워크·충돌 후속 작업 이후 진행 |
 
-Q/W/E/R 에셋·동작 추천안은 Fire_Ball / Wind / Earth_Spike / Tornado이며 Q 명중에는 Explosion을 활용합니다. 쿨타임은 확정값이고, 공격 판정·피해량·수명 등은 구현 전 설계 선택이 필요합니다. 분석한 Foozle ZIP은 효과 64×64, 아이콘 32×32, CC0이며 게임에는 아직 등록하지 않았습니다.
-
-Projectile / HitEffect는 Pool로 처리합니다. Handle / Lookup / Generation은 실제 삭제를 억지로 도입하기 위한 것이 아니라, 재사용 시 참조 유효성을 구현·검증하는 포트폴리오 학습 목적입니다. 현재 입력·GameWorld 갱신·렌더링은 메인 스레드에서 유지합니다. JSON 로딩 결과는 메인 스레드에서 적용하며, 향후 네트워크 상태 반영도 같은 원칙을 따르고, IOCP와 일반 Job Queue는 구분합니다.
-
-Sprite Batch / Render Queue 경계 조건 검증 기록은 이번 일정에서 제외합니다. Depth 비교의 5,000 버튼 캡처는 실제 500개라는 기존 표기와 한계를 유지하며 재측정을 요구하지 않습니다. 일정이 밀리면 Spatial Hash를 먼저 이월하고 10.02 통합 검증 시간을 보존합니다. 맵 ID·배치·Spawn 정보 JSON은 장기 확장입니다.
+- QWER 쿨타임: 3 / 5 / 7 / 30초. 후보 에셋: Fire_Ball / Wind / Earth_Spike / Tornado, Q 명중 효과: Explosion
+- Foozle ZIP: 효과 64×64, 아이콘 32×32, CC0. 게임 등록·공격 세부 설계는 후속
+- Projectile / HitEffect는 Pool 사용. Handle / Lookup / Generation은 재사용 시 참조 유효성 검증 목적
+- 네트워크 상태 반영은 메인 스레드에서 처리 예정. IOCP 완료 Queue와 일반 Job Queue 구분
+- Sprite Batch / Render Queue 경계 조건 검증 기록 제외. Depth 5,000 버튼의 실제 500개 표기 유지, 재측정 제외
+- 일정 지연 시 Spatial Hash 우선 이월, 10.02 통합 검증 시간 확보. 맵 ID·배치·Spawn JSON은 장기 확장
 
 <a id="build-and-run"></a>
 ## 빌드 및 실행
@@ -360,7 +393,7 @@ Sprite Batch / Render Queue 경계 조건 검증 기록은 이번 일정에서 �
 2. Visual Studio에서 `DX11ScrollRPG.slnx` 열기
 3. `x64`와 `Debug` 또는 `Release` 구성 선택 후 빌드 및 실행
 
-셰이더·텍스처·JSON이 상대 경로를 사용하므로 작업 디렉터리는 저장소 루트로 설정. `Assets/Data/GameData.json`은 실행에 필요한 필수 파일입니다.
+셰이더·텍스처·JSON이 상대 경로를 사용하므로 작업 디렉터리는 저장소 루트로 설정. `Assets/Data/GameData.json` 필수 포함.
 
 <a id="project-structure"></a>
 ## 프로젝트 구조
