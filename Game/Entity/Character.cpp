@@ -1,11 +1,11 @@
 #include "Character.h"
 #include <algorithm>
 
-void Character::TakeDamage(int damage, float)
+DamageResult Character::TakeDamage(const DamageRequest& request)
 {
-	hp_ -= damage;
-
-	if (hp_ < 0) hp_ = 0;
+	if (IsDead() || request.amount <= 0) return DamageResult::Ignored;
+	hp_ = (std::max)(0, hp_ - request.amount);
+	return IsDead() ? DamageResult::Killed : DamageResult::Applied;
 }
 
 void Character::Heal(int amount)

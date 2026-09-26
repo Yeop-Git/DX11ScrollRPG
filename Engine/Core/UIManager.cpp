@@ -114,7 +114,7 @@ bool UIManager::Initialize(
 		return false;
 	}
 
-	return UpdateTextTexture();
+	return UpdateTextTexture() && combatHud_.Initialize(device_, context_, viewportSize_);
 }
 
 void UIManager::ToggleProfilerPanel()
@@ -231,6 +231,7 @@ void UIManager::Update(float deltaTime, const UIFrameData& frameData)
 		|| frameData_.renderQueueEnabled != frameData.renderQueueEnabled;
 	const bool modeChanged = frameData_.selectedStressMode != frameData.selectedStressMode;
 	frameData_ = frameData;
+	combatHud_.Update(frameData.combat);
 
 	if (!profilerVisible_)
 	{
@@ -252,13 +253,14 @@ void UIManager::Update(float deltaTime, const UIFrameData& frameData)
 
 void UIManager::Render(Renderer& renderer) const
 {
+	combatHud_.Render(renderer);
 	// 기존 Application HUD와 같은 Sprite API로 하트와 Game Over를 그린다.
 	for (int heartIndex = 0; heartIndex < frameData_.playerHp; ++heartIndex)
 	{
 		RenderInfo heart;
 		heart.spriteId = SpriteId::Heart;
 		heart.renderMode = SpriteRenderMode::AlphaBlend;
-		heart.position = { -0.9f + heartIndex * 0.1f, 0.88f };
+		heart.position = { (profilerVisible_ ? -0.10f : -0.9f) + heartIndex * 0.1f, 0.88f };
 		heart.frameSizePixels = { 1254.0f, 1254.0f };
 		heart.renderHalfSize = { 0.0f, 0.08f };
 		renderer.Draw(heart);
@@ -269,7 +271,7 @@ void UIManager::Render(Renderer& renderer) const
 		RenderInfo gameOver;
 		gameOver.spriteId = SpriteId::GameOver;
 		gameOver.renderMode = SpriteRenderMode::AlphaBlend;
-		gameOver.position = { 0.0f, 0.1f };
+		gameOver.position = { profilerVisible_ ? 0.42f : 0.0f, 0.1f };
 		gameOver.frameSizePixels = { 1921.0f, 819.0f };
 		gameOver.renderHalfSize = { 0.0f, 0.2f };
 		renderer.Draw(gameOver);

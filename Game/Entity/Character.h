@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Entity.h"
+#include "../Combat/Damage.h"
 #include "../Animation/Animator.h"
 
 // 움직이며 전투가능한 Entity
@@ -11,7 +12,7 @@ public:
 	virtual ~Character() = default;
 
 	// Take Damage virtual로 선언하여 다형성 부여
-	virtual void TakeDamage(int damage, float attackerX);
+	virtual DamageResult TakeDamage(const DamageRequest& request);
 	virtual void Heal(int amount);
 
 	void ClampWorld();

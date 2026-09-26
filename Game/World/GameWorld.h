@@ -10,6 +10,11 @@
 #include "../../Engine/Core/Profiler.h"
 #include "../Entity/Entity.h"
 #include "WorldItem.h"
+#include "../Combat/SkillObject.h"
+#include "../Combat/WorldSlotPool.h"
+#include "../Combat/Damage.h"
+#include "../Combat/AttackInput.h"
+#include "../Effects/HitEffect.h"
 
 struct GameData;
 class Player;
@@ -24,6 +29,7 @@ enum class RenderLayer : std::size_t
 	Environment,
 	Background,
 	TransparentItem,
+	TransparentSkill,
 	Count
 };
 
@@ -41,6 +47,8 @@ public :
 	// Application 소유 Profiler를 빌려 Update 하위 구간을 측정한다.
 	void Update(float deltaTime, Profiler& profiler);
 	void Reset();
+	AttackAvailability SpawnSkill(AttackSlot slot, Player& player);
+	DamageResult ApplyDamageToMonster(Monster& monster, const DamageRequest& request);
 
 	// 지정한 수의 고정 배치 스트레스 Monster를 만들며 0은 테스트 종료다.
 	void SetStressTestMonsterCount(std::size_t count);
@@ -68,6 +76,17 @@ public :
 	}
 
 private:
+	void CreateCombatPools();
+	bool CaptureAttackInput();
+	void UpdateSkills(float deltaTime, const std::vector<PoolHandle<SkillObject>>& handles, Profiler& profiler);
+	Vector2 MonsterPositionAt(size_t index, double elapsed, float deltaTime) const;
+	bool CanHitMonster(size_t index) const;
+	void ApplySkillDamage(const SkillObject& skill, size_t index, Vector2 position);
+	void ResolvePeriodicSkill(SkillObject& skill, float deltaTime, Profiler& profiler);
+	bool ResolveContactSkill(SkillObject& skill, float deltaTime, Profiler& profiler);
+	void SpawnHitEffect(Vector2 position);
+	void SpawnMonster(Monster& monster);
+	void ClearCombatObjects();
 	void CreateEnvironment();
 	void CreatePlayer();
 	void CreateMonsters();
@@ -112,6 +131,11 @@ private:
 	std::unordered_set<const Entity*> stressMonsterLookup_;
 	std::vector<Ground*> grounds_;
 	std::vector<WorldItem*> items_;
+
+	WorldSlotPool<SkillObject> skillPool_;
+	WorldSlotPool<HitEffect> effectPool_;
+	AttackInput attackInput_;
+	std::vector<Vector2> previousMonsterPositions_;
 
 	// Player는 월드에 하나뿐인 객체임으로 특별 관리.
 	Player* player_ = nullptr;

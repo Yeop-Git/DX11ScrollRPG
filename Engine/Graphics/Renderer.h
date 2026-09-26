@@ -54,7 +54,10 @@ public:
 	void Flush();
 	// UI 전용 그리기는 게임 Sprite/Draw Call 카운터에서 제외한다.
 	void DrawUIRect(Vector2 position, Vector2 halfSize, RendererColor color);
-	void DrawUITexture(ID3D11ShaderResourceView* texture, Vector2 position, Vector2 halfSize);
+	void DrawUITexture(ID3D11ShaderResourceView* texture, Vector2 position, Vector2 halfSize,
+		Vector2 uvMin = {}, Vector2 uvMax = {1.0f, 1.0f});
+	void DrawUIIcon(SpriteId icon, Vector2 position, Vector2 halfSize);
+	void DrawUICooldown(Vector2 position, Vector2 halfSize, float remainingFraction, RendererColor color);
 
 	void DrawSprite(
 		SpriteId id,
@@ -131,6 +134,7 @@ private:
 		float depth = 0.5f,
 		SpriteRenderMode renderMode = SpriteRenderMode::Cutout
 	);
+	void DrawUITriangle(Vector2 a, Vector2 b, Vector2 c, RendererColor color);
 	void ClearBatch();
 	void ClearRenderQueue();
 	bool CreateGeometry();

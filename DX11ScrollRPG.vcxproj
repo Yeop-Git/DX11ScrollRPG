@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -204,4 +204,70 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <ItemGroup>
+    <ClCompile Include="Game\Stats\PlayerStat.cpp" />
+    <ClCompile Include="Game\Combat\PlayerAttack.cpp" />
+    <ClCompile Include="Game\Combat\SkillObject.cpp" />
+    <ClCompile Include="Game\Effects\HitEffect.cpp" />
+    <ClInclude Include="Game\Stats\EnemyStat.h" />
+    <ClInclude Include="Game\Stats\PlayerStat.h" />
+    <ClInclude Include="Game\Stats\StatDefinitions.h" />
+    <ClInclude Include="Game\Combat\AttackDefinition.h" />
+    <ClInclude Include="Game\Combat\Damage.h" />
+    <ClInclude Include="Game\Combat\PlayerAttack.h" />
+    <ClInclude Include="Game\Combat\PoolHandle.h" />
+    <ClInclude Include="Game\Combat\SkillObject.h" />
+    <ClInclude Include="Game\Combat\WorldSlotPool.h" />
+    <ClInclude Include="Game\Effects\HitEffect.h" />
+    <None Include="Assets\Data\PlayerStat.json" />
+    <None Include="Assets\Data\EnemyStat.json" />
+    <None Include="Assets\Skills\Foozle-Readme.txt" />
+    <None Include="Assets\Skills\Earth_Spike\001.png" />
+    <None Include="Assets\Skills\Earth_Spike\002.png" />
+    <None Include="Assets\Skills\Earth_Spike\003.png" />
+    <None Include="Assets\Skills\Earth_Spike\004.png" />
+    <None Include="Assets\Skills\Earth_Spike\005.png" />
+    <None Include="Assets\Skills\Earth_Spike\006.png" />
+    <None Include="Assets\Skills\Earth_Spike\007.png" />
+    <None Include="Assets\Skills\Earth_Spike\008.png" />
+    <None Include="Assets\Skills\Earth_Spike\009.png" />
+    <None Include="Assets\Skills\Explosion\001.png" />
+    <None Include="Assets\Skills\Explosion\002.png" />
+    <None Include="Assets\Skills\Explosion\003.png" />
+    <None Include="Assets\Skills\Explosion\004.png" />
+    <None Include="Assets\Skills\Explosion\005.png" />
+    <None Include="Assets\Skills\Explosion\006.png" />
+    <None Include="Assets\Skills\Explosion\007.png" />
+    <None Include="Assets\Skills\Fire_Ball\001.png" />
+    <None Include="Assets\Skills\Fire_Ball\002.png" />
+    <None Include="Assets\Skills\Fire_Ball\003.png" />
+    <None Include="Assets\Skills\Fire_Ball\004.png" />
+    <None Include="Assets\Skills\Fire_Ball\005.png" />
+    <None Include="Assets\Skills\Tornado\001.png" />
+    <None Include="Assets\Skills\Tornado\002.png" />
+    <None Include="Assets\Skills\Tornado\003.png" />
+    <None Include="Assets\Skills\Tornado\004.png" />
+    <None Include="Assets\Skills\Tornado\005.png" />
+    <None Include="Assets\Skills\Tornado\006.png" />
+    <None Include="Assets\Skills\Wind\001.png" />
+    <None Include="Assets\Skills\Wind\002.png" />
+    <None Include="Assets\Skills\Wind\003.png" />
+    <None Include="Assets\Skills\Wind\004.png" />
+    <None Include="Assets\Skills\Wind\005.png" />
+    <None Include="Assets\Skills\Wind\006.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Engine\Core\CombatHud.cpp" />
+    <ClInclude Include="Engine\Core\CombatHud.h" />
+  </ItemGroup>
+  <ItemGroup><ClCompile Include="Game\World\WorldCombat.cpp" /></ItemGroup>
+  <ItemGroup><ClInclude Include="Game\Combat\AttackInput.h" /></ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Engine\Graphics\UIRadialFill.h" />
+    <None Include="Assets\UI\SkillIcons\Normal.png" />
+    <None Include="Assets\UI\SkillIcons\FireBall.png" />
+    <None Include="Assets\UI\SkillIcons\Wind.png" />
+    <None Include="Assets\UI\SkillIcons\EarthSpike.png" />
+    <None Include="Assets\UI\SkillIcons\Tornado.png" />
+  </ItemGroup>
 </Project>

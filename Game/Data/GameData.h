@@ -1,6 +1,8 @@
 #pragma once
 
 #include <filesystem>
+#include "../Stats/StatDefinitions.h"
+#include "../Combat/AttackDefinition.h"
 #include <string>
 #include <unordered_map>
 
@@ -11,22 +13,18 @@
 struct PlayerDefinition
 {
 	AnimationClip idle, run, jumpStart, jumpEnd, attack, dead;
-	int maxHp = 0;
-	Vector2 colliderHalfSize{}, startPosition{}, knockbackSpeed{}, attackExtent{};
+	Vector2 colliderHalfSize{}, startPosition{}, knockbackSpeed{};
 	float renderOffsetY = 0.0f;
 	float moveSpeed = 0.0f;
 	float jumpSpeed = 0.0f;
 	float invincibleDuration = 0.0f;
 	float knockbackDuration = 0.0f;
 	float blinkInterval = 0.0f;
-	int attackFirstFrame = 0;
-	int attackLastFrame = 0;
 };
 
 struct MonsterDefinition
 {
 	AnimationClip idle, chase, hurt, dead;
-	int maxHp = 0;
 	Vector2 colliderHalfSize{}, startPosition{};
 	float renderOffsetY = 0.0f;
 	float chaseSpeed = 0.0f;
@@ -36,6 +34,11 @@ struct MonsterDefinition
 
 struct GameData
 {
+	PlayerStatDefinition playerStat;
+	EnemyStatDefinition enemyStat;
+	AttackDefinitions attacks;
+	EffectDefinition hitEffect;
+	unsigned skillPoolSize = 64, effectPoolSize = 128;
 	PlayerDefinition player;
 	MonsterDefinition monster;
 	std::unordered_map<SpriteId, std::string> textures;

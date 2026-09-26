@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "Profiler.h"
+#include "CombatHud.h"
 #include "../Graphics/Renderer.h"
 
 using namespace Microsoft::WRL;
@@ -27,6 +28,7 @@ struct StressTestRequest
 // Application이 매 프레임 UI에 전달하는 읽기 전용 화면 데이터다.
 struct UIFrameData
 {
+	CombatHudData combat;
 	int playerHp = 0;
 	bool playerDead = false;
 	std::size_t stressTestCount = 0;
@@ -88,6 +90,7 @@ private:
 	ComPtr<ID3D11Texture2D> textTexture_;
 	ComPtr<ID3D11ShaderResourceView> textTextureView_;
 
+	CombatHud combatHud_;
 	UIFrameData frameData_{};
 	std::optional<StressTestRequest> requestedStressTest_;
 	std::optional<bool> requestedDepthTestEnabled_;

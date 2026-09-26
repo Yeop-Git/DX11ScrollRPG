@@ -219,6 +219,11 @@ Edge Case 관점에서 다시 리뷰하라.
 
 ## 2026.09.26 일정 및 요구사항 기준
 
+성장 Stat·QWER·Pool/Handle·HUD는 명세 기반 구현 요청으로 09.26 선행 구현했습니다. UI도 최종 사용자 지시에 따라 이번 범위에 포함합니다. 현재 결과는 [성장·스킬 구현 기록](Docs/CombatImplementation.md)을 우선 확인합니다. 아래 예정 일정과 초기 설계 설명을 완료 여부의 근거로 사용하지 않습니다. 자동 검증 204개와 WARP 출력 확인을 실제 키보드 플레이·밸런스 검토와 구분합니다.
+
+스킬 에셋은 GameData.json에서 실제 사용하는 PNG만 저장소에 유지합니다. 미사용 스킬 프레임·아이콘은 추가하지 않고, 사용 변경 시 JSON·프로젝트 항목·파일 목록을 함께 맞춥니다. 원본 다운로드 ZIP과 라이선스 문서는 보존합니다. HUD는 사용자 요청으로 생성한 정사각형 아이콘 5개를 사용합니다. 아이콘은 실제 스킬 스프라이트의 색과 형태를 기준으로 맞춥니다. 스킬 목록은 우하단 EXP 패널 위에 간격을 두고 배치합니다. 이름·기본 쿨타임 바는 표시하지 않으며, 해금 레벨은 잠금 중에만 자물쇠 아래에 표시합니다. 우상단 단축키·시계방향 쿨타임·중앙 남은 초·최하단 EXP 배치를 유지합니다.
+
+
 현재 실행 기준 문서는 [작업 계획](Docs/SprintWorkPlan.md)과 [요구사항 명세](Docs/Requirements.md)입니다. 아래 기능별 설명은 학습 범위이며, 일정과 상태는 이 두 문서를 함께 확인합니다. 이후 사용자 지시가 우선합니다.
 
 - Thread Pool / Job Queue를 실제 시작 시 JSON 로딩에 연결했습니다. 이전 독립 테스트 프로젝트는 사용자 요청으로 제거했습니다. 사용자 직접 검토·실행과 커밋은 별도 단계입니다.
@@ -226,7 +231,7 @@ Edge Case 관점에서 다시 리뷰하라.
 - 현재 클라이언트의 입력·GameWorld 상태 변경·렌더링은 메인 스레드에서 수행합니다. 현재 시작 로딩 한 건은 future로 받아 메인 스레드에서 적용합니다. 반복 결과/명령 Queue는 필요해질 때 설계합니다.
 - Ctrl 일반 공격을 유지하고 Q/W/E/R을 추가합니다. 쿨타임은 3/5/7/30초입니다. 화염구·바람 칼날·대지 가시·회오리와 Q 명중 Explosion은 제안 에셋/동작이며, 구현 전 세부 정책을 선택합니다.
 - Projectile / HitEffect는 Pool로 처리합니다. 실제 삭제 사례를 만들기 위한 동적 생성·삭제 구현은 하지 않습니다. Handle / Lookup / Generation은 Pool 재사용의 논리적 수명 검증과 포트폴리오 학습 목적으로 유지합니다.
-- 09.27 공격 구조·Q → 09.28 W/E/R·Effect Pool·Handle → 09.29 IOCP Echo → 09.30 Framing·2 Client → 10.01 보간·서버 권위 이동 → 10.02 통합 검증·기록, 여유 시 Spatial Hash를 목표로 합니다. 날짜는 완료 보장이 아닙니다.
+- 09.27~09.28은 일반 공격·QWER·Projectile/Effect Pool·Handle·JSON의 통합 작업으로 진행합니다. [통합 공격 구현 계획](Docs/CombatImplementationPlan.md)에 코드별 설계와 요구사항을 정리합니다. IOCP는 날짜 미정의 후속으로 미루고, 네트워크 일정은 재개 시점에 맞춰 재조정합니다. 10.02 통합 검증·기록 시간을 우선 확보합니다.
 - 사용자 요청으로 AnimationClip JSON 분리·비동기 로딩을 09.26 현재 작업으로 앞당겼습니다. Player/Monster 설정과 텍스처 경로도 함께 분리합니다. 맵 ID·배치·Spawn 정보 JSON은 장기 확장입니다.
 - Offscreen / Fullscreen Post Processing / HP Vignette는 10.02 이후 후순위입니다. 일정이 밀리면 Spatial Hash를 먼저 이월하고 안전성 검증 시간을 보존합니다.
 - Sprite Batch / Render Queue 경계 조건 검증 기록은 이번 일정에서 제외합니다. Depth 비교의 5,000 버튼 캡처 재측정은 요구하지 않으며, 기존 실제 500개 표기와 한계는 보존합니다.
@@ -525,7 +530,7 @@ Worker 4
 
 ## 목적과 범위
 
-기존 Ctrl 공격을 유지하며 Q/W/E/R 4개 스킬을 추가합니다. 쿨타임은 3/5/7/30초입니다. PlayerAttack 상속과 Player의 composition을 비교·선택하고, 투사체와 이펙트의 실제 수명은 GameWorld가 관리합니다.
+기존 Ctrl 공격을 유지하며 Q/W/E/R 4개 스킬을 추가합니다. 쿨타임은 3/5/7/30초이며 해금 레벨은 2/4/6/10입니다. PlayerStat/EnemyStat과 성장 JSON, 레벨별 처치 EXP를 추가합니다. Level/EXP 수치·진행 바와 공격별 단축키·쿨타임·해금 조건 UI를 필수 범위에 포함합니다. 세부 설계와 검증 기준은 [성장 시스템 설계](Docs/ProgressionDesign.md)를 따르며, 추천 수치와 확정 요구를 구분합니다. PlayerAttack 상속과 Player의 composition을 비교·선택하고, 투사체와 이펙트의 실제 수명은 GameWorld가 관리합니다.
 
 추천 에셋은 Foozle Pixel Magic Effects의 Fire_Ball / Wind / Earth_Spike / Tornado이며, Q 명중에는 Explosion을 사용합니다. 원본 ZIP 분석상 애니메이션은 64×64, 아이콘은 32×32이고 동봉 라이선스는 CC0입니다. 공격 동작·피해량·유효 프레임은 구현 전 선택합니다.
 
@@ -541,7 +546,7 @@ Worker 4
 
 ---
 
-# 09.29 - IOCP Echo Server
+# 후속 · 날짜 미정 - IOCP Echo Server
 
 ## 목표
 
@@ -634,7 +639,7 @@ Worker가 처리
 
 ---
 
-# 09.30 - Packet Framing / 2 Client Multiplayer
+# 기존 09.30 목표 · 재조정 - Packet Framing / 2 Client Multiplayer
 
 ## 목표
 
@@ -719,7 +724,7 @@ Client Disconnect
 
 ---
 
-# 10.01 목표 1 - Snapshot Interpolation
+# 기존 10.01 목표 · 재조정 - Snapshot Interpolation
 
 ## 문제
 
@@ -797,7 +802,7 @@ Target Position
 
 ---
 
-# 10.01 목표 2 - Server Authoritative Movement
+# 기존 10.01 목표 · 재조정 - Server Authoritative Movement
 
 ## 문제
 
@@ -1169,11 +1174,11 @@ AI를 잘 사용하는 것뿐 아니라 **AI의 결과를 검증하고 책임질
 | 2일차 (09.25) | 2-2 | Depth Test 및 오버드로우 측정 |
 | 2일차 (09.25) | 2-3 | Render Queue 및 성능 비교 |
 | 3일차 (09.26) | 3-1 | Thread Pool / Job Queue 및 JSON 비동기 로딩 |
-| 4~5일차 목표 (09.27~28) | 실행일 기준 확정 | 공격 구조·QWER·Projectile/Effect Pool·Handle / Lookup |
-| 6일차 목표 (09.29) | 실행일 기준 확정 | IOCP Echo Server |
-| 7일차 목표 (09.30) | 실행일 기준 확정 | Packet Framing / 2 Client Multiplayer |
-| 8일차 목표 (10.01) | 실행일 기준 확정 | Snapshot Interpolation |
-| 8일차 목표 (10.01) | 실행일 기준 확정 | Server Authoritative Movement |
+| 3일차 (09.26) | 3-2 | 성장 Stat·QWER·Projectile/Effect Pool·Handle / Lookup·HUD |
+| 후속 · 날짜 미정 | 실행일 기준 확정 | IOCP Echo Server |
+| 기존 09.30 목표 · 재조정 | 실행일 기준 확정 | Packet Framing / 2 Client Multiplayer |
+| 기존 10.01 목표 · 재조정 | 실행일 기준 확정 | Snapshot Interpolation |
+| 기존 10.01 목표 · 재조정 | 실행일 기준 확정 | Server Authoritative Movement |
 | 9일차 조건부 (10.02) | 실행일 기준 확정 | Spatial Hash Broad Phase / 통합 검증·기록 |
 | 후순위 · 날짜 미정 | 실행일 기준 확정 | Offscreen Render Target 및 Post Processing 기반 |
 | 후순위 · 날짜 미정 | 실행일 기준 확정 | HP Vignette |
@@ -1261,8 +1266,10 @@ Thread Pool은 시작 시 JSON 로딩에 연결됐습니다. 자동 검증과 �
 
 ## Combat
 
-- [ ] 일반 공격 유지 및 QWER 3/5/7/30초 쿨타임
-- [ ] 스킬별 충돌·피해·명중 이펙트 검증
+- [x] 일반 공격 유지 및 QWER 3/5/7/30초 쿨타임
+- [x] PlayerStat/EnemyStat·EXP·레벨별 스킬 해금·성장/공격 HUD
+- [x] 스킬별 충돌·피해·명중 이펙트 자동 검증
+- [ ] 실제 키보드 플레이·타격감·성장 속도 검토
 
 ## Data Loading
 
@@ -1271,10 +1278,10 @@ Thread Pool은 시작 시 JSON 로딩에 연결됐습니다. 자동 검증과 �
 
 ## Object Lifetime
 
-- [ ] Projectile / HitEffect Pool 대여·반환
-- [ ] Entity Handle / Generation 및 Lookup
-- [ ] Pool 관리 API 및 사용 회차의 Handle 무효화
-- [ ] 반환·슬롯 재사용·Reset 이후 오래된 Handle 검증
+- [x] Projectile / HitEffect Pool 대여·반환
+- [x] Entity Handle / Generation 및 Lookup
+- [x] Pool 관리 API 및 사용 회차의 Handle 무효화
+- [x] 반환·슬롯 재사용·Reset 이후 오래된 Handle 검증
 
 ## Network
 

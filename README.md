@@ -22,13 +22,14 @@ C++20과 DirectX 11로 개발한 2D 액션 게임 프로토타입. Win32 게임 
   3. [객체·물리·충돌](#entity-physics-collision)
   4. [FSM 기반 전투](#fsm-combat)
   5. [Active 상태 기반 재사용](#object-reuse)
-- [AI Sprint: 성능 최적화·멀티스레드·데이터 분리](#ai-sprint)
+- [AI Sprint: 성능 최적화·멀티스레드·성장·스킬](#ai-sprint)
   1. [Profiler와 스트레스 테스트](#profiler-stress-test)
   2. [Sprite Batch](#sprite-batch)
   3. [Depth Test와 픽셀 처리량](#depth-test)
   4. [Render Queue](#render-queue)
   5. [Thread Pool / Job Queue](#thread-pool)
   6. [JSON 설정과 비동기 로딩](#json-loading)
+  7. [성장·QWER·Pool·HUD](#combat-progression)
 - [Sprint 진행 일정](#sprint-schedule)
 - [빌드 및 실행](#build-and-run)
 - [프로젝트 구조](#project-structure)
@@ -52,7 +53,8 @@ C++20과 DirectX 11로 개발한 2D 액션 게임 프로토타입. Win32 게임 
 | --- | --- |
 | `←` / `→` | 좌우 이동 |
 | `Alt` | 점프 |
-| `Ctrl` | 공격 |
+| `Ctrl` | 일반 근접 공격 |
+| `Q` / `W` / `E` / `R` | Lv.2 / 4 / 6 / 10 해금, 쿨타임 3 / 5 / 7 / 30초 |
 | `R` | 사망 후 재시작 |
 | `F1` | Profiler 및 스트레스 테스트 패널 표시 전환 |
 
@@ -167,12 +169,13 @@ Monster와 Item의 반복적인 생성·삭제로 발생하는 메모리 할당�
 - 재사용 대상 증가 시 공통 `ObjectPool<T>` 구조 검토
 
 <a id="ai-sprint"></a>
-## AI Sprint: 성능 최적화·멀티스레드·데이터 분리
+## AI Sprint: 성능 최적화·멀티스레드·성장·스킬
 
 직접 구현한 C++ / DirectX 11 게임을 기반으로 Codex와 설계 비교·구현·검증을 진행한 확장 개발.
 
 - 성능 분석·렌더링: Profiler, Stress Test, Sprite Batch, Depth Test, Render Queue
-- 멀티스레드·데이터 분리: Thread Pool, Job Queue, AnimationClip JSON, 비동기 파일 로딩
+- 멀티스레드·데이터 분리: Thread Pool, Job Queue, AnimationClip·Stat·공격 JSON, 비동기 파일 로딩
+- 전투·성장: PlayerStat / EnemyStat, EXP·레벨 해금, QWER·투사체/효과 Pool·Generation Handle·HUD
 - 후속 목표: QWER·Pool·Handle, IOCP·멀티플레이, Spatial Hash. Offscreen·Post Processing은 후순위
 
 <a id="profiler-stress-test"></a>
@@ -318,8 +321,9 @@ Player / Monster 생성자의 정적 정의를 [GameData.json](Assets/Data/GameD
 | 분리한 데이터 | 내용 |
 | --- | --- |
 | AnimationClip 10개 | 프레임 수·재생 간격·반복 여부·프레임 크기·렌더 크기·offset |
-| Player / Monster 설정 | 초기 HP·시작 위치·충돌 크기·이동 및 피격 수치·공격 유효 프레임과 범위 |
-| 텍스처 경로 17개 | SpriteId별 이미지 파일 경로 |
+| Player / Monster 설정 | 시작 위치·충돌 크기·이동 및 피격 수치 |
+| Stat / 공격 설정 | 레벨별 HP·필요/보상 EXP, 해금·쿨타임·피해·판정·Pool 용량 |
+| 텍스처 경로 55개 | 기존 SpriteId 17개, 스킬·효과 프레임 33개, 생성 아이콘 5개 |
 
 ```text
 Application → JobSystem.Submit
@@ -327,6 +331,7 @@ Application → JobSystem.Submit
     → Main: future 완료 확인 → 리소스 생성 → GameWorld 초기화
 ```
 
+- GameData.json(schema 2), PlayerStat.json / EnemyStat.json(schema 1) 일괄 검증 후 적용
 - Application 소유 불변 GameData를 Player / Monster가 읽기 전용으로 공유
 - 현재 HP·FSM·Animator 재생 상태는 객체별로 유지
 - 로딩 중 창 메시지 처리, 필수 설정 오류 시 메시지 표시 후 시작 중단
@@ -346,6 +351,41 @@ Application → JobSystem.Submit
 - 화면 육안 회귀 검증·성능 개선 측정 미실행
 - 스키마·소유권·검증 범위는 [JSON 로딩 개발 로그](Docs/GameData.md) 참고
 
+<a id="combat-progression"></a>
+### 7. 성장·QWER·Pool·HUD
+
+#### 개발 배경
+
+처치 → EXP → 레벨업 → 스킬 해금으로 전투 확장. Pool 재사용 시 동일 주소의 이전 사용 회차를 구분할 참조 체계 추가.
+
+#### 구현 내용
+
+- PlayerStat / EnemyStat, 레벨별 필요·보상 EXP와 HP 정의의 JSON 분리
+- 동일 레벨 적 기준으로 다음 레벨 숫자만큼 처치해 레벨업. Lv.1→2는 2마리·10 EXP, Lv.9→10은 10마리·450 EXP
+- Q/W/E/R Lv.2/4/6/10 해금, 3/5/7/30초 쿨타임. 기존 Ctrl 공격 유지
+- PlayerAttack 기반의 근접·투사체·지면·주기 공격을 Player 소유 배열로 구성
+- GameWorld 소유 Skill/HitEffect Pool, storageId·slot·generation Handle 검증
+- 상대 이동 Swept AABB, E 유효 시간 구간, R 최대 8회 피해, Killed 시 EXP 1회 지급
+- Level·EXP 수치/진행 바, 공격별 단축키·쿨타임·해금·사용 상태 HUD
+- Foozle CC0 사용 프레임 33개와 실제 스프라이트를 참고한 imagegen 생성 HUD 아이콘 5개 등록. 미사용 에셋 제외
+- 우하단 정사각형 아이콘·우상단 단축키·잠금 중에만 자물쇠와 해금 레벨, 시계방향 쿨타임 오버레이·중앙 남은 초, 최하단 EXP 바
+
+#### 검증 결과
+
+- x64 Debug / Release 빌드 성공, 성장·전투·입력·Pool·JSON·렌더 검증 204개 통과
+- DX11 WARP 기반 HUD·스킬 이미지 확인, 투명 스킬의 Render Queue ON/OFF 픽셀 일치
+- 파일별 역할·호출 흐름·검증 재현은 [구현 기록](Docs/CombatImplementation.md) 참고
+
+![성장·스킬 HUD 검증 장면](Docs/Combat/Level4Cooldown.png)
+
+WARP 렌더 검증용 Lv.4 장면. 직접 플레이 캡처나 성능 측정 자료 아님.
+
+#### 한계 및 개선점
+
+- 실제 키보드 연속 플레이·타격감·성장 속도 조정은 사용자 검토 단계
+- 고정 Pool·1280×720 HUD, 진행 저장·핫 리로드·네트워크 동기화 미지원
+- 게임 객체 갱신·Pool·UI·D3D 접근은 메인 스레드에서 유지
+
 <a id="sprint-schedule"></a>
 ## Sprint 진행 일정
 
@@ -356,16 +396,17 @@ Application → JobSystem.Submit
 | 기존 구현·측정 자료 기록 | Profiler / Stress Test, Sprite Batch, Depth Test, Render Queue | 기존 결과와 한계 보존 |
 | 09.26 · 구현·자동 검증 | Thread Pool / Job Queue | 시작 시 JSON 로딩에 사용. 사용자 육안 검토는 별도 |
 | 09.26 · 구현·자동 검증 | AnimationClip JSON·비동기 로딩 | 클립·캐릭터 설정·텍스처 경로를 외부화, Worker 로딩 후 메인 스레드 초기화 |
-| 09.27 목표 | 공격 구조·Projectile Pool·Q | Ctrl 공격 유지, Q 투사체와 3초 쿨타임 |
-| 09.28 목표 | W/E/R·Effect Pool·Handle / Lookup | 5/7/30초 쿨타임, 명중 효과, Pool 반환·재사용 시 이전 Handle 무효화 |
-| 09.29 목표 | IOCP Echo Server | Session·비동기 Receive/Send·Disconnect·안전한 종료 |
-| 09.30 목표 | Packet Framing·2 Client | 부분/병합 패킷, Spawn/Despawn·기본 이동 동기화 |
-| 10.01 목표 | Interpolation·서버 권위 이동 | 원격 이동 보간, 서버가 입력으로 위치 계산 |
+| 09.26 · 선행 구현·자동 검증 | 성장 Stat·QWER·Pool·Handle·JSON·HUD | Q/W/E/R Lv.2/4/6/10 해금, 3/5/7/30초 쿨타임, Level/EXP·공격 정보 표시 |
+| 후속 · 날짜 미정 | IOCP Echo Server | Session·비동기 Receive/Send·Disconnect·안전한 종료 |
+| 기존 09.30 목표 · 재조정 | Packet Framing·2 Client | 부분/병합 패킷, Spawn/Despawn·기본 이동 동기화 |
+| 기존 10.01 목표 · 재조정 | Interpolation·서버 권위 이동 | 원격 이동 보간, 서버가 입력으로 위치 계산 |
 | 10.02 목표 | 통합 검증·기록, 여유 시 Spatial Hash | 검증·기록 시간을 우선 확보하고 Broad Phase 전후 비교 |
 | 10.02 이후 후순위 | Offscreen·Post Processing·HP Vignette | 네트워크·충돌 후속 작업 이후 진행 |
 
-- QWER 쿨타임: 3 / 5 / 7 / 30초. 후보 에셋: Fire_Ball / Wind / Earth_Spike / Tornado, Q 명중 효과: Explosion
-- Foozle ZIP: 효과 64×64, 아이콘 32×32, CC0. 게임 등록·공격 세부 설계는 후속
+- 성장·HUD 설계: [PlayerStat / EnemyStat, EXP·스킬 해금·공격 UI 요구사항](Docs/ProgressionDesign.md). 구현 결과는 [개발 기록](Docs/CombatImplementation.md) 참고
+- 통합 공격 설계: [파일·클래스별 구현 계획과 수용 기준](Docs/CombatImplementationPlan.md). IOCP 이후 네트워크 일정은 재개 시점에 맞춰 재조정
+- QWER 쿨타임: 3 / 5 / 7 / 30초. 적용 에셋: Fire_Ball / Wind / Earth_Spike / Tornado, Q 명중 효과: Explosion
+- Foozle 효과 64×64, CC0. 실제 참조 프레임만 게임 등록. HUD는 별도 생성 아이콘 사용
 - Projectile / HitEffect는 Pool 사용. Handle / Lookup / Generation은 재사용 시 참조 유효성 검증 목적
 - 네트워크 상태 반영은 메인 스레드에서 처리 예정. IOCP 완료 Queue와 일반 Job Queue 구분
 - Sprite Batch / Render Queue 경계 조건 검증 기록 제외. Depth 5,000 버튼의 실제 500개 표기 유지, 재측정 제외
@@ -393,7 +434,7 @@ Application → JobSystem.Submit
 2. Visual Studio에서 `DX11ScrollRPG.slnx` 열기
 3. `x64`와 `Debug` 또는 `Release` 구성 선택 후 빌드 및 실행
 
-셰이더·텍스처·JSON이 상대 경로를 사용하므로 작업 디렉터리는 저장소 루트로 설정. `Assets/Data/GameData.json` 필수 포함.
+셰이더·텍스처·JSON이 상대 경로를 사용하므로 작업 디렉터리는 저장소 루트로 설정. `Assets/Data/`의 JSON 3개와 `Assets/Skills/` 필수 포함.
 
 <a id="project-structure"></a>
 ## 프로젝트 구조
@@ -408,6 +449,9 @@ DX11ScrollRPG/
 │  └─ ThirdParty/          # stb_image, nlohmann/json 및 라이선스
 ├─ Game/
 │  ├─ Animation/           # AnimationClip, Animator
+│  ├─ Combat/              # PlayerAttack, SkillObject, Handle/Pool, AttackInput
+│  ├─ Effects/             # HitEffect
+│  ├─ Stats/               # PlayerStat, EnemyStat, 정적 성장 정의
 │  ├─ Collision/           # AABB
 │  ├─ Data/                # GameData 정의와 JSON 로더
 │  ├─ Entity/              # GameObject, Entity, Character, Physics
@@ -421,3 +465,5 @@ DX11ScrollRPG/
 ## 에셋 크레딧
 
 Anokolisa의 [Legacy-Fantasy - High Forest 2.0](https://anokolisa.itch.io/sidescroller-pixelart-sprites-asset-pack-forest-16x16) 그래픽 리소스 사용. 저작권 및 이용 조건은 원저작자 배포 페이지 기준.
+
+Foozle Pixel Magic Effects의 사용 프레임 33개 포함. [동봉 CC0 라이선스](Assets/Skills/Foozle-Readme.txt) 기준 무료·상업적 사용 가능.

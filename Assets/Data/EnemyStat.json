@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "levels": [
+    {
+      "level": 1,
+      "killExp": 5,
+      "maxHp": 3
+    },
+    {
+      "level": 2,
+      "killExp": 10,
+      "maxHp": 3
+    },
+    {
+      "level": 3,
+      "killExp": 15,
+      "maxHp": 3
+    },
+    {
+      "level": 4,
+      "killExp": 20,
+      "maxHp": 3
+    },
+    {
+      "level": 5,
+      "killExp": 25,
+      "maxHp": 3
+    },
+    {
+      "level": 6,
+      "killExp": 30,
+      "maxHp": 3
+    },
+    {
+      "level": 7,
+      "killExp": 35,
+      "maxHp": 3
+    },
+    {
+      "level": 8,
+      "killExp": 40,
+      "maxHp": 3
+    },
+    {
+      "level": 9,
+      "killExp": 45,
+      "maxHp": 3
+    },
+    {
+      "level": 10,
+      "killExp": 50,
+      "maxHp": 3
+    }
+  ]
+}

@@ -1,74 +1,138 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "player": {
-    "maxHp": 3,
-    "colliderHalfSize": [ 0.1, 0.18 ],
-    "startPosition": [ 0.0, -0.12 ],
+    "colliderHalfSize": [
+      0.1,
+      0.18
+    ],
+    "startPosition": [
+      0.0,
+      -0.12
+    ],
     "renderOffsetY": -0.06,
     "moveSpeed": 0.8,
     "jumpSpeed": 1.5,
     "invincibleDuration": 1.5,
     "knockbackDuration": 0.4,
-    "knockbackSpeed": [ 1.8, 1.0 ],
+    "knockbackSpeed": [
+      1.8,
+      1.0
+    ],
     "blinkInterval": 0.1,
-    "attackFirstFrame": 2,
-    "attackLastFrame": 3,
-    "attackExtent": [ 0.18, 0.1 ],
     "animations": {
       "idle": {
         "frameCount": 4,
         "frameDuration": 0.12,
         "loop": true,
-        "frameSizePixels": [ 64, 80 ],
-        "renderHalfSize": [ 0.0, 0.22 ],
-        "offset": [ 0.0, 0.0 ]
+        "frameSizePixels": [
+          64,
+          80
+        ],
+        "renderHalfSize": [
+          0.0,
+          0.22
+        ],
+        "offset": [
+          0.0,
+          0.0
+        ]
       },
       "run": {
         "frameCount": 8,
         "frameDuration": 0.1,
         "loop": true,
-        "frameSizePixels": [ 80, 80 ],
-        "renderHalfSize": [ 0.0, 0.22 ],
-        "offset": [ 0.0, 0.0 ]
+        "frameSizePixels": [
+          80,
+          80
+        ],
+        "renderHalfSize": [
+          0.0,
+          0.22
+        ],
+        "offset": [
+          0.0,
+          0.0
+        ]
       },
       "jumpStart": {
         "frameCount": 4,
         "frameDuration": 0.1,
         "loop": false,
-        "frameSizePixels": [ 64, 64 ],
-        "renderHalfSize": [ 0.0, 0.176 ],
-        "offset": [ 0.0, 0.0 ]
+        "frameSizePixels": [
+          64,
+          64
+        ],
+        "renderHalfSize": [
+          0.0,
+          0.176
+        ],
+        "offset": [
+          0.0,
+          0.0
+        ]
       },
       "jumpEnd": {
         "frameCount": 3,
         "frameDuration": 0.1,
         "loop": false,
-        "frameSizePixels": [ 64, 64 ],
-        "renderHalfSize": [ 0.0, 0.176 ],
-        "offset": [ 0.0, 0.0 ]
+        "frameSizePixels": [
+          64,
+          64
+        ],
+        "renderHalfSize": [
+          0.0,
+          0.176
+        ],
+        "offset": [
+          0.0,
+          0.0
+        ]
       },
       "attack": {
         "frameCount": 8,
         "frameDuration": 0.08,
         "loop": false,
-        "frameSizePixels": [ 96, 80 ],
-        "renderHalfSize": [ 0.0, 0.22 ],
-        "offset": [ 0.0, 0.0 ]
+        "frameSizePixels": [
+          96,
+          80
+        ],
+        "renderHalfSize": [
+          0.0,
+          0.22
+        ],
+        "offset": [
+          0.0,
+          0.0
+        ]
       },
       "dead": {
         "frameCount": 8,
         "frameDuration": 0.12,
         "loop": false,
-        "frameSizePixels": [ 80, 64 ],
-        "renderHalfSize": [ 0.0, 0.176 ],
-        "offset": [ 0.0, -0.04 ]
+        "frameSizePixels": [
+          80,
+          64
+        ],
+        "renderHalfSize": [
+          0.0,
+          0.176
+        ],
+        "offset": [
+          0.0,
+          -0.04
+        ]
       }
     }
   },
   "monster": {
-    "maxHp": 3,
-    "colliderHalfSize": [ 0.08, 0.07 ],
-    "startPosition": [ 0.6, -0.22 ],
+    "colliderHalfSize": [
+      0.08,
+      0.07
+    ],
+    "startPosition": [
+      0.6,
+      -0.22
+    ],
     "renderOffsetY": 0.02,
     "chaseSpeed": 0.25,
     "chaseRange": 0.6,
@@ -78,33 +142,69 @@
         "frameCount": 4,
         "frameDuration": 0.12,
         "loop": true,
-        "frameSizePixels": [ 48, 32 ],
-        "renderHalfSize": [ 0.0, 0.1 ],
-        "offset": [ 0.0, 0.0 ]
+        "frameSizePixels": [
+          48,
+          32
+        ],
+        "renderHalfSize": [
+          0.0,
+          0.1
+        ],
+        "offset": [
+          0.0,
+          0.0
+        ]
       },
       "chase": {
         "frameCount": 8,
         "frameDuration": 0.1,
         "loop": true,
-        "frameSizePixels": [ 48, 32 ],
-        "renderHalfSize": [ 0.0, 0.1 ],
-        "offset": [ 0.0, 0.0 ]
+        "frameSizePixels": [
+          48,
+          32
+        ],
+        "renderHalfSize": [
+          0.0,
+          0.1
+        ],
+        "offset": [
+          0.0,
+          0.0
+        ]
       },
       "hurt": {
         "frameCount": 8,
         "frameDuration": 0.1,
         "loop": false,
-        "frameSizePixels": [ 48, 32 ],
-        "renderHalfSize": [ 0.0, 0.1 ],
-        "offset": [ 0.0, 0.0 ]
+        "frameSizePixels": [
+          48,
+          32
+        ],
+        "renderHalfSize": [
+          0.0,
+          0.1
+        ],
+        "offset": [
+          0.0,
+          0.0
+        ]
       },
       "dead": {
         "frameCount": 8,
         "frameDuration": 0.12,
         "loop": false,
-        "frameSizePixels": [ 48, 32 ],
-        "renderHalfSize": [ 0.0, 0.1 ],
-        "offset": [ 0.0, 0.0 ]
+        "frameSizePixels": [
+          48,
+          32
+        ],
+        "renderHalfSize": [
+          0.0,
+          0.1
+        ],
+        "offset": [
+          0.0,
+          0.0
+        ]
       }
     }
   },
@@ -126,5 +226,202 @@
     "Potion": "Assets/Textures/Item/Potion.png",
     "Heart": "Assets/Textures/UI/Heart.png",
     "GameOver": "Assets/Textures/UI/GameOver.png"
+  },
+  "attacks": [
+    {
+      "slot": "Normal",
+      "name": "Normal",
+      "inputKey": "Ctrl",
+      "requiredLevel": 1,
+      "cooldown": 0,
+      "damage": 1,
+      "speed": 0,
+      "lifetime": 0,
+      "hitInterval": 0.5,
+      "hitBox": [
+        0.18,
+        0.1
+      ],
+      "spawnOffset": [
+        0,
+        0
+      ],
+      "renderHalfSize": [
+        0.11,
+        0.195
+      ],
+      "frameDuration": 0.08,
+      "firstActiveFrame": 2,
+      "lastActiveFrame": 3,
+      "frames": [],
+      "loop": false,
+      "icon": "Assets/UI/SkillIcons/Normal.png"
+    },
+    {
+      "slot": "Q",
+      "name": "Fire Ball",
+      "inputKey": "Q",
+      "requiredLevel": 2,
+      "cooldown": 3,
+      "damage": 1,
+      "speed": 0.9,
+      "lifetime": 1.5,
+      "hitInterval": 0.5,
+      "hitBox": [
+        0.06,
+        0.065
+      ],
+      "spawnOffset": [
+        0.1,
+        0
+      ],
+      "renderHalfSize": [
+        0.11,
+        0.195
+      ],
+      "frameDuration": 0.08,
+      "firstActiveFrame": 0,
+      "lastActiveFrame": 4,
+      "frames": [
+        "Assets/Skills/Fire_Ball/001.png",
+        "Assets/Skills/Fire_Ball/002.png",
+        "Assets/Skills/Fire_Ball/003.png",
+        "Assets/Skills/Fire_Ball/004.png",
+        "Assets/Skills/Fire_Ball/005.png"
+      ],
+      "loop": true,
+      "icon": "Assets/UI/SkillIcons/FireBall.png"
+    },
+    {
+      "slot": "W",
+      "name": "Wind",
+      "inputKey": "W",
+      "requiredLevel": 4,
+      "cooldown": 5,
+      "damage": 1,
+      "speed": 1.4,
+      "lifetime": 1.2,
+      "hitInterval": 0.5,
+      "hitBox": [
+        0.07,
+        0.1
+      ],
+      "spawnOffset": [
+        0.1,
+        0
+      ],
+      "renderHalfSize": [
+        0.11,
+        0.195
+      ],
+      "frameDuration": 0.08,
+      "firstActiveFrame": 0,
+      "lastActiveFrame": 5,
+      "frames": [
+        "Assets/Skills/Wind/001.png",
+        "Assets/Skills/Wind/002.png",
+        "Assets/Skills/Wind/003.png",
+        "Assets/Skills/Wind/004.png",
+        "Assets/Skills/Wind/005.png",
+        "Assets/Skills/Wind/006.png"
+      ],
+      "loop": true,
+      "icon": "Assets/UI/SkillIcons/Wind.png"
+    },
+    {
+      "slot": "E",
+      "name": "Earth Spike",
+      "inputKey": "E",
+      "requiredLevel": 6,
+      "cooldown": 7,
+      "damage": 2,
+      "speed": 0,
+      "lifetime": 0.72,
+      "hitInterval": 0.5,
+      "hitBox": [
+        0.1,
+        0.16
+      ],
+      "spawnOffset": [
+        0.24,
+        0
+      ],
+      "renderHalfSize": [
+        0.11,
+        0.195
+      ],
+      "frameDuration": 0.08,
+      "firstActiveFrame": 3,
+      "lastActiveFrame": 5,
+      "frames": [
+        "Assets/Skills/Earth_Spike/001.png",
+        "Assets/Skills/Earth_Spike/002.png",
+        "Assets/Skills/Earth_Spike/003.png",
+        "Assets/Skills/Earth_Spike/004.png",
+        "Assets/Skills/Earth_Spike/005.png",
+        "Assets/Skills/Earth_Spike/006.png",
+        "Assets/Skills/Earth_Spike/007.png",
+        "Assets/Skills/Earth_Spike/008.png",
+        "Assets/Skills/Earth_Spike/009.png"
+      ],
+      "loop": false,
+      "icon": "Assets/UI/SkillIcons/EarthSpike.png"
+    },
+    {
+      "slot": "R",
+      "name": "Tornado",
+      "inputKey": "R",
+      "requiredLevel": 10,
+      "cooldown": 30,
+      "damage": 1,
+      "speed": 0.2,
+      "lifetime": 4,
+      "hitInterval": 0.5,
+      "hitBox": [
+        0.14,
+        0.23
+      ],
+      "spawnOffset": [
+        0.15,
+        0
+      ],
+      "renderHalfSize": [
+        0.18,
+        0.32
+      ],
+      "frameDuration": 0.08,
+      "firstActiveFrame": 0,
+      "lastActiveFrame": 5,
+      "frames": [
+        "Assets/Skills/Tornado/001.png",
+        "Assets/Skills/Tornado/002.png",
+        "Assets/Skills/Tornado/003.png",
+        "Assets/Skills/Tornado/004.png",
+        "Assets/Skills/Tornado/005.png",
+        "Assets/Skills/Tornado/006.png"
+      ],
+      "loop": true,
+      "icon": "Assets/UI/SkillIcons/Tornado.png"
+    }
+  ],
+  "hitEffect": {
+    "frames": [
+      "Assets/Skills/Explosion/001.png",
+      "Assets/Skills/Explosion/002.png",
+      "Assets/Skills/Explosion/003.png",
+      "Assets/Skills/Explosion/004.png",
+      "Assets/Skills/Explosion/005.png",
+      "Assets/Skills/Explosion/006.png",
+      "Assets/Skills/Explosion/007.png"
+    ],
+    "frameDuration": 0.06,
+    "renderHalfSize": [
+      0.1,
+      0.178
+    ]
+  },
+  "pools": {
+    "skills": 64,
+    "effects": 128
   }
 }

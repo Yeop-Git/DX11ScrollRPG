@@ -1,11 +1,12 @@
 #include "Monster.h"
 #include <cmath>
+#include <stdexcept>
 
-Monster::Monster(const MonsterDefinition& definition)
-	: definition_(definition)
+Monster::Monster(const GameData& data)
+	: stat_(data.enemyStat), definition_(data.monster)
 {
 	// 검증된 공유 정의를 사용하고, 현재 HP와 Animator 재생 상태만 객체별로 가진다.
-	maxHp_ = definition_.maxHp;
+	maxHp_ = stat_.GetMaxHp();
 	hp_ = maxHp_;
 	renderOffsetY = definition_.renderOffsetY;
 	collider.halfSize = definition_.colliderHalfSize;
@@ -70,7 +71,8 @@ void Monster::OnEnable()
 
 	transform.position = definition_.startPosition;
 
-	ChangeState(MonsterState::Idle);
+	state_ = MonsterState::Idle;
+	animator_.Play(definition_.idle);
 }
 
 void Monster::OnDisable()
@@ -143,14 +145,15 @@ void Monster::ChangeState(MonsterState newState)
 	}
 }
 
-void Monster::TakeDamage(int damage, float attackerX)
+DamageResult Monster::TakeDamage(const DamageRequest& request)
 {
-	if (state_ == MonsterState::Dead) return;
-	if (state_ == MonsterState::Hurt) return;
+	if (state_ == MonsterState::Dead || request.amount <= 0) return DamageResult::Ignored;
+	if (state_ == MonsterState::Hurt && request.reaction == DamageReaction::NormalHit) return DamageResult::Ignored;
 
-	hp_ -= damage;
+	hp_ -= request.amount;
 
-	physics.velocity.x = transform.position.x > attackerX ? definition_.knockbackSpeed : -definition_.knockbackSpeed;
+	if (request.reaction == DamageReaction::NormalHit)
+		physics.velocity.x = transform.position.x > request.attackerX ? definition_.knockbackSpeed : -definition_.knockbackSpeed;
 
 	if (hp_ <= 0)
 	{
@@ -159,10 +162,11 @@ void Monster::TakeDamage(int damage, float attackerX)
 		physics.velocity.x = 0;
 
 		ChangeState(MonsterState::Dead);
-		return;
+		return DamageResult::Killed;
 	}
 
-	ChangeState(MonsterState::Hurt);
+	if (request.reaction == DamageReaction::NormalHit) ChangeState(MonsterState::Hurt);
+	return DamageResult::Applied;
 }
 
 void Monster::SetTarget(Character* target)
@@ -200,4 +204,18 @@ const Animator& Monster::GetAnimator() const
 bool Monster::IsDeadAnimationFinished() const
 {
 	return state_ == MonsterState::Dead && animator_.IsFinished();
+}
+void Monster::Spawn(uint32_t level)
+{
+	if (spawnSerial_ == UINT64_MAX) throw std::overflow_error("Monster spawn serial exhausted");
+	SetActive(false);
+	stat_.InitializeForSpawn(level); maxHp_ = stat_.GetMaxHp();
+	++spawnSerial_; rewardGranted_ = false;
+	SetActive(true);
+}
+uint64_t Monster::TakeKillReward()
+{
+	if (!IsDead() || rewardGranted_) return 0;
+	rewardGranted_ = true;
+	return stat_.GetKillExperience();
 }

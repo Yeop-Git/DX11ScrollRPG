@@ -185,6 +185,8 @@ int Application::Run()
 		//게임 상태 갱신
 		const float deltaTime = GetDeltaTime();
 		Update(deltaTime);
+		// 이번 프레임 성장/공격 상태를 렌더 전에 전달. Profiler 평균은 완료된 프레임 기준.
+		UpdateUI(deltaTime);
 		//화면 그리기
 		Render();
 		profiler_.EndFrame();
@@ -234,7 +236,6 @@ int Application::Run()
 			selectedStressMode_ = *requestedMode;
 		}
 
-		UpdateUI(deltaTime);
 	}
 
 	return static_cast<int>(message.wParam);
@@ -489,7 +490,8 @@ void Application::Render()
 			// 깊이 테스트를 쓸 때는 가까운 우선순위부터 그려 불필요한 픽셀 작업을 막는다.
 			for (std::size_t layerIndex = 0; layerIndex < renderLayers.size(); ++layerIndex)
 			{
-				if (layerIndex == static_cast<std::size_t>(RenderLayer::TransparentItem))
+				if (layerIndex == static_cast<std::size_t>(RenderLayer::TransparentItem)
+					|| layerIndex == static_cast<std::size_t>(RenderLayer::TransparentSkill))
 				{
 					// 투명 요청은 고정 순서가 필요하므로 불투명 Queue를 먼저 제출한다.
 					renderer_.FlushRenderQueue();
@@ -514,6 +516,8 @@ void Application::Render()
 				static_cast<std::size_t>(RenderLayer::Monster), false);
 			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::Player)], true,
 				static_cast<std::size_t>(RenderLayer::Player), false);
+			drawLayer(renderLayers[static_cast<std::size_t>(RenderLayer::TransparentSkill)], false,
+				static_cast<std::size_t>(RenderLayer::TransparentSkill), false);
 		}
 		renderer_.FlushRenderQueue();
 
@@ -733,6 +737,12 @@ void Application::UpdateUI(float deltaTime)
 	if (Player* player = gameWorld_.GetPlayer())
 	{
 		frameData.playerHp = player->GetHP();
+		frameData.combat.level = player->GetStat().GetLevel();
+		frameData.combat.experience = player->GetStat().GetExperience();
+		frameData.combat.requiredExperience = player->GetStat().GetRequiredExperience();
+		frameData.combat.maxLevel = player->GetStat().IsMaxLevel();
+		frameData.combat.dead = player->IsDead();
+		frameData.combat.attacks = player->GetAttackHudData();
 		frameData.playerDead = player->IsDead();
 	}
 	frameData.stressTestCount = GetActiveStressTestCount();

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="소스 파일">
@@ -218,5 +218,79 @@
     <ClInclude Include="Engine\ThirdParty\nlohmann\json.hpp"><Filter>헤더 파일\Engine\ThirdParty</Filter></ClInclude>
     <None Include="Engine\ThirdParty\nlohmann\LICENSE.MIT"><Filter>헤더 파일\Engine\ThirdParty</Filter></None>
     <None Include="Assets\Data\GameData.json"><Filter>리소스 파일\Data</Filter></None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="소스 파일\Game\Stats" />
+    <Filter Include="헤더 파일\Game\Stats" />
+    <Filter Include="소스 파일\Game\Combat" />
+    <Filter Include="헤더 파일\Game\Combat" />
+    <Filter Include="소스 파일\Game\Effects" />
+    <Filter Include="헤더 파일\Game\Effects" />
+    <Filter Include="리소스 파일\Skills" />
+    <ClCompile Include="Game\Stats\PlayerStat.cpp"><Filter>소스 파일\Game\Stats</Filter></ClCompile>
+    <ClCompile Include="Game\Combat\PlayerAttack.cpp"><Filter>소스 파일\Game\Combat</Filter></ClCompile>
+    <ClCompile Include="Game\Combat\SkillObject.cpp"><Filter>소스 파일\Game\Combat</Filter></ClCompile>
+    <ClCompile Include="Game\Effects\HitEffect.cpp"><Filter>소스 파일\Game\Effects</Filter></ClCompile>
+    <ClInclude Include="Game\Stats\EnemyStat.h"><Filter>헤더 파일\Game\Stats</Filter></ClInclude>
+    <ClInclude Include="Game\Stats\PlayerStat.h"><Filter>헤더 파일\Game\Stats</Filter></ClInclude>
+    <ClInclude Include="Game\Stats\StatDefinitions.h"><Filter>헤더 파일\Game\Stats</Filter></ClInclude>
+    <ClInclude Include="Game\Combat\AttackDefinition.h"><Filter>헤더 파일\Game\Combat</Filter></ClInclude>
+    <ClInclude Include="Game\Combat\Damage.h"><Filter>헤더 파일\Game\Combat</Filter></ClInclude>
+    <ClInclude Include="Game\Combat\PlayerAttack.h"><Filter>헤더 파일\Game\Combat</Filter></ClInclude>
+    <ClInclude Include="Game\Combat\PoolHandle.h"><Filter>헤더 파일\Game\Combat</Filter></ClInclude>
+    <ClInclude Include="Game\Combat\SkillObject.h"><Filter>헤더 파일\Game\Combat</Filter></ClInclude>
+    <ClInclude Include="Game\Combat\WorldSlotPool.h"><Filter>헤더 파일\Game\Combat</Filter></ClInclude>
+    <ClInclude Include="Game\Effects\HitEffect.h"><Filter>헤더 파일\Game\Effects</Filter></ClInclude>
+    <None Include="Assets\Data\PlayerStat.json"><Filter>리소스 파일\Data</Filter></None>
+    <None Include="Assets\Data\EnemyStat.json"><Filter>리소스 파일\Data</Filter></None>
+    <None Include="Assets\Skills\Foozle-Readme.txt"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Earth_Spike\001.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Earth_Spike\002.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Earth_Spike\003.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Earth_Spike\004.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Earth_Spike\005.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Earth_Spike\006.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Earth_Spike\007.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Earth_Spike\008.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Earth_Spike\009.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Explosion\001.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Explosion\002.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Explosion\003.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Explosion\004.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Explosion\005.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Explosion\006.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Explosion\007.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Fire_Ball\001.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Fire_Ball\002.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Fire_Ball\003.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Fire_Ball\004.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Fire_Ball\005.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Tornado\001.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Tornado\002.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Tornado\003.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Tornado\004.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Tornado\005.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Tornado\006.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Wind\001.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Wind\002.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Wind\003.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Wind\004.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Wind\005.png"><Filter>리소스 파일\Skills</Filter></None>
+    <None Include="Assets\Skills\Wind\006.png"><Filter>리소스 파일\Skills</Filter></None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Engine\Core\CombatHud.cpp"><Filter>소스 파일\Engine\Core</Filter></ClCompile>
+    <ClInclude Include="Engine\Core\CombatHud.h"><Filter>헤더 파일\Engine\Core</Filter></ClInclude>
+  </ItemGroup>
+  <ItemGroup><ClCompile Include="Game\World\WorldCombat.cpp"><Filter>소스 파일\Game\World</Filter></ClCompile></ItemGroup>
+  <ItemGroup><ClInclude Include="Game\Combat\AttackInput.h"><Filter>헤더 파일\Game\Combat</Filter></ClInclude></ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Engine\Graphics\UIRadialFill.h"><Filter>헤더 파일\Engine\Graphics</Filter></ClInclude>
+    <None Include="Assets\UI\SkillIcons\Normal.png"><Filter>리소스 파일\UI</Filter></None>
+    <None Include="Assets\UI\SkillIcons\FireBall.png"><Filter>리소스 파일\UI</Filter></None>
+    <None Include="Assets\UI\SkillIcons\Wind.png"><Filter>리소스 파일\UI</Filter></None>
+    <None Include="Assets\UI\SkillIcons\EarthSpike.png"><Filter>리소스 파일\UI</Filter></None>
+    <None Include="Assets\UI\SkillIcons\Tornado.png"><Filter>리소스 파일\UI</Filter></None>
+    <Filter Include="리소스 파일\UI" />
   </ItemGroup>
 </Project>

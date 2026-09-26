@@ -11,6 +11,11 @@
 
 void GameWorld::Initialize(const GameData& data)
 {
+	ClearCombatObjects();
+	monsters_.clear(); items_.clear(); stressMonsters_.clear(); stressMonsterLookup_.clear();
+	respawnQueue_ = {}; coinPool_ = {}; potionPool_ = {};
+	killCount_ = 0; unlockedMonsterCount_ = 1; respawnTimer_ = 0.0f;
+	attackInput_ = {};
 	data_ = &data;
 	for (auto& layer : renderLayers_) layer.clear();
 	gameObjects_.clear();
@@ -22,6 +27,7 @@ void GameWorld::Initialize(const GameData& data)
 	CreatePlayer();
 	CreateMonsters();
 	CreateItems();
+	CreateCombatPools();
 }
 
 GameObject* GameWorld::AddGameObject(std::unique_ptr<GameObject> object, RenderLayer layer)
@@ -30,9 +36,9 @@ GameObject* GameWorld::AddGameObject(std::unique_ptr<GameObject> object, RenderL
 	gameObjects_.push_back(std::move(object));
 
 	// 각 레이어에 고정 깊이 구간을 나눠 등록 순서가 안정적인 깊이 우선순위가 되게 한다.
-	constexpr float kDepthStart[] = { 0.05f, 0.20f, 0.50f, 0.90f, 0.40f };
-	constexpr float kDepthEnd[] = { 0.15f, 0.35f, 0.70f, 0.90f, 0.45f };
-	constexpr std::size_t kLayerCapacity[] = { 1, 50003, 32, 1, 8 };
+	constexpr float kDepthStart[] = { 0.05f, 0.20f, 0.50f, 0.90f, 0.40f, 0.01f };
+	constexpr float kDepthEnd[] = { 0.15f, 0.35f, 0.70f, 0.90f, 0.45f, 0.04f };
+	constexpr std::size_t kLayerCapacity[] = { 1, 50003, 32, 1, 8, 1536 };
 
 	auto& layerObjects = renderLayers_[static_cast<std::size_t>(layer)];
 	const std::size_t layerIndex = layerObjects.size();
@@ -61,16 +67,29 @@ void GameWorld::RemoveRenderObjects(const std::unordered_set<const GameObject*>&
 
 void GameWorld::Update(float deltaTime, Profiler& profiler)
 {
-	if (player_->IsDead())
-	{
-		if (stressMonsters_.empty() && (GetAsyncKeyState('R') & 0x8000)) Reset();
-	}
+	if (!std::isfinite(deltaTime) || deltaTime < 0.0f) return;
+	player_->SetCombatEnabled(combatDamageEnabled_ && stressMonsters_.empty());
+	if (CaptureAttackInput()) return;
+	const auto skills = skillPool_.ActiveHandles();
+	const auto effects = effectPool_.ActiveHandles();
+	previousMonsterPositions_.clear();
+	for (const auto* monster : monsters_) previousMonsterPositions_.push_back(monster->transform.position);
+
 	UpdateEntities(deltaTime, profiler);
 	UpdatePhysics(deltaTime, profiler);
 
 	// Collision 처리
 	ResolveGroundCollisions(profiler);
+	player_->ConsumeAttack(*this);
 	UpdateCombat(profiler);
+	if (player_->IsDead() || !combatDamageEnabled_ || !stressMonsters_.empty()) ClearCombatObjects();
+	else
+	{
+		UpdateSkills(deltaTime, skills, profiler);
+		// 새 효과는 프레임 시작 목록에 없으므로 생성 프레임의 dt를 적용하지 않는다.
+		for (auto handle : effects)
+			if (auto* effect = effectPool_.Lookup(handle); effect && effect->Advance(deltaTime)) effectPool_.Release(handle);
+	}
 
 	// Monster Pool 관리
 	CollectDeadMonsters();
@@ -101,7 +120,7 @@ void GameWorld::CreateEnvironment()
 void GameWorld::CreatePlayer()
 {
 	// Create Player
-	auto player = std::make_unique<Player>(data_->player);
+	auto player = std::make_unique<Player>(*data_);
 	player_ = player.get();
 	entities_.push_back(player.get());
 	AddGameObject(std::move(player), RenderLayer::Player);
@@ -111,7 +130,7 @@ void GameWorld::CreateMonsters()
 {
 	for (int i = 0; i < std::size(kMonsterUnlockKills); i++)
 	{
-		auto monster = std::make_unique<Monster>(data_->monster);
+		auto monster = std::make_unique<Monster>(*data_);
 		monster->SetTarget(player_);
 
 		Monster* monsterPtr = monster.get();
@@ -121,7 +140,8 @@ void GameWorld::CreateMonsters()
 		AddGameObject(std::move(monster), RenderLayer::Monster);
 
 		// 첫번째 몬스터만 Active하여 스폰
-		monsterPtr->SetActive(i==0);
+		monsterPtr->SetActive(false);
+		if (i == 0) SpawnMonster(*monsterPtr);
 	}
 }
 
@@ -176,7 +196,7 @@ void GameWorld::CreateStressTestMonsters(std::size_t count)
 
 	for (std::size_t i = 0; i < count; ++i)
 	{
-		auto monster = std::make_unique<Monster>(data_->monster);
+		auto monster = std::make_unique<Monster>(*data_);
 		Monster* monsterPtr = monster.get();
 
 		// OnEnable이 기본 물리·Collider 값을 복원한 뒤 스트레스 설정을 덮어쓴다.
@@ -392,18 +412,17 @@ void GameWorld::UpdateCombat(Profiler& profiler)
 			profiler.Increment(ProfileCounter::CollisionChecks);
 			if (Intersects(player_->GetAttackHitBox(), monsterBody))
 			{
-				monster->TakeDamage(1, player_->transform.position.x);
-
-				player_->RegisterAttackHit();
+				if (ApplyDamageToMonster(*monster, {player_->GetNormalAttack().damage, player_->transform.position.x}) != DamageResult::Ignored)
+					player_->RegisterAttackHit();
 			}
 		}
 
 		// Monster -> Player
 		// 활성 Monster의 몸체와 Player 몸체 간 실제 검사 횟수다.
 		profiler.Increment(ProfileCounter::CollisionChecks);
-		if (Intersects(playerBody, monsterBody) && combatDamageEnabled_)
+		if (Intersects(playerBody, monsterBody) && combatDamageEnabled_ && !monster->IsDead())
 		{
-			player_->TakeDamage(1, monster->transform.position.x);
+			player_->TakeDamage({1, monster->transform.position.x});
 		}
 	}
 
@@ -435,7 +454,7 @@ void GameWorld::UpdateMonsterLock()
 
 		Monster* monster = monsters_[nextIndex];
 
-		monster->SetActive(true);
+		SpawnMonster(*monster);
 
 		++unlockedMonsterCount_;
 	}
@@ -481,7 +500,7 @@ void GameWorld::UpdateMonsterRespawn(float deltaTime)
 	Monster* monster = respawnQueue_.front();
 	respawnQueue_.pop();
 
-	monster->SetActive(true);
+	SpawnMonster(*monster);
 }
 
 WorldItem* GameWorld::FindInactiveItem(ItemType type)
@@ -553,6 +572,7 @@ void GameWorld::UpdateItemPickup(Profiler& profiler)
 
 void GameWorld::Reset()
 {
+	ClearCombatObjects();
 	if (player_ != nullptr)
 	{
 		player_->Reset();
@@ -575,7 +595,7 @@ void GameWorld::Reset()
 
 	if (!monsters_.empty())
 	{
-		monsters_[0]->SetActive(true);
+		SpawnMonster(*monsters_[0]);
 	}
 
 	// Item Queue 초기화

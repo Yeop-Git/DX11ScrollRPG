@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "UIRadialFill.h"
 
 // HLSL 컴파일러
 #include <d3dcompiler.h>
@@ -301,11 +302,13 @@ void Renderer::DrawUIRect(Vector2 position, Vector2 halfSize, RendererColor colo
 void Renderer::DrawUITexture(
 	ID3D11ShaderResourceView* texture,
 	Vector2 position,
-	Vector2 halfSize)
+	Vector2 halfSize,
+	Vector2 uvMin,
+	Vector2 uvMax)
 {
 	// Profiler 패널 자체의 Draw Call은 측정 카운터에 넣지 않는다.
 	if (texture == nullptr) return;
-	DrawSprite(texture, position, halfSize, {}, { 1.0f, 1.0f }, false, {}, false, 0.0f, SpriteRenderMode::AlphaBlend);
+	DrawSprite(texture, position, halfSize, uvMin, uvMax, false, {}, false, 0.0f, SpriteRenderMode::AlphaBlend);
 }
 
 void Renderer::DrawSprite(
@@ -626,4 +629,40 @@ void Renderer::Begin(bool useDepthBuffer, bool collectQueue)
 	// Pixel Shader Texture slot 0에 Sampler 연결
 	context_->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
 
+}
+
+void Renderer::DrawUIIcon(SpriteId icon, Vector2 position, Vector2 halfSize)
+{
+	DrawUITexture(resources_->GetTexture(icon), position, halfSize);
+}
+
+void Renderer::DrawUITriangle(Vector2 a, Vector2 b, Vector2 c, RendererColor color)
+{
+	// 기존 사각형 인덱스를 재사용. 첫 삼각형만 출력하고 두 번째는 퇴화시킨다.
+	if (batchSpriteCount_ > 0 &&
+		(batchTexture_ != whiteTextureView_.Get() || batchRenderMode_ != SpriteRenderMode::AlphaBlend ||
+		 batchCountForProfiler_ || batchSpriteCount_ >= kMaxSpritesPerBatch))
+		Flush();
+	if (batchSpriteCount_ == 0)
+	{
+		batchTexture_ = whiteTextureView_.Get();
+		batchRenderMode_ = SpriteRenderMode::AlphaBlend;
+		batchCountForProfiler_ = false;
+	}
+	for (const auto point : {a, c, b, a})
+		batchVertices_.push_back({point.x, point.y, 0.0f, 0.0f, 0.0f, color.r, color.g, color.b, color.a});
+	++batchSpriteCount_;
+	if (!batchingEnabled_)
+		Flush();
+}
+
+void Renderer::DrawUICooldown(Vector2 position, Vector2 halfSize, float remainingFraction,
+							  RendererColor color)
+{
+	// 정규화된 화면 좌표를 Clip 좌표로 변환하며 Y 방향만 반전한다.
+	const auto toClip = [&](Vector2 point) {
+		return Vector2{position.x + point.x * halfSize.x, position.y - point.y * halfSize.y};
+	};
+	for (const auto& triangle : UIRadialFill::Remaining(remainingFraction))
+		DrawUITriangle(toClip(triangle[0]), toClip(triangle[1]), toClip(triangle[2]), color);
 }
