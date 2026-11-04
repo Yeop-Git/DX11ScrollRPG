@@ -2,7 +2,7 @@
 
 ## 문제
 
-현재 Application은 메인 스레드에서 입력, Update, Render를 순서대로 처리한다. IOCP와 향후 파일 로딩을 학습하기 전에 작업 제출, Worker 대기, 공유 Queue 보호, 종료 과정을 독립적으로 확인할 기반이 필요했다.
+현재 Application은 메인 스레드에서 입력, Update, Render를 순서대로 처리한다. 멀티스레드와 파일 로딩을 학습하면서 작업 제출, Worker 대기, 공유 Queue 보호, 종료 과정을 독립적으로 확인할 기반이 필요했다.
 
 ## AI 활용
 

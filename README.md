@@ -176,7 +176,7 @@ Monster와 Item의 반복적인 생성·삭제로 발생하는 메모리 할당�
 - 성능 분석·렌더링: Profiler, Stress Test, Sprite Batch, Depth Test, Render Queue
 - 멀티스레드·데이터 분리: Thread Pool, Job Queue, AnimationClip·Stat·공격 JSON, 비동기 파일 로딩
 - 전투·성장: PlayerStat / EnemyStat, EXP·레벨 해금, QWER·투사체/효과 Pool·Generation Handle·HUD
-- 후속 목표: QWER·Pool·Handle, IOCP·멀티플레이, Spatial Hash. Offscreen·Post Processing은 후순위
+- 현재 작업: 기존 코드·Thread Pool 이해와 직접 검증, 기본 TCP/UDP Echo·덤프 분석 학습. PNG 병렬 로딩은 여유 작업. [11월 3~6일 작업 계획](Docs/InterviewPreparationPlan.md) 기준, 새 실습 미진행
 
 <a id="profiler-stress-test"></a>
 ### 1. Profiler와 스트레스 테스트
@@ -389,28 +389,21 @@ WARP 렌더 검증용 Lv.4 장면. 직접 플레이 캡처나 성능 측정 자�
 <a id="sprint-schedule"></a>
 ## Sprint 진행 일정
 
-2026.09.26 기준, 하루 4~6시간의 목표 일정. 의존 관계·이월 기준은 [작업 계획](Docs/SprintWorkPlan.md), 기능별 계약·검증 기준은 [요구사항 명세](Docs/Requirements.md) 참고.
+현재 기준: 2026.11.03~11.06 15:00(KST), 하루 6~8시간 준비. 오늘은 남은 시간에 맞춰 조정. 상세 범위·일정·완료 기준은 [작업 계획](Docs/InterviewPreparationPlan.md), 기존 Sprint 기록은 [기존 작업 계획](Docs/SprintWorkPlan.md) 참고.
 
-| 날짜 / 상태 | 작업 | 완료 목표 |
+| 구분 | 상태 | 현재 작업 |
 | --- | --- | --- |
-| 기존 구현·측정 자료 기록 | Profiler / Stress Test, Sprite Batch, Depth Test, Render Queue | 기존 결과와 한계 보존 |
-| 09.26 · 구현·자동 검증 | Thread Pool / Job Queue | 시작 시 JSON 로딩에 사용. 사용자 육안 검토는 별도 |
-| 09.26 · 구현·자동 검증 | AnimationClip JSON·비동기 로딩 | 클립·캐릭터 설정·텍스처 경로를 외부화, Worker 로딩 후 메인 스레드 초기화 |
-| 09.26 · 선행 구현·자동 검증 | 성장 Stat·QWER·Pool·Handle·JSON·HUD | Q/W/E/R Lv.2/4/6/10 해금, 3/5/7/30초 쿨타임, Level/EXP·공격 정보 표시 |
-| 후속 · 날짜 미정 | IOCP Echo Server | Session·비동기 Receive/Send·Disconnect·안전한 종료 |
-| 기존 09.30 목표 · 재조정 | Packet Framing·2 Client | 부분/병합 패킷, Spawn/Despawn·기본 이동 동기화 |
-| 기존 10.01 목표 · 재조정 | Interpolation·서버 권위 이동 | 원격 이동 보간, 서버가 입력으로 위치 계산 |
-| 10.02 목표 | 통합 검증·기록, 여유 시 Spatial Hash | 검증·기록 시간을 우선 확보하고 Broad Phase 전후 비교 |
-| 10.02 이후 후순위 | Offscreen·Post Processing·HP Vignette | 네트워크·충돌 후속 작업 이후 진행 |
+| Profiler·Stress Test·Sprite Batch·Depth Test·Render Queue | 구현·측정 기록 존재 | 기존 수치·조건·한계 이해 |
+| Thread Pool·Job Queue·JSON 시작 로딩 | 구현 | 동기화·결과 전달·종료 흐름 직접 검토 |
+| 성장 Stat·QWER·Pool·Handle·HUD | 구현·자동 검증 기록 존재 | 실제 플레이·호출 흐름·소유권 검토 |
+| PNG 병렬 로딩 | 미구현·여유 작업 | 기본 준비 완료 후에만 사용자 설계·구현 검토 |
+| TCP 문자열 Echo·UDP 위치 값 Echo | 미구현 | 별도 콘솔 서버와 단일 클라이언트의 기본 송수신·종료 실습 |
+| 크래시 덤프 분석 | 미실습 | 별도 재현 프로그램의 수집·분석·수정 검증 |
 
-- 성장·HUD 설계: [PlayerStat / EnemyStat, EXP·스킬 해금·공격 UI 요구사항](Docs/ProgressionDesign.md). 구현 결과는 [개발 기록](Docs/CombatImplementation.md) 참고
-- 통합 공격 설계: [파일·클래스별 구현 계획과 수용 기준](Docs/CombatImplementationPlan.md). IOCP 이후 네트워크 일정은 재개 시점에 맞춰 재조정
-- QWER 쿨타임: 3 / 5 / 7 / 30초. 적용 에셋: Fire_Ball / Wind / Earth_Spike / Tornado, Q 명중 효과: Explosion
-- Foozle 효과 64×64, CC0. 실제 참조 프레임만 게임 등록. HUD는 별도 생성 아이콘 사용
-- Projectile / HitEffect는 Pool 사용. Handle / Lookup / Generation은 재사용 시 참조 유효성 검증 목적
-- 네트워크 상태 반영은 메인 스레드에서 처리 예정. IOCP 완료 Queue와 일반 Job Queue 구분
-- Sprite Batch / Render Queue 경계 조건 검증 기록 제외. Depth 5,000 버튼의 실제 500개 표기 유지, 재측정 제외
-- 일정 지연 시 Spatial Hash 우선 이월, 10.02 통합 검증 시간 확보. 맵 ID·배치·Spawn JSON은 장기 확장
+- 현재 협업: 사용자 최종 설계·코드 작성, Codex의 분석·설계 후보 비교·API 설명·리뷰 지원. 문서는 공동 수정
+- 기능별 기존 계약과 검증 기록: [요구사항 명세](Docs/Requirements.md), [성장·공격 구현 기록](Docs/CombatImplementation.md)
+- 새로운 실습과 성능 개선은 실제 실행·측정 후 기록. 기존 자동 검증과 사용자 직접 확인 구분
+- Spatial Hash·Offscreen·Post Processing 등 추가 확장은 이번 준비 범위에서 제외
 
 <a id="build-and-run"></a>
 ## 빌드 및 실행

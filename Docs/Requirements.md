@@ -1,17 +1,17 @@
 # DX11ScrollRPG 요구사항 명세
 
-작성 기준: 2026.09.26. 일정은 [작업 계획](SprintWorkPlan.md)을 참조한다.
+기존 기능 요구사항 기준: 2026.09.26. 2026.11.03에 미구현 서버 확장 요구 제거. 현재 일정과 새 기본 실습 범위는 [11월 3~6일 작업 계획](InterviewPreparationPlan.md) 참조.
 
 ## 1. 목적과 상태 표기
 
-직접 구현한 Win32 / DX11 게임을 기반으로 공격 확장, 객체 참조 안전성, 멀티스레드 실행, 네트워크 동기화를 학습하고 검증 가능한 포트폴리오로 정리한다. 실제 필요와 학습 목적을 구분하고, 기능 개수뿐 아니라 설계 선택·소유권·실패 처리·검증 결과를 설명할 수 있어야 한다.
+직접 구현한 Win32 / DX11 게임을 기반으로 공격 확장, 객체 참조 안전성, 멀티스레드 실행을 학습하고 검증 가능한 포트폴리오로 정리한다. 실제 필요와 학습 목적을 구분하고, 기능 개수뿐 아니라 설계 선택·소유권·실패 처리·검증 결과를 설명할 수 있어야 한다.
 
 - **구현·검증됨:** 현재 코드와 실행 기록이 있음. 게임에 연결됐는지는 별도 표시.
 - **요구:** 사용자 요청 또는 기존 Sprint 목표. 구현 완료를 뜻하지 않음.
 - **제안:** 구현을 위해 제시한 기본안. 사용자 선택 전에는 확정 정책이 아님.
 - **후속:** 구현 대상이지만 10.02까지의 기본 완료 범위 밖.
 
-현재 Thread Pool은 시작 시 JSON 파일 로딩에 연결됐다. 성장·스킬·Handle·HUD는 [구현 기록](CombatImplementation.md)의 자동 검증까지 완료. 네트워크 확장은 미구현 상태다. 기본 공격과 기존 Pool, 렌더링 기능은 기존 동작을 보존한다.
+현재 Thread Pool은 시작 시 JSON 파일 로딩에 연결됐다. 성장·스킬·Handle·HUD는 [구현 기록](CombatImplementation.md)의 자동 검증까지 완료. 새 PNG 로딩·기본 소켓 실습은 미구현 상태이며 현재 작업 계획에서 별도 관리한다. 기본 공격과 기존 Pool, 렌더링 기능은 기존 동작을 보존한다.
 
 ## 2. 실행 주체와 소유권
 
@@ -20,7 +20,6 @@
 | ARCH-01 | 클라이언트 윈도우 메시지·입력·게임 상태 갱신·DX11 Immediate Context 접근은 메인 스레드에서 수행 | Worker에서 해당 상태/API를 직접 수정·호출하는 경로가 없음 |
 | ARCH-02 | JobSystem Worker는 독립 입력 데이터로 계산·파일 처리하고, 게임 적용용 결과를 전달 | Worker가 Player / Monster / GameWorld를 비소유 포인터로 캡처해 직접 변경하지 않음 |
 | ARCH-03 | World 객체의 실제 수명 소유는 GameWorld의 unique_ptr 기반 구조를 유지 | Pool·Handle·Lookup은 소유자와 비소유 참조 역할이 명확함 |
-| ARCH-04 | IOCP의 OS 완료 Queue와 일반 함수 Job Queue를 구분 | 네트워크 완료 처리 경로와 JSON 작업 경로를 각각 설명 가능 |
 | ARCH-05 | 향후 완료 결과/게임 명령 Queue는 메인 스레드가 정해진 프레임 구간에서 처리 | enqueue와 처리 시점, 오류·취소·월드 전환 정책이 문서화됨 |
 
 메인 스레드용 결과/명령 Queue에는 자체 Worker가 필요 없다. `JobSystem.Start(1)`은 별도 Worker 하나를 만드는 것이므로 클라이언트 메인 스레드에서 실행하는 것과 다르다. 초기 결과 Queue는 mutex 기반으로 충분하며 Lock-free MPSC를 요구하지 않는다.
@@ -150,26 +149,7 @@ Generation 증가 시점, 번호 범위 초과, 저장소 식별 범위, Pool �
 
 공통 작업은 std::function<void()>를 유지한다. nlohmann/json 3.12.0으로 GameData schemaVersion 3·Stat schemaVersion 1 파일을 읽고, 로더의 promise/future로 성공 데이터 또는 예외를 전달한다. 필수 설정 실패는 파일 경로와 오류를 표시하고 시작을 중단한다. Application이 불변 GameData를 World보다 오래 소유하며, 마지막 멤버인 JobSystem이 먼저 파괴되어 Worker를 join한다. 파일마다 Stop하지 않는다. PNG 디코딩과 D3D 생성은 현재 메인 스레드다.
 
-## 8. IOCP와 게임 네트워크
-
-상태: 날짜 미정의 후속 작업. 27·28일 통합 공격 구현 범위에서 제외. 기존 네트워크 요구는 보존하며 IOCP 재개 후 상세 설계 진행.
-
-| ID | 요구사항 | 수용 기준 |
-| --- | --- | --- |
-| NET-01 | Winsock, Listen/Accept, IOCP 등록 및 Worker 완료 처리 | Client Echo가 비동기 Receive/Send로 왕복 |
-| NET-02 | Session / OVERLAPPED / 버퍼 수명 분리·보장 | Disconnect와 서버 종료 중 Pending I/O가 사용하는 메모리를 조기 해제하지 않음 |
-| NET-03 | 누적 Receive Buffer와 길이 기반 Packet Framing | 헤더·본문 분할, 여러 패킷 병합, 잘못된/최대 크기 처리 |
-| NET-04 | 송신 순서 및 부분 완료 처리 | 일부 바이트 완료 후 남은 데이터 처리, 송신 중 Disconnect에서 버퍼 재사용 오류 없음 |
-| NET-05 | 두 Client의 식별·Spawn·Move·Despawn | 서로의 생성·이동·정상/강제 종료 반영. 없는 ID·중복 처리 정책 명시 |
-| NET-06 | Client 수신 결과는 메인 스레드에서 게임 상태에 반영 | 네트워크 스레드가 GameWorld 목록·렌더 객체를 직접 변경하지 않음 |
-| NET-07 | Remote Snapshot Buffer와 보간 | 정상 간격·불규칙 도착·버퍼 부족 시 동작 정의. 보간 지연 기록 |
-| NET-08 | 최종 이동은 서버가 입력으로 계산 | 위치 직접 신뢰 방식에서 입력 sequence/방향/점프 요청으로 전환, 서버 결과 전파 |
-
-IOCP Worker는 GetQueuedCompletionStatus로 OS 완료 Queue를 기다린다. 이것은 JobSystem의 condition_variable 대기와 별도다. 서버 월드 상태를 전담 로직 스레드/틱에서 처리할지, Session별 순차 실행을 둘지는 비교·선택할 설계다. 모든 스레드가 같은 상태를 임의로 수정하는 구조는 피한다. 특정 스레드에서의 실행과 단순한 동시 실행 금지를 구분한다.
-
-게임의 QWER, Monster, Item 네트워크 동기화는 이번 범위에 없다. Client Prediction / Reconciliation도 제외하므로 로컬 입력 지연을 숨기거나 해결됐다고 기록하지 않는다.
-
-## 9. Spatial Hash와 렌더링 후속
+## 8. Spatial Hash와 렌더링 후속
 
 | ID | 요구사항 | 수용 기준 |
 | --- | --- | --- |
@@ -178,7 +158,7 @@ IOCP Worker는 GetQueuedCompletionStatus로 OS 완료 Queue를 기다린다. 이
 | FX-01 | Offscreen Texture에 Scene 출력 후 Fullscreen Pass | 기존 화면 유지, RTV/SRV 바인딩 충돌·수명 검증. 후순위 |
 | FX-02 | HP 기반 Vignette | Gameplay → Constant Buffer → Shader 데이터 흐름 확인. 후순위 |
 
-## 10. 공통 품질 기준
+## 9. 공통 품질 기준
 
 | ID | 요구사항 | 확인 기준 |
 | --- | --- | --- |
@@ -190,7 +170,7 @@ IOCP Worker는 GetQueuedCompletionStatus로 OS 완료 Queue를 기다린다. 이
 
 순차 Queue를 사용해도 모든 Deadlock이 사라지는 것은 아니다. Queue 밖의 접근, 작업 간 순환 대기, 메인 스레드와 Worker의 상호 대기를 검토한다. 하나의 긴 작업이 뒤의 작업을 지연시키는 한계와 Queue 누적에 대한 처리 예산/고갈 정책도 실제 적용 단계에서 정의한다.
 
-## 11. 검증 추적표
+## 10. 검증 추적표
 
 | 요구사항 | 계획한 검증 위치/방식 | 현재 증거 |
 | --- | --- | --- |
@@ -199,7 +179,6 @@ IOCP Worker는 GetQueuedCompletionStatus로 OS 완료 Queue를 기다린다. 이
 | LIFE-01~07 | Pool 대여/반환·슬롯 재사용·Reset 검증 | [구현 기록](CombatImplementation.md). uint64 고갈 실횟수 반복 미실행 |
 | G-01~14 / H-01~06 | 성장·해금·보상·HUD | 자동 상태 검증 및 WARP 출력 이미지 확인. 사용자 플레이 검토 별도 |
 | DATA-01~07 | 실제 로더·캐릭터 초기화·오류 fixture·Worker 결과·종료·게임 기동 | [로딩 로그](GameData.md). 핫 리로드/오래된 요청 검증은 후속 |
-| NET-01~08 | Echo·분할/병합 패킷·2 Client·강제 종료·지연 시나리오 | 미구현 |
 | COL-01~02 | 기존 AABB 비교와 동일 Stress 조건 측정 | 미구현 |
 | FX-01~02 | DX11 바인딩·화면 회귀·HP 효과 확인 | 후순위 |
 

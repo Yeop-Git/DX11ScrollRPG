@@ -25,7 +25,7 @@ Main: 메시지 처리 / 로딩 화면 → future.wait_for(0) → 준비되면 g
 
 `promise`는 결과를 전달하는 쪽, `future`는 그 결과를 받는 쪽이다. `wait_for(0)`은 완료 여부만 확인한다. `get()`은 준비된 값 또는 Worker가 저장한 예외를 받으며 한 번만 호출한다. Job이 캡처하는 shared_ptr는 promise의 수명을 보장한다. Worker는 Application의 this, Player, Monster, D3D 객체를 캡처하지 않는다.
 
-Worker는 C++의 일반 동기 파일 읽기를 실행한다. 메인 스레드 관점에서 비동기이며, OS 비동기 파일 I/O나 IOCP 구현은 아니다. 로딩이 끝나면 Worker는 condition_variable에서 대기하고 Application 종료 시 join한다. 파일마다 Pool을 종료하지 않는다.
+Worker는 C++의 일반 동기 파일 읽기를 실행한다. 메인 스레드 관점에서 비동기이며, OS 비동기 파일 I/O 구현은 아니다. 로딩이 끝나면 Worker는 condition_variable에서 대기하고 Application 종료 시 join한다. 파일마다 Pool을 종료하지 않는다.
 
 ## 변경 파일과 Visual Studio 확인 위치
 

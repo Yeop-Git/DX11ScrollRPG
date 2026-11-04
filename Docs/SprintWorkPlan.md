@@ -1,114 +1,51 @@
-# AI Sprint 작업 계획
+# 기존 AI Sprint 구현·검증 기록
 
-작성 기준: 2026.09.26. Sprint 기간: 2026.09.24~10.02, 하루 4~6시간.
+갱신 기준: 2026.11.03. 기존 Sprint 기간: 2026.09.24~10.02.
 
-이 문서는 대화에서 결정한 범위와 날짜별 실행 목표를 정리한다. 일정은 목표이며 기능 완료를 보장하거나 이미 수행한 것으로 표시하지 않는다. 기능별 계약과 검증 기준은 [요구사항 명세](Requirements.md), 실제 Thread Pool 검증 결과는 [개발 로그](ThreadPool.md)를 기준으로 한다.
+이 문서는 기존 구현과 검증 기록의 위치를 보존한다. 현재 일정과 기본 실습의 실행 기준은 [11월 3~6일 작업 계획](InterviewPreparationPlan.md)이다. 미구현 서버 확장 일정과 요구는 제거했으며 기존 측정값·자동 검증·사용자 확인 여부는 보존한다.
 
-27·28일 통합 범위였던 성장·공격·HUD는 09.26 사용자 지시로 선행 구현. 자동 검증 204개 통과, 실제 플레이·밸런스 검토는 별도. IOCP는 날짜 미정의 후속으로 이월. 파일·클래스별 설계와 수용 기준은 [통합 공격 구현 계획](CombatImplementationPlan.md) 참고. 기존 네트워크 날짜는 선행 IOCP 일정 확정 후 재조정.
+## 1. 기존 구현 상태
 
-## 1. 현재 상태
-
-| 구분 | 확인된 상태 | 남은 일 |
+| 구분 | 확인된 상태 | 확인할 기록·한계 |
 | --- | --- | --- |
-| Profiler / Stress Test / Sprite Batch / Depth Test / Render Queue | 구현 및 비교 자료 존재 | 기존 측정 결과와 한계 보존 |
-| Thread Pool / Job Queue | 실제 시작 시 JSON 로딩에 연결, 이전 독립 테스트 프로젝트 제거 | 사용자 코드 검토·직접 실행·커밋 |
-| 성장 Stat / QWER / Pool / Handle / HUD | 09.26 사용자 지시로 선행 구현·자동 검증 | [구현 기록](CombatImplementation.md), 사용자 플레이·밸런스 검토 |
-| AnimationClip JSON / 비동기 로딩 | 09.26 우선 적용, Worker 로딩·메인 스레드 초기화 구현 | [로딩 로그](GameData.md)의 검증과 한계 확인 |
-| IOCP / Multiplayer / Interpolation / 서버 권위 이동 / Spatial Hash | 미구현 | 아래 일정에 따라 진행 |
-| Offscreen / Post Processing / HP Vignette | 후순위 | 10.02 이후 일정으로 이월 |
+| Profiler / Stress Test / Sprite Batch / Depth Test / Render Queue | 구현·비교 자료 존재 | 기존 수치·조건·한계 보존. Draw Call 감소를 CPU 시간 개선으로 단정하지 않음 |
+| Thread Pool / Job Queue | 시작 JSON 로딩에서 Worker 1개·Job 1개 사용 | [Thread Pool 로그](ThreadPool.md). 과거 독립 테스트 프로젝트는 제거 |
+| AnimationClip·Stat·공격 JSON | Worker에서 읽기·파싱·검증, 메인에서 초기화 | [로딩 로그](GameData.md). PNG 디코딩·GPU 생성은 현재 메인 스레드 |
+| 성장 Stat / QWER / Pool / Handle / HUD | 기존 구현·자동 검증 기록 존재 | [구현 기록](CombatImplementation.md). 실제 플레이·밸런스 확인과 구분 |
+| Spatial Hash / Offscreen / Post Processing / HP Vignette | 미구현·후순위 | 현재 3일 준비 범위에 추가하지 않음 |
 
-Thread Pool의 테스트 통과는 게임 성능 향상이나 게임 내 비동기 로딩 완료를 뜻하지 않는다. 현재 변경 사항은 커밋 완료로 간주하지 않는다.
+자동 검증 204개와 WARP 출력은 과거 실행 기록이다. 문서 갱신이나 새 계획 수립을 재실행·직접 플레이 완료로 표시하지 않는다.
 
-## 2. 확정된 범위와 제외 사항
+## 2. 유지할 구조와 계약
 
-- 기존 Ctrl 일반 공격을 유지하고 Q / W / E / R 스킬을 추가한다. 쿨타임은 각각 3 / 5 / 7 / 30초다.
-- Projectile과 HitEffect는 사전 생성한 Pool을 사용한다. 동적 삭제 사례를 만들기 위해 Pool을 없애지 않는다.
-- Handle / Lookup / Generation은 포트폴리오에서 참조 유효성·재사용을 설명하고 검증하기 위해 구현한다. 현재 구조에서 필수라는 주장과 구분한다.
-- 인자 없는 `std::function<void()>` 기반 JobSystem을 우선 사용한다. 템플릿 Submit은 도입하지 않는다. 로더만 promise/future를 사용해 시작 요청 한 건의 결과를 전달한다.
-- 입력·GameWorld 갱신·Pool 조작·DX11 Immediate Context 접근은 현재 클라이언트의 메인 스레드에 둔다.
-- JSON 읽기·파싱·검증은 JobSystem으로 분리하고, 완료 결과 적용은 메인 스레드에서 수행한다.
-- IOCP는 OS의 완료 Queue를 사용한다. 자체 Job Queue로 IOCP를 대체하지 않는다.
-- Sprite Batch / Render Queue 경계 조건 검증 기록은 이번 일정에서 제외한다. 이 제외는 새 스킬·Handle·네트워크 기능의 정확성 검증을 제외한다는 의미가 아니다.
-- Depth 비교의 5,000 버튼 캡처 재측정은 후속 과제로 요구하지 않는다. 기존 실제 500개 표기와 한계는 보존한다.
-- 스킬 네트워크 동기화, 몬스터·아이템 네트워크 동기화, Client Prediction / Reconciliation, Lock-free Queue, Work Stealing, 일반적인 Task Graph는 이번 범위에서 제외한다.
+- 기존 Ctrl 공격·QWER·성장 HUD와 Monster / Item / Projectile / HitEffect 재사용 구조 유지.
+- 실제 객체 수명은 GameWorld가 unique_ptr로 소유. Handle은 Pool 사용 회차 식별이며 스레드 안전성 보장 수단이 아님.
+- JobSystem의 인자 없는 `std::function<void()>` 계약 유지. 결과·예외 전달은 로더의 promise/future 사용.
+- Start / Stop / 파괴는 생성 스레드, Submit은 여러 스레드에서 가능. Stop은 접수 중단 후 받은 작업 소진·join.
+- 입력·GameWorld·Pool·UI·Immediate Context 접근은 현재 메인 스레드에서 수행.
+- Application이 불변 GameData를 World보다 오래 소유. 마지막 멤버 JobSystem은 먼저 파괴되어 Worker 종료 대기.
+- Depth 비교의 5,000 버튼 캡처는 실제 500개라는 기존 표기 유지. 기존 측정값을 새 조건의 결과로 재해석하지 않음.
 
-## 3. 날짜별 계획
+## 3. 현재 작업과 협업
 
-각 날짜의 시간에는 분석·설계 비교, 구현, 검증, 설명과 로그를 포함한다. 뒤의 기능을 위해 검증 시간을 없애지 않는다.
+**최종 설계와 소스·테스트 코드 작성은 사용자 담당. Codex는 직접 코드를 수정하지 않고 분석·설계 후보 비교·API 설명·리뷰·검증 방법 제안을 지원한다. 문서는 함께 수정한다.**
 
-| 날짜 | 중심 작업 | 시간 배분 예시 | 완료 판단 |
-| --- | --- | --- | --- |
-| 09.26 · 3일차 | Thread Pool 실제 적용·JSON 외부화 | 로더·시작 경로 연결, 정상/실패 검증, 설명·로그 | Worker 파일 읽기 → 결과 전달 → 메인 스레드 초기화와 설정 수명 설명. 사용자 육안 확인은 별도 |
-| 09.27~09.28 · 구현 후 검토 | 선행 구현한 성장·QWER·Pool·Handle·HUD | 코드 설명·직접 플레이·수치 조정 | 자동 검증과 사용자 조작 검토를 구분, IOCP 재개 일정은 별도 |
-| 후속 · 날짜 미정 | IOCP Echo Server | 수명·종료 설계 1~1.5h, 구현 2~3h, 검증·로그 1~1.5h | 연결·비동기 수신/송신·Echo·Disconnect·Pending I/O 회수 |
-| 기존 09.30 목표 · 재조정 필요 | Packet Framing, 2 Client | 프로토콜·실행 주체 설계 1h, 구현 2~3h, 검증·로그 1~2h | 부분·병합 패킷, 두 Client Spawn/Despawn·기본 이동 전달 |
-| 기존 10.01 목표 · 재조정 필요 | Interpolation, 서버 권위 이동 | 설계 1h, 보간 1~1.5h, 입력 기반 이동 1~2h, 검증·로그 1~1.5h | 원격 보간과 서버 위치 계산. Prediction 없는 로컬 조작 지연은 한계로 기록 |
-| 10.02 · 9일차 | 통합 검증·포트폴리오 정리, 여유 시 Spatial Hash | 통합 검증·로그 2~3h 우선 확보, 잔여 시간 2~3h에 Broad Phase 분석·최소 구현 | 기존 기능의 회귀 검증을 우선. Spatial Hash는 비교 검증까지 끝난 경우만 완료 표시 |
+현재 목표는 기존 코드·Thread Pool·JSON 로딩 이해와 직접 검증, 별도 TCP 문자열·UDP 위치 값 Echo, 크래시 덤프 기본 분석이다. PNG 로딩의 Thread Pool 활용은 기본 준비 후 시간 여유가 있을 때만 검토한다. 상세 단계·제외 범위·완료 체크는 현재 작업 계획에서만 관리한다.
 
-통합 공격 작업의 실제 소요 시간과 IOCP 재개 시점에 따라 네트워크 목표를 재조정한다. 10.02에는 당시 완료된 기능의 통합 검증과 기록을 우선한다. R 끌어당기기·띄우기, 화려한 추가 HUD 같은 미합의 기능은 넣지 않는다. Level/EXP 수치·진행 바와 공격별 단축키·쿨타임·해금 조건 표시는 필수 범위다. [성장·HUD 설계](ProgressionDesign.md)를 함께 적용한다. 당초 14~20시간 추정은 설계 당시 참고치다. 현재 구현 결과와 실제 검토 소요를 기준으로 후속 일정을 조정한다.
+## 4. 기록 규칙
 
-## 4. 의존 관계와 진행 순서
+- 기존 흐름 분석 → 설계 후보 비교 → 사용자 결정·직접 구현 → 리뷰 → 직접 검증 → 결과 기록.
+- 새 구현과 과거 구현, 자동 검증과 사용자 육안 확인, 계획과 완료를 구분.
+- 문제 / AI 지원 / 사용자 판단 / 구현 / 검증 / 결과 / 한계 기록.
+- 성능은 같은 조건에서 비교하며 미측정 개선을 주장하지 않음.
+- 커밋·태그·원격 반영은 별도 사용자 요청 범위에서 수행. 기존 이력·측정 자료는 변경하지 않음.
 
-```text
-공격 구조 선택 → Q + Projectile Pool → W/E/R + Effect Pool
-                             └────→ Handle 적용·재사용 검증
+## 관련 문서
 
-IOCP Echo·Session 수명 → Packet Framing → 2 Client 기본 동기화
-                                           ↓
-                              Snapshot Interpolation
-                                           ↓
-                              Server Authoritative Movement
-
-기존 AABB 기준 → Spatial Hash 후보 생성 → 결과·검사 수 비교
-
-JobSystem 최소 구현 [완료]
-       ↓
-AnimationClip 동기 JSON 로더
-       ↓
-Worker 로딩 + promise/future + 메인 스레드 초기화
-       ↓
-추후 맵 ID / 맵 데이터 / Spawn 설정으로 확장
-```
-
-Handle과 Pool을 Q 구현 단계에서 함께 구현해 W/E/R에 같은 계약을 적용한다. Handle은 Queue의 스레드 안전성이나 비동기 작업 중 객체 수명을 자동으로 보장하지 않는다.
-
-## 5. 날짜별 시작 전 결정할 사항
-
-| 작업 | 비교·결정할 내용 |
-| --- | --- |
-| 공격 구조 | PlayerAttack 상속 + Player composition의 최소 인터페이스, 설정 데이터로 표현할 차이와 별도 행동 클래스의 경계 |
-| QWER | 제안 에셋·공격 방식 선택, 피해량·속도·거리·수명·유효 프레임, 기본 공격/점프/피격 중 사용 규칙 |
-| R | 현재 Monster Hurt 상태의 추가 피해 거부와 다단 타격 정책, 사망 후 R 재시작과의 입력 구분 |
-| Pool / Handle | 고갈 시 정책, Generation 갱신 시점, 월드 Reset과 세대 번호 재사용·범위 초과 처리 |
-| IOCP | Session / OVERLAPPED / 송수신 버퍼 소유권, 부분 송신, 종료 시 Pending I/O 정리 순서 |
-| 게임 네트워크 | I/O 완료 처리와 서버 월드 상태 변경의 실행 주체, Client 메인 스레드 반영 시점 |
-| JSON | 현재: nlohmann/json 3.12.0, schemaVersion 1, 필수 설정 실패 시 종료. 후속: 핫 리로드 요청 식별·취소·오래된 결과 정책 |
-
-최종 선택은 기능 구현 전에 사용자와 비교·확정한다. 문서의 제안을 사용자 선택 완료로 기록하지 않는다.
-
-## 6. 일정이 밀릴 때
-
-1. 객체 수명, 중복 반환, Thread Shutdown, Session Disconnect, Packet Framing의 정확성을 먼저 확보한다.
-2. 두 Client의 기본 연결·Spawn/Despawn·이동을 안정화한다.
-3. Interpolation과 서버 권위 이동은 각각 검증한 뒤 완료 처리한다. 앞 단계가 미완료이면 다음 단계로 넘어가지 않는다.
-4. Spatial Hash를 첫 이월 후보로 둔다. 10.02 통합 검증과 기록 시간은 유지한다.
-5. 그래도 시간이 부족하면 남은 네트워크 고도화를 다음 작업일로 이월하고, 완료된 것과 미완료 항목을 명시한다. QWER나 Handle 범위를 조용히 삭제하지 않는다.
-
-## 7. 10.02 이후 후속 계획
-
-- 미완료된 안전성·핵심 기능 검증을 먼저 마친다.
-- AnimationClip JSON과 시작 시 비동기 로딩은 09.26으로 앞당겼다. 후속에는 필요한 데이터 종류부터 확장한다.
-- 재로딩·월드 전환을 도입할 때 요청 식별·취소·기존 설정 수명 정책을 먼저 설계한다.
-- Spatial Hash가 이월되면 별도 측정 시간을 확보한다.
-- Offscreen Render Target → Fullscreen Post Processing → HP Vignette 순으로 진행한다.
-- 맵 ID·맵 배치·Spawn 정보 JSON은 장기 확장 항목이다. 지금 맵 포맷 전체나 범용 에디터를 만들지 않는다.
-
-사용자의 추가 구현 요청으로 JSON 로딩을 현재 작업에 반영했다. 이후 일정은 실제 소요 시간에 따라 조정하며 통합 검증 시간을 유지한다.
-
-## 8. 작업 완료와 기록
-
-- 기존 호출 흐름 분석 → 설계 2안 이상 비교·선택 → 최소 구현 → 리뷰 → 실패 입력·경계 조건 검증 → 결과 기록 순서를 따른다.
-- 완료 증거는 빌드 구성, 실행한 테스트, 직접 확인한 동작/측정, 미실행 항목으로 구분한다.
-- 성능 수치는 같은 조건에서 비교하며, Draw Call 감소나 Worker 수 증가를 성능 향상으로 단정하지 않는다.
-- 각 기능 로그에는 문제 / AI 활용 / 내 판단 / 구현 / 검증 / 결과 / 한계를 남긴다.
-- 커밋은 별도 요청 시 진행하며 실제 작업 날짜·당일 순번을 사용한다. 미래 커밋 번호를 완료 이력으로 만들지 않는다.
+- [현재 작업 계획](InterviewPreparationPlan.md)
+- [기존 요구사항](Requirements.md)
+- [통합 공격 설계 기록](CombatImplementationPlan.md)
+- [성장·HUD 설계 기록](ProgressionDesign.md)
+- [Thread Pool](ThreadPool.md)
+- [JSON 로딩](GameData.md)
+- [성장·공격 구현 기록](CombatImplementation.md)

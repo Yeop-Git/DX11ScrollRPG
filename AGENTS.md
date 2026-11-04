@@ -1,5 +1,18 @@
 # AGENTS.md
 
+## 현재 협업 원칙 — 2026.11.03 갱신
+
+**절대 코드 직접 수정하지 말고, 설계 및 디자인, API 어시스트만 부탁하고 실제 코드 작성 및 설계는 이용자에게 맡길 것.**
+
+- 최종 설계 선택, 실제 소스·테스트 코드 작성과 수정, 프로젝트 설정 변경은 사용자가 직접 수행합니다. Codex는 이를 대행하지 않습니다.
+- Codex는 기존 코드 분석, 설계 후보와 장단점 설명, API 사용법·제약 설명, 사용자가 작성한 코드의 읽기 전용 리뷰, 검증 방법 제안을 지원합니다. 제안은 사용자 결정 전까지 확정 설계로 기록하지 않습니다.
+- 문서는 사용자와 Codex가 함께 수정합니다. 문서와 `.gitignore`는 사용자가 요청한 범위에서 Codex가 직접 수정할 수 있습니다. 문서 수정 허용을 소스 코드나 프로젝트 설정 수정 허용으로 확대하지 않습니다.
+- 사용자가 코드를 보며 학습·구현하고 필요한 지점의 설명과 리뷰를 요청하는 방식으로 진행합니다. 질문식 수업을 임의로 이어가지 않습니다.
+- 현재 실행 기준은 [11월 3~6일 작업 계획](Docs/InterviewPreparationPlan.md)입니다. 아래 9월 Sprint 설명은 기존 구현과 학습 기록이며 현재 일정의 근거로 사용하지 않습니다.
+- 이 원칙은 아래의 기존 AI 구현 요청 예시보다 우선합니다. 구현 요청처럼 보이는 후속 발언만으로 직접 코드 수정 제한이 해제된 것으로 해석하지 않습니다.
+
+---
+
 ## 프로젝트 개발 및 AI 활용 목적
 
 이 저장소의 `README.md`에 정리된 현재 구현 내용은 포트폴리오 개발 과정에서 직접 손코딩으로 구현한 결과를 기준으로 작성했습니다.
@@ -38,7 +51,7 @@
 
 ## 1. 기존 코드 이해를 우선한다
 
-Codex에게 코드를 수정시키기 전에 현재 코드의 호출 흐름과 책임을 먼저 분석합니다.
+사용자가 코드를 수정하기 전에 Codex와 현재 코드의 호출 흐름과 책임을 먼저 분석합니다.
 
 예시:
 
@@ -49,7 +62,7 @@ Codex에게 코드를 수정시키기 전에 현재 코드의 호출 흐름과 �
 
 ## 2. 설계안을 먼저 비교한다
 
-바로 구현을 요청하기보다 가능한 설계안을 비교합니다.
+사용자가 구현하기 전에 가능한 설계안을 비교하고 최종 설계는 직접 선택합니다.
 
 ```text
 방법 A / B / C
@@ -68,7 +81,7 @@ Codex에게 코드를 수정시키기 전에 현재 코드의 호출 흐름과 �
 
 ## 4. AI 결과를 반드시 검증한다
 
-Codex가 작성한 코드는 다음 관점에서 다시 검토합니다.
+기존 AI 생성 코드와 사용자가 새로 작성한 코드는 다음 관점에서 검토합니다.
 
 - Lifetime
 - Ownership
@@ -84,16 +97,7 @@ Codex가 작성한 코드는 다음 관점에서 다시 검토합니다.
 
 ## 5. 구현 후 직접 설명한다
 
-각 기능을 완료한 뒤 다음 질문에 답할 수 있어야 합니다.
-
-```text
-왜 만들었는가?
-기존 구조의 문제는 무엇이었는가?
-왜 이 설계를 선택했는가?
-다른 선택지는 무엇이 있었는가?
-구현 결과는 어떻게 검증했는가?
-현재 구조의 한계는 무엇인가?
-```
+각 기능을 완료한 뒤 목적, 기존 문제, 선택한 설계와 대안, 검증 결과, 현재 한계를 직접 설명할 수 있어야 합니다.
 
 ## 6. 변경 내용을 사용자가 확인할 수 있게 공유한다
 
@@ -155,7 +159,7 @@ Profiler 구현 시에는 측정 대상 구간, 집계 주기, 최근 프레임 
         ↓
 4. 설계 비교 및 직접 선택
         ↓
-5. 최소 범위 구현 요청
+5. 사용자가 최소 범위 직접 구현
         ↓
 6. 코드 리뷰
         ↓
@@ -184,11 +188,12 @@ Codex 사용 시 기본적으로 다음과 같은 요청 순서를 사용합니�
 각 방식의 장단점을 비교하라.
 ```
 
-### Implement
+### Implement — 사용자 직접 구현
 
 ```text
-선택한 설계로 최소 범위만 구현하라.
-관련 없는 리팩터링은 하지 마라.
+최종 설계와 코드는 내가 작성한다.
+필요한 API와 설계 대안, 소유권·동기화 제약을 설명하라.
+소스·테스트 코드와 프로젝트 설정은 직접 수정하지 마라.
 ```
 
 ### Review
@@ -202,7 +207,7 @@ Edge Case 관점에서 다시 리뷰하라.
 
 ```text
 정상 입력뿐 아니라 실패 가능성이 있는 테스트 케이스를 제안하고,
-가능하면 검증 코드도 작성하라.
+검증 코드 작성과 실행은 내가 진행하며, 테스트 관점과 결과 해석을 지원하라.
 ```
 
 ---
@@ -224,14 +229,14 @@ Edge Case 관점에서 다시 리뷰하라.
 스킬 에셋은 GameData.json에서 실제 사용하는 PNG만 저장소에 유지합니다. 미사용 스킬 프레임·아이콘은 추가하지 않고, 사용 변경 시 JSON·프로젝트 항목·파일 목록을 함께 맞춥니다. 원본 다운로드 ZIP과 라이선스 문서는 보존합니다. HUD는 사용자 요청으로 생성한 정사각형 아이콘 5개를 사용합니다. 아이콘은 실제 스킬 스프라이트의 색과 형태를 기준으로 맞춥니다. 스킬 목록은 우하단 EXP 패널 위에 간격을 두고 배치합니다. 이름·기본 쿨타임 바는 표시하지 않으며, 해금 레벨은 잠금 중에만 자물쇠 아래에 표시합니다. 우상단 단축키·시계방향 쿨타임·중앙 남은 초·최하단 EXP 배치를 유지합니다.
 
 
-현재 실행 기준 문서는 [작업 계획](Docs/SprintWorkPlan.md)과 [요구사항 명세](Docs/Requirements.md)입니다. 아래 기능별 설명은 학습 범위이며, 일정과 상태는 이 두 문서를 함께 확인합니다. 이후 사용자 지시가 우선합니다.
+현재 실행 기준은 [11월 3~6일 작업 계획](Docs/InterviewPreparationPlan.md)입니다. [기존 작업 기록](Docs/SprintWorkPlan.md)과 [기존 요구사항](Docs/Requirements.md)은 구현·검증의 배경으로 참고합니다. 아래 기능별 설명은 과거 학습 범위이며 현재 일정이나 완료 여부의 근거로 사용하지 않습니다. 이후 사용자 지시가 우선합니다.
 
 - Thread Pool / Job Queue를 실제 시작 시 JSON 로딩에 연결했습니다. 이전 독립 테스트 프로젝트는 사용자 요청으로 제거했습니다. 사용자 직접 검토·실행과 커밋은 별도 단계입니다.
-- 인자 없는 std::function<void()> 계약을 유지합니다. JSON 읽기·파싱·검증은 Worker에서 실행하고 로더의 promise/future로 결과·오류를 전달합니다. IOCP는 OS 완료 Queue와 별도 Worker로 설계합니다.
+- 인자 없는 std::function<void()> 계약을 유지합니다. JSON 읽기·파싱·검증은 Worker에서 실행하고 로더의 promise/future로 결과·오류를 전달합니다.
 - 현재 클라이언트의 입력·GameWorld 상태 변경·렌더링은 메인 스레드에서 수행합니다. 현재 시작 로딩 한 건은 future로 받아 메인 스레드에서 적용합니다. 반복 결과/명령 Queue는 필요해질 때 설계합니다.
 - Ctrl 일반 공격을 유지하고 Q/W/E/R을 추가합니다. 쿨타임은 3/5/7/30초입니다. 화염구·바람 칼날·대지 가시·회오리와 Q 명중 Explosion은 제안 에셋/동작이며, 구현 전 세부 정책을 선택합니다.
 - Projectile / HitEffect는 Pool로 처리합니다. 실제 삭제 사례를 만들기 위한 동적 생성·삭제 구현은 하지 않습니다. Handle / Lookup / Generation은 Pool 재사용의 논리적 수명 검증과 포트폴리오 학습 목적으로 유지합니다.
-- 09.27~09.28은 일반 공격·QWER·Projectile/Effect Pool·Handle·JSON의 통합 작업으로 진행합니다. [통합 공격 구현 계획](Docs/CombatImplementationPlan.md)에 코드별 설계와 요구사항을 정리합니다. IOCP는 날짜 미정의 후속으로 미루고, 네트워크 일정은 재개 시점에 맞춰 재조정합니다. 10.02 통합 검증·기록 시간을 우선 확보합니다.
+- 09.27~09.28은 일반 공격·QWER·Projectile/Effect Pool·Handle·JSON의 통합 작업으로 진행합니다. [통합 공격 구현 계획](Docs/CombatImplementationPlan.md)에 코드별 설계와 요구사항을 정리합니다. 10.02 통합 검증·기록 시간을 우선 확보합니다.
 - 사용자 요청으로 AnimationClip JSON 분리·비동기 로딩을 09.26 현재 작업으로 앞당겼습니다. Player/Monster 설정과 텍스처 경로도 함께 분리합니다. 맵 ID·배치·Spawn 정보 JSON은 장기 확장입니다.
 - Offscreen / Fullscreen Post Processing / HP Vignette는 10.02 이후 후순위입니다. 일정이 밀리면 Spatial Hash를 먼저 이월하고 안전성 검증 시간을 보존합니다.
 - Sprite Batch / Render Queue 경계 조건 검증 기록은 이번 일정에서 제외합니다. Depth 비교의 5,000 버튼 캡처 재측정은 요구하지 않으며, 기존 실제 500개 표기와 한계는 보존합니다.
@@ -267,22 +272,6 @@ Thread Pool
 Job Queue
 mutex / condition_variable
 AnimationClip JSON / 비동기 로딩 - 시작 경로에 적용
-
-[Network]
-IOCP Server
-Session
-Async Receive / Send
-TCP Packet Framing
-
-[Multiplayer]
-2 Client 접속
-Spawn / Despawn
-Remote Player
-Movement Synchronization
-
-[Game Network]
-Snapshot Interpolation
-Server Authoritative Movement
 
 [Collision]
 Spatial Hash Broad Phase
@@ -441,21 +430,13 @@ Frame Time
 - Draw Call 감소 확인
 - 동일 Stress Test 조건에서 Before / After 측정
 
-## 면접 방어 질문
-
-- Draw Call은 무엇인가?
-- Draw Call이 많으면 왜 CPU 비용이 증가하는가?
-- Dynamic Vertex Buffer를 사용하는 이유는 무엇인가?
-- Batch가 끊기는 조건은 무엇인가?
-- Texture Atlas를 적용하지 않은 이유는 무엇인가?
-
 ---
 
 # 09.26 - Thread Pool / Job Queue
 
 ## 목표
 
-IOCP 학습에 앞서 C++ 멀티스레드와 Producer / Consumer 구조를 직접 구현했습니다. 현재는 Application 시작 시 JSON 로딩에서 실행하며, 기존 독립 테스트 프로젝트는 제거했습니다. [Thread Pool 개발 로그](Docs/ThreadPool.md)를 참고합니다.
+C++ 멀티스레드와 Producer / Consumer 구조를 학습하기 위해 Thread Pool을 구현했습니다. 현재는 Application 시작 시 JSON 로딩에서 실행하며, 기존 독립 테스트 프로젝트는 제거했습니다. [Thread Pool 개발 로그](Docs/ThreadPool.md)를 참고합니다.
 
 ```text
 Main Thread
@@ -515,15 +496,6 @@ Worker 4
 - Worker 생성 / 종료
 - Job 처리 검증
 
-## 면접 방어 질문
-
-- Thread Pool을 사용하는 이유는 무엇인가?
-- 매 Job마다 Thread를 생성하는 방식과 어떤 차이가 있는가?
-- mutex는 왜 필요한가?
-- condition_variable이 없으면 어떤 문제가 생기는가?
-- spurious wakeup은 무엇인가?
-- Race Condition과 Deadlock의 차이는 무엇인가?
-
 ---
 
 # 09.27~09.28 - 공격 확장 / Pool / Handle 및 Lookup
@@ -543,315 +515,6 @@ Worker 4
 - R 다단 타격과 현재 Hurt 상태의 추가 피해 거부 정책, R 재시작 입력과의 충돌을 설계에서 해결합니다.
 - 장기 참조와 순회용 raw pointer의 사용 기간을 구분하며, 기존 참조 전체를 일괄 전환하지 않습니다.
 - 세부 요구사항과 완료 기준은 [Requirements.md](Docs/Requirements.md)의 ATK / LIFE / ASSET 항목을 따릅니다.
-
----
-
-# 후속 · 날짜 미정 - IOCP Echo Server
-
-## 목표
-
-Windows IOCP 기반 비동기 TCP 서버를 구현합니다.
-
-이번 단계의 목표는 대규모 MMORPG 서버가 아니라 **IOCP 구조와 Session 기반 비동기 Receive / Send를 이해하는 최소 Game Server**입니다.
-
-## 기본 구조
-
-```text
-Listen Socket
-      ↓
-Accept
-      ↓
-IOCP
-      ↓
-Worker Threads
-      ↓
-Session
-      ↓
-Async Recv / Send
-```
-
-## 구현 대상
-
-- Winsock 초기화
-- Listen Socket
-- Client Accept
-- Completion Port 생성
-- Client Socket IOCP 등록
-- Worker Thread
-- Overlapped Receive
-- Overlapped Send
-- Session
-- Disconnect 처리
-
-## 첫 번째 검증
-
-```text
-Client
-  ↓
-"Hello"
-  ↓
-IOCP Server
-  ↓
-"Hello"
-```
-
-Echo Server 형태로 I/O 흐름을 먼저 검증합니다.
-
-## Packet Header
-
-Echo가 안정적으로 동작하면 Packet 구조를 도입합니다.
-
-```cpp
-struct PacketHeader
-{
-    uint16_t size;
-    uint16_t id;
-};
-```
-
-## Thread Pool과 IOCP 비교
-
-```text
-Thread Pool
-
-Application이 Job을 Queue에 넣음
-       ↓
-Worker가 처리
-
-
-IOCP
-
-OS가 완료된 I/O를 Completion Queue에 넣음
-       ↓
-Worker가 처리
-```
-
-두 구조의 공통점과 차이를 직접 설명할 수 있어야 합니다.
-
-## 면접 방어 질문
-
-- Blocking Socket과 Overlapped I/O의 차이는 무엇인가?
-- IOCP는 어떤 문제를 해결하는가?
-- Completion Port는 무엇인가?
-- `GetQueuedCompletionStatus`는 어떤 역할을 하는가?
-- Session Lifetime은 어떻게 관리할 것인가?
-- Disconnect 도중 Pending I/O는 어떻게 처리할 것인가?
-
----
-
-# 기존 09.30 목표 · 재조정 - Packet Framing / 2 Client Multiplayer
-
-## 목표
-
-IOCP 서버를 실제 DX11 게임과 연결합니다.
-
-최소 목표는 두 개의 Client가 접속하여 서로를 Spawn하고 이동 상태를 공유하는 것입니다.
-
-## Packet
-
-```text
-S2C_Enter
-S2C_Spawn
-C2S_Move
-S2C_Move
-S2C_Despawn
-```
-
-## Server World
-
-초기 서버 상태는 단순하게 유지합니다.
-
-```cpp
-struct PlayerState
-{
-    uint32_t id;
-    Vector2 position;
-};
-```
-
-```text
-unordered_map<PlayerId, PlayerState>
-```
-
-## Client
-
-```text
-Local Player
-Remote Player A
-Remote Player B
-...
-```
-
-현재 GameWorld의 소유권 구조를 활용합니다.
-
-```text
-gameObjects_
-→ unique_ptr<GameObject>로 실제 수명 소유
-
-remotePlayers_
-→ Remote Player 비소유 참조
-```
-
-## 완료 기준
-
-```text
-Client A 실행
-Client B 실행
-
-A 이동
-→ Server
-→ B에게 Broadcast
-→ B 화면의 Remote A 이동
-
-B 이동
-→ Server
-→ A에게 Broadcast
-→ A 화면의 Remote B 이동
-
-Client Disconnect
-→ S2C_Despawn
-→ Remote Player 제거
-```
-
-## 반드시 검증할 Network Edge Case
-
-- 한 `recv`에 Packet 일부만 도착
-- 여러 Packet이 한 `recv`에 함께 도착
-- Client 강제 종료
-- Send 중 Disconnect
-- 잘못된 Packet Size
-- 동일 Session에 여러 Worker 접근
-
----
-
-# 기존 10.01 목표 · 재조정 - Snapshot Interpolation
-
-## 문제
-
-Network Packet은 Render Frame과 동일한 주기로 도착하지 않습니다.
-
-Packet 수신 즉시 Remote Player 위치를 적용하면 움직임이 끊겨 보일 수 있습니다.
-
-## 개선
-
-Remote Player의 Server Snapshot을 저장한 뒤 일정 시간 과거 상태를 보간합니다.
-
-```text
-Snapshot A
-     ↓
-Interpolation
-     ↓
-Snapshot B
-```
-
-## 데이터 구조 예시
-
-```cpp
-struct Snapshot
-{
-    double serverTime;
-    Vector2 position;
-};
-```
-
-```text
-deque<Snapshot>
-```
-
-## Rendering
-
-```text
-Server Time
-
-t0
-t1
-t2
-t3
-
-Render Time
-   ↑
-
-t1과 t2 사이 Position을 Lerp
-```
-
-## Debug
-
-가능하면 다음 값을 확인합니다.
-
-```text
-Snapshot Count
-Interpolation Delay
-Remote Position
-Target Position
-```
-
-시간이 허용되면 테스트용 인위적 Delay도 추가합니다.
-
-```text
-50 ms
-100 ms
-150 ms
-```
-
-## 면접 방어 질문
-
-- 왜 받은 최신 Position을 즉시 표시하지 않는가?
-- 왜 과거 시점을 Render하는가?
-- Interpolation과 Extrapolation의 차이는 무엇인가?
-- Snapshot Buffer가 부족하면 어떻게 처리할 것인가?
-
----
-
-# 기존 10.01 목표 · 재조정 - Server Authoritative Movement
-
-## 문제
-
-초기 Multiplayer 연결 검증 단계에서는 Client가 자신의 Position을 Server에 전달하는 구조를 사용할 수 있습니다.
-
-하지만 Client Position을 그대로 신뢰하면 Server가 실제 게임 상태를 통제하기 어렵습니다.
-
-## 개선
-
-Client가 Position 대신 Input을 전달하고 Server가 PlayerState를 계산합니다.
-
-```text
-Client
-"오른쪽 입력"
-      ↓
-Server
-Input 처리
-Velocity / Position 계산
-      ↓
-PlayerState Broadcast
-```
-
-## Packet 예시
-
-```cpp
-struct C2S_MoveInput
-{
-    uint32_t sequence;
-    float direction;
-    bool jump;
-};
-```
-
-## 완료 기준
-
-- Client Position 전송 방식의 한계 정리
-- Input Packet 기반 이동 요청
-- Server가 Position 계산
-- Server State를 Client에 Broadcast
-- Remote Player는 Snapshot Interpolation으로 표시
-
-Local Player Prediction / Reconciliation은 이번 스프린트 범위에서 제외합니다.
-
-## 면접 방어 질문
-
-- Client Position을 그대로 신뢰하면 어떤 문제가 있는가?
-- Server Authoritative 구조를 사용하는 이유는 무엇인가?
-- Input Sequence는 왜 필요한가?
-- Client Prediction이 없는 경우 어떤 조작 문제가 발생할 수 있는가?
 
 ---
 
@@ -934,14 +597,6 @@ Sweep and Prune
 
 현재 2D 횡스크롤 게임 구조와 구현 복잡도를 고려해 최종 방식을 직접 선택합니다.
 
-## 면접 방어 질문
-
-- Broad Phase와 Narrow Phase의 차이는 무엇인가?
-- 왜 Spatial Hash를 선택했는가?
-- Quadtree와 비교하면 어떤 장단점이 있는가?
-- Cell Size는 성능에 어떤 영향을 미치는가?
-- 중복 Candidate는 어떻게 제거하는가?
-
 ---
 
 # 09.26 - AnimationClip JSON / 비동기 로딩
@@ -977,13 +632,6 @@ BackBuffer
 - Scene을 BackBuffer가 아닌 별도 Render Target에 출력
 - 해당 결과를 Shader Resource로 사용
 - Fullscreen Pass를 통해 BackBuffer에 출력
-
-## 면접 방어 질문
-
-- RTV와 SRV의 차이는 무엇인가?
-- 왜 바로 BackBuffer에 렌더링하지 않는가?
-- Fullscreen Pass는 왜 필요한가?
-- Render Target을 Texture처럼 다시 사용할 수 있는 이유는 무엇인가?
 
 ---
 
@@ -1100,23 +748,7 @@ Edge Case 탐색
 
 # AI 활용 역량평가 대비 기록
 
-매 작업 후 다음 질문에 답합니다.
-
-```text
-AI가 처음 제안한 방법은 무엇이었는가?
-
-그중 내가 선택한 방식은 무엇인가?
-
-선택하지 않은 방식은 무엇이며 왜 제외했는가?
-
-AI 코드에서 발견한 문제는 무엇인가?
-
-AI가 놓친 Edge Case는 무엇인가?
-
-어떤 테스트로 검증했는가?
-
-AI 없이 동일 기능을 다시 설명하거나 수정할 수 있는가?
-```
+매 작업 후 비교한 대안, 사용자 선택 근거, 리뷰에서 발견한 문제, 검증 결과와 남은 한계를 기록합니다.
 
 AI를 잘 사용하는 것뿐 아니라 **AI의 결과를 검증하고 책임질 수 있는 개발자**가 되는 것을 목표로 합니다.
 
@@ -1175,10 +807,6 @@ AI를 잘 사용하는 것뿐 아니라 **AI의 결과를 검증하고 책임질
 | 2일차 (09.25) | 2-3 | Render Queue 및 성능 비교 |
 | 3일차 (09.26) | 3-1 | Thread Pool / Job Queue 및 JSON 비동기 로딩 |
 | 3일차 (09.26) | 3-2 | 성장 Stat·QWER·Projectile/Effect Pool·Handle / Lookup·HUD |
-| 후속 · 날짜 미정 | 실행일 기준 확정 | IOCP Echo Server |
-| 기존 09.30 목표 · 재조정 | 실행일 기준 확정 | Packet Framing / 2 Client Multiplayer |
-| 기존 10.01 목표 · 재조정 | 실행일 기준 확정 | Snapshot Interpolation |
-| 기존 10.01 목표 · 재조정 | 실행일 기준 확정 | Server Authoritative Movement |
 | 9일차 조건부 (10.02) | 실행일 기준 확정 | Spatial Hash Broad Phase / 통합 검증·기록 |
 | 후순위 · 날짜 미정 | 실행일 기준 확정 | Offscreen Render Target 및 Post Processing 기반 |
 | 후순위 · 날짜 미정 | 실행일 기준 확정 | HP Vignette |
@@ -1283,29 +911,6 @@ Thread Pool은 시작 시 JSON 로딩에 연결됐습니다. 자동 검증과 �
 - [x] Pool 관리 API 및 사용 회차의 Handle 무효화
 - [x] 반환·슬롯 재사용·Reset 이후 오래된 Handle 검증
 
-## Network
-
-- [ ] IOCP Server
-- [ ] Session
-- [ ] Async Recv / Send
-- [ ] Packet Header
-- [ ] TCP Packet Framing
-- [ ] Disconnect 처리
-
-## Multiplayer
-
-- [ ] 2 Client 접속
-- [ ] Spawn
-- [ ] Move
-- [ ] Broadcast
-- [ ] Despawn
-
-## Network Movement
-
-- [ ] Snapshot Buffer
-- [ ] Remote Player Interpolation
-- [ ] Server Authoritative Movement
-
 ## Collision
 
 - [ ] Spatial Hash
@@ -1337,49 +942,25 @@ Room / Matchmaking
 
 ---
 
-# 최종적으로 설명할 수 있어야 하는 전체 구조
+# 현재 작업에서 설명할 구조
+
+현재 범위와 완료 기준은 [11월 3~6일 작업 계획](Docs/InterviewPreparationPlan.md)을 따릅니다.
 
 ```text
-                   DX11 Client
-                       │
-          ┌────────────┴────────────┐
-          │                         │
-      Rendering                 Networking
-          │                         │
-    Render Queue                  TCP
-          │                         │
-    Sprite Batch                  IOCP
-          │                         │
-   Offscreen Target             Session
-          │                         │
-    Post Process             Packet Framing
-          │                         │
-       Vignette              Server World
-                                    │
-                              Authoritative
-                                Movement
-                                    │
-                                Snapshot
-                                    │
-                              Interpolation
+기존 DX11 Client
+  → GameWorld 소유권·FSM 전투·AABB
+  → RenderInfo → Render Queue / Sprite Batch → DrawIndexed
+  → Profiler 측정과 기존 결과 해석
 
+Thread Pool
+  → 기존 JSON 시작 로딩 이해
+  → 여러 작업·예외·종료 직접 검증
+  → 여유 시 PNG 읽기·디코딩 분리와 메인 스레드의 GPU 생성
 
-                  Game / Runtime
-                       │
-               Performance Profiler
-                       │
-              Collision / Spatial Hash
-                       │
-                    AABB
-
-
-                  Concurrency
-                       │
-                  Thread Pool
-                       │
-                   Job Queue
-                       │
-               Worker Threads
+별도 기본 실습
+  → TCP 문자열 Echo
+  → UDP 위치 값 Echo
+  → 크래시 덤프 수집·분석·수정 검증
 ```
 
 ---
@@ -1399,7 +980,7 @@ AI를 이용한 코드 / 구조 분석
    ↓
 직접 의사결정
    ↓
-AI와 함께 구현
+사용자가 직접 구현, AI는 API·설계 검토 지원
    ↓
 코드 리뷰
    ↓
@@ -1410,6 +991,6 @@ Edge Case 검증
 직접 설명
 ```
 
-기존 프로젝트에서 직접 구현한 C++ / DirectX 11 기반을 바탕으로 AI Agent를 **개발자를 대체하는 도구가 아니라 분석, 구현 보조, 검증을 위한 협업 도구**로 활용합니다.
+기존 프로젝트에서 직접 구현한 C++ / DirectX 11 기반을 바탕으로 AI Agent를 **개발자를 대체하는 도구가 아니라 분석, 설계·API 설명, 리뷰와 검증 방법 제안을 위한 협업 도구**로 활용합니다.
 
 스프린트가 끝났을 때는 추가된 모든 코드에 대해 기술면접에서 구조와 선택 이유를 설명할 수 있어야 합니다.
