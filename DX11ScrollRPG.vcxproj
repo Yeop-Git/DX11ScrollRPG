@@ -149,6 +149,9 @@
     <ClCompile Include="Engine\Core\UIManager.cpp" />
     <ClCompile Include="Engine\Graphics\Renderer.cpp" />
     <ClCompile Include="Engine\Graphics\ResourceManager.cpp" />
+    <ClCompile Include="Engine\Network\NetworkSystem.cpp" />
+    <ClCompile Include="Engine\Network\TcpSocket.cpp" />
+    <ClCompile Include="Engine\Network\UdpSocket.cpp" />
     <ClCompile Include="Engine\ThirdParty\stb\StbImage.cpp" />
     <ClCompile Include="Game\Data\GameData.cpp" />
     <ClCompile Include="Game\Animation\Animator.cpp" />
@@ -171,6 +174,9 @@
     <ClInclude Include="Engine\Graphics\ResourceManager.h" />
     <ClInclude Include="Engine\Graphics\SpriteId.h" />
     <ClInclude Include="Engine\Math\Vector2.h" />
+    <ClInclude Include="Engine\Network\NetworkSystem.h" />
+    <ClInclude Include="Engine\Network\TcpSocket.h" />
+    <ClInclude Include="Engine\Network\UdpSocket.h" />
     <ClInclude Include="Engine\ThirdParty\stb\stb_image.h" />
     <ClInclude Include="Game\Data\GameData.h" />
     <ClInclude Include="Engine\ThirdParty\nlohmann\json.hpp" />
@@ -260,8 +266,12 @@
     <ClCompile Include="Engine\Core\CombatHud.cpp" />
     <ClInclude Include="Engine\Core\CombatHud.h" />
   </ItemGroup>
-  <ItemGroup><ClCompile Include="Game\World\WorldCombat.cpp" /></ItemGroup>
-  <ItemGroup><ClInclude Include="Game\Combat\AttackInput.h" /></ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Game\World\WorldCombat.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Game\Combat\AttackInput.h" />
+  </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\Graphics\UIRadialFill.h" />
     <None Include="Assets\UI\SkillIcons\Normal.png" />

@@ -4,4 +4,5 @@
     <Platform Name="x86" />
   </Configurations>
   <Project Path="DX11ScrollRPG.vcxproj" Id="d7034cd3-6b2f-460a-9738-c532d1a6af7f" />
+  <Project Path="Server/Server.vcxproj" Id="a935b29a-c070-484b-aa24-028419ee644a" />
 </Solution>
